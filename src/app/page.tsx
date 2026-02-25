@@ -1,0 +1,59 @@
+export default function Home() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[80vh] px-6">
+      <div className="max-w-lg w-full text-center space-y-8">
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+          Afloat
+        </h1>
+        <p className="text-lg text-zinc-500 leading-relaxed">
+          A no-fluff cognitive assistant.
+          <br />
+          Get past context gates in under 2 minutes.
+        </p>
+
+        <div className="bg-zinc-50 rounded-xl p-6 space-y-4 text-left">
+          <h2 className="text-sm font-medium text-zinc-400 uppercase tracking-wide">
+            What it does
+          </h2>
+          <ul className="space-y-3 text-sm text-zinc-600">
+            <li className="flex gap-3">
+              <span className="text-zinc-300 mt-0.5">01</span>
+              <span>You describe what you&apos;re stuck on</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="text-zinc-300 mt-0.5">02</span>
+              <span>It identifies the type of block</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="text-zinc-300 mt-0.5">03</span>
+              <span>You get a short, honest brief — just enough to unblock</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="text-zinc-300 mt-0.5">04</span>
+              <span>One optional follow-up, then you&apos;re on your way</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="space-y-3">
+          <a
+            href="/subscribe"
+            className="inline-flex items-center justify-center w-full h-12 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors"
+          >
+            Subscribe — $3/month
+          </a>
+          <p className="text-xs text-zinc-400">
+            Cancel anytime. No hidden fees.
+          </p>
+        </div>
+
+        <div className="pt-4 border-t border-zinc-100">
+          <p className="text-xs text-zinc-400">
+            Meeting triage &middot; Priority decisions &middot; Quick briefings
+            &middot; Context gate resolution
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
