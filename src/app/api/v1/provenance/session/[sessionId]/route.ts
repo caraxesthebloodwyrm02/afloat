@@ -1,0 +1,31 @@
+import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { getSessionDPRs, verifySessionChain } from "@/lib/provenance";
+import type { ApiError } from "@/types/api";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
+  const authResult = await authenticateRequest(request);
+  if (!isAuthenticated(authResult)) return authResult;
+
+  const { sessionId } = await params;
+
+  const chain = await getSessionDPRs(sessionId);
+  if (chain.length === 0) {
+    return NextResponse.json<ApiError>(
+      { error: "not_found", message: "No provenance records found for this session." },
+      { status: 404 }
+    );
+  }
+
+  const integrity = await verifySessionChain(sessionId);
+
+  return NextResponse.json({
+    session_id: sessionId,
+    chain_length: chain.length,
+    chain_integrity: integrity,
+    records: chain,
+  });
+}

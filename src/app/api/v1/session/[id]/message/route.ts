@@ -9,6 +9,8 @@ import {
 import { callLLMWithRetry, LLMError } from "@/lib/llm";
 import { getSessionRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { MAX_LLM_CALLS } from "@/types/session";
+import { createDPR, getChainRef, storeDPR } from "@/lib/provenance";
+import type { SafetyVerdict } from "@/lib/provenance";
 import type { SessionMessageResponse, ApiError } from "@/types/api";
 
 export async function POST(
@@ -19,12 +21,40 @@ export async function POST(
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
+  const safetyVerdicts: SafetyVerdict[] = [];
+  let parentRef: { dpr_id: string; chain_hash: string; sequence_number: number } | null = null;
 
+  const authDPR = createDPR({
+    decision_type: "gate_verdict",
+    action_taken: "authentication_check",
+    reasoning_summary: "JWT bearer token validated",
+    authority_type: "system_policy",
+    actor_id: user.user_id,
+    safety_verdicts: [{ gate_id: "jwt_auth", gate_type: "auth", verdict: "pass", latency_ms: 0, confidence: 1.0 }],
+  }, null);
+  parentRef = getChainRef(authDPR);
+  safetyVerdicts.push({ gate_id: "jwt_auth", gate_type: "auth", verdict: "pass", latency_ms: 0, confidence: 1.0 });
+
+  const rateLimitStart = Date.now();
   const rateLimitResponse = await checkRateLimit(
     getSessionRateLimiter(),
     user.user_id
   );
-  if (rateLimitResponse) return rateLimitResponse;
+  const rateLimitMs = Date.now() - rateLimitStart;
+  if (rateLimitResponse) {
+    safetyVerdicts.push({ gate_id: "session_rate_limit", gate_type: "rate_limit", verdict: "block", latency_ms: rateLimitMs, confidence: 1.0 });
+    const rlDPR = createDPR({
+      decision_type: "gate_verdict",
+      action_taken: "rate_limit_enforcement",
+      reasoning_summary: "Session rate limit exceeded",
+      authority_type: "system_policy",
+      actor_id: user.user_id,
+      safety_verdicts: safetyVerdicts,
+    }, parentRef);
+    storeDPR(rlDPR).catch(() => { });
+    return rateLimitResponse;
+  }
+  safetyVerdicts.push({ gate_id: "session_rate_limit", gate_type: "rate_limit", verdict: "pass", latency_ms: rateLimitMs, confidence: 1.0 });
 
   const { id: sessionId } = await params;
   const session = await getSession(sessionId);
@@ -57,11 +87,34 @@ export async function POST(
 
   const enforcement = enforceSessionLimits(session, userMessage);
   if (!enforcement.allowed) {
+    safetyVerdicts.push({ gate_id: "session_enforce", gate_type: "boundary", verdict: "block", latency_ms: 0, confidence: 1.0 });
+    const enforceDPR = createDPR({
+      decision_type: "gate_verdict",
+      action_taken: "session_limit_enforcement",
+      input_context: userMessage,
+      reasoning_summary: `Session enforcement: ${enforcement.errorCode}`,
+      authority_type: "system_policy",
+      actor_id: user.user_id,
+      safety_verdicts: safetyVerdicts,
+    }, parentRef);
+    storeDPR(enforceDPR, sessionId).catch(() => { });
     return NextResponse.json<ApiError>(
       { error: enforcement.errorCode!, message: enforcement.errorMessage! },
       { status: enforcement.errorCode === "empty_input" ? 400 : 200 }
     );
   }
+  safetyVerdicts.push({ gate_id: "session_enforce", gate_type: "boundary", verdict: "pass", latency_ms: 0, confidence: 1.0 });
+
+  const enforceDPR = createDPR({
+    decision_type: "gate_verdict",
+    action_taken: "session_limit_check",
+    input_context: userMessage,
+    reasoning_summary: "Session limits within bounds",
+    authority_type: "system_policy",
+    actor_id: user.user_id,
+    safety_verdicts: safetyVerdicts,
+  }, parentRef);
+  parentRef = getChainRef(enforceDPR);
 
   const startTime = Date.now();
 
@@ -76,6 +129,26 @@ export async function POST(
     await updateSession(session);
 
     const turnsRemaining = MAX_LLM_CALLS - session.llm_call_count;
+
+    const generationDPR = createDPR({
+      decision_type: "generation",
+      action_taken: "llm_response_delivery",
+      input_context: userMessage,
+      output_content: llmResponse.brief,
+      model_id: "gpt-4o-mini",
+      model_parameters: { temperature: 0.3, max_tokens: 300 },
+      confidence: null,
+      reasoning_summary: `Gate: ${llmResponse.gate_type}, turns remaining: ${turnsRemaining}`,
+      authority_type: "system_policy",
+      actor_id: user.user_id,
+      safety_verdicts: safetyVerdicts,
+    }, parentRef);
+
+    Promise.all([
+      storeDPR(authDPR, sessionId),
+      storeDPR(enforceDPR, sessionId),
+      storeDPR(generationDPR, sessionId),
+    ]).catch(() => { });
 
     return NextResponse.json<SessionMessageResponse>({
       gate_type: llmResponse.gate_type,
@@ -94,6 +167,21 @@ export async function POST(
       error instanceof LLMError
         ? error.message
         : "I couldn't process that. Please try again.";
+
+    const errorDPR = createDPR({
+      decision_type: "generation",
+      action_taken: "llm_error_occurred",
+      input_context: userMessage,
+      reasoning_summary: `LLM error: ${error instanceof LLMError ? error.reason : "unknown"}`,
+      authority_type: "system_policy",
+      actor_id: user.user_id,
+      safety_verdicts: safetyVerdicts,
+    }, parentRef);
+    Promise.all([
+      storeDPR(authDPR, sessionId),
+      storeDPR(enforceDPR, sessionId),
+      storeDPR(errorDPR, sessionId),
+    ]).catch(() => { });
 
     return NextResponse.json<ApiError>(
       { error: "llm_error", message },
