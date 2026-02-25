@@ -4,6 +4,7 @@ import { getSession, deleteSession } from "@/lib/session-controller";
 import { writeSessionLog } from "@/lib/data-layer";
 import { getUser } from "@/lib/data-layer";
 import { shouldWriteTelemetry } from "@/lib/consent";
+import { getSessionEndRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
 import type { SessionEndResponse, ApiError } from "@/types/api";
 
@@ -15,6 +16,13 @@ export async function POST(
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
+
+  const rateLimitResponse = await checkRateLimit(
+    getSessionEndRateLimiter(),
+    user.user_id
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   const { id: sessionId } = await params;
   const session = await getSession(sessionId);
 
@@ -44,6 +52,7 @@ export async function POST(
   if (writeTelemetry) {
     await writeSessionLog({
       session_id: session.session_id,
+      user_id: session.user_id,
       start_time: session.start_time,
       end_time: endTime,
       turns: session.llm_call_count,

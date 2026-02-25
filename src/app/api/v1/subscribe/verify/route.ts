@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { retrieveCheckoutSession } from "@/lib/stripe";
 import { getUserByStripeCustomerId } from "@/lib/data-layer";
 import { createToken } from "@/lib/auth";
+import { getSubscribeRateLimiter, checkRateLimit } from "@/lib/rate-limit";
+import { hashIP, getClientIP } from "@/lib/audit";
 
 export async function POST(request: NextRequest) {
+  // Rate limit by IP
+  const ip = hashIP(getClientIP(request));
+  const rateLimitResponse = await checkRateLimit(
+    getSubscribeRateLimiter(),
+    ip
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   let body: { session_id?: string };
   try {
     body = await request.json();
@@ -24,7 +34,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const checkoutSession = await retrieveCheckoutSession(session_id);
-    const stripeCustomerId = checkoutSession.customer as string;
+    const stripeCustomerId =
+      typeof checkoutSession.customer === "string"
+        ? checkoutSession.customer
+        : checkoutSession.customer?.id ?? null;
 
     if (!stripeCustomerId) {
       return NextResponse.json(

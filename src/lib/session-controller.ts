@@ -4,6 +4,7 @@ import type { SessionState, GateType } from "@/types/session";
 import { MAX_LLM_CALLS, MAX_DURATION_MS } from "@/types/session";
 
 const SESSION_PREFIX = "session:";
+const SESSION_LOCK_PREFIX = "session_lock:";
 const SESSION_TTL_SECONDS = 150; // slightly longer than 120s to allow final writes
 
 export async function createSession(userId: string): Promise<SessionState> {
@@ -40,7 +41,11 @@ export async function updateSession(session: SessionState): Promise<void> {
   const ttlMs = MAX_DURATION_MS - (Date.now() - new Date(session.start_time).getTime());
   const ttlSeconds = Math.max(Math.ceil(ttlMs / 1000) + 30, 10);
 
-  await redis.set(`${SESSION_PREFIX}${session.session_id}`, JSON.stringify(session), {
+  // Strip conversation_history before persisting — user text must not be written to the data layer (DF-01)
+  const { conversation_history: _stripped, ...persistable } = session;
+  const toStore = { ...persistable, conversation_history: [] };
+
+  await redis.set(`${SESSION_PREFIX}${session.session_id}`, JSON.stringify(toStore), {
     ex: ttlSeconds,
   });
 }
@@ -48,6 +53,21 @@ export async function updateSession(session: SessionState): Promise<void> {
 export async function deleteSession(sessionId: string): Promise<void> {
   const redis = getRedis();
   await redis.del(`${SESSION_PREFIX}${sessionId}`);
+  await redis.del(`${SESSION_LOCK_PREFIX}${sessionId}`);
+}
+
+export async function acquireSessionLock(sessionId: string): Promise<boolean> {
+  const redis = getRedis();
+  const result = await redis.set(`${SESSION_LOCK_PREFIX}${sessionId}`, "1", {
+    nx: true,
+    ex: 10, // auto-release after 10s to prevent deadlocks
+  });
+  return result === "OK";
+}
+
+export async function releaseSessionLock(sessionId: string): Promise<void> {
+  const redis = getRedis();
+  await redis.del(`${SESSION_LOCK_PREFIX}${sessionId}`);
 }
 
 export interface EnforcementResult {
@@ -100,6 +120,8 @@ export function recordTurn(
   if (!session.gate_type) {
     session.gate_type = gateType;
   }
+  // NOTE: conversation_history is maintained in-memory only for the API call.
+  // It is NOT written to the data layer — see updateSession which strips it.
   session.conversation_history.push(
     { role: "user", content: userMessage },
     { role: "assistant", content: assistantBrief }

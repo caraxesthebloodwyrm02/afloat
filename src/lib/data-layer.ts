@@ -66,16 +66,21 @@ export async function exportUserData(userId: string): Promise<Record<string, unk
   if (!user) return null;
 
   const redis = getRedis();
-  const sessionKeys = await redis.keys("sessions:*");
   const userSessions: SessionLog[] = [];
-
-  for (const key of sessionKeys) {
-    const entries = await redis.lrange(key, 0, -1);
-    for (const entry of entries) {
-      const log = (typeof entry === "string" ? JSON.parse(entry) : entry) as SessionLog;
-      userSessions.push(log);
+  let cursor = 0;
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, { match: "sessions:*", count: 100 });
+    cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+    for (const key of keys) {
+      const entries = await redis.lrange(key, 0, -1);
+      for (const entry of entries) {
+        const log = (typeof entry === "string" ? JSON.parse(entry) : entry) as SessionLog;
+        if (log.user_id === userId) {
+          userSessions.push(log);
+        }
+      }
     }
-  }
+  } while (cursor !== 0);
 
   return {
     user_profile: {
@@ -125,8 +130,38 @@ export async function permanentlyDeleteUserData(userId: string): Promise<void> {
 
   const user = await getUser(userId);
   if (user) {
+    if (user.stripe_customer_id) {
+      try {
+        const { deleteStripeCustomer } = await import("./stripe");
+        await deleteStripeCustomer(user.stripe_customer_id);
+      } catch {
+        // best-effort Stripe customer deletion
+      }
+    }
     await redis.del(`stripe_map:${user.stripe_customer_id}`);
   }
+
+  // Delete session logs belonging to this user
+  let cursor = 0;
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, { match: "sessions:*", count: 100 });
+    cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+    for (const key of keys) {
+      const entries = await redis.lrange(key, 0, -1);
+      const remaining: string[] = [];
+      for (const entry of entries) {
+        const log = (typeof entry === "string" ? JSON.parse(entry) : entry) as SessionLog;
+        if (log.user_id !== userId) {
+          remaining.push(typeof entry === "string" ? entry : JSON.stringify(entry));
+        }
+      }
+      // Replace the list atomically: delete then re-push
+      await redis.del(key);
+      if (remaining.length > 0) {
+        await redis.rpush(key, ...remaining);
+      }
+    }
+  } while (cursor !== 0);
 
   await redis.del(`${USER_PREFIX}${userId}`);
 }

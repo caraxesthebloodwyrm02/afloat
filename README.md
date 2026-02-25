@@ -62,6 +62,8 @@ npm run dev
 | `GET` | `/api/v1/user/data-export` | Export user data | JWT |
 | `DELETE` | `/api/v1/user/data` | Request data deletion | JWT |
 | `PATCH` | `/api/v1/user/profile` | Update display name / email pref | JWT |
+| `GET` | `/api/v1/provenance/session/{id}` | Get session provenance chain | JWT |
+| `GET` | `/api/v1/provenance/verify/{id}` | Verify session chain integrity | JWT |
 | `POST` | `/api/v1/webhooks/stripe` | Stripe webhook receiver | Stripe sig |
 
 ## Project Structure
@@ -94,7 +96,7 @@ src/
 ## Contract Reference
 
 The design spec lives in a separate contract repo (`e:\assistive-tool-contract`):
-- `contract.json` v1.4.1 — source of truth
+- `contract.json` v1.4.0 — source of truth
 - `ARCHITECTURE.md` — 11-section system design
 - `BUILD_GUIDE.md` — 9-step build sequence
 - `BUILD_MAP.md` — file-level implementation blueprint

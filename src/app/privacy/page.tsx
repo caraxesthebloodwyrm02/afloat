@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="max-w-2xl mx-auto px-6 py-12 space-y-8">
       <h1 className="text-2xl font-semibold text-zinc-900">Privacy Policy</h1>
-      <p className="text-xs text-zinc-400">Version: v1.0 (draft) &middot; Effective: TBD</p>
+      <p className="text-xs text-zinc-400">Version: v1.0 &middot; Effective: March 1, 2026</p>
 
       <section className="space-y-3">
         <h2 className="text-base font-medium text-zinc-800">What Afloat Does</h2>
@@ -22,9 +22,10 @@ export default function PrivacyPolicyPage() {
         <h2 className="text-base font-medium text-zinc-800">Data We Collect</h2>
         <ul className="text-sm text-zinc-600 space-y-2 leading-relaxed">
           <li>
-            <strong>Session input (your text):</strong> Processed in memory only to generate a
-            response. Never written to disk. Never stored. Discarded immediately after the response
-            is delivered.
+            <strong>Session input (your text):</strong> Processed in memory on our servers to generate a
+            response. Never written to our database. Discarded from our systems after the response
+            is delivered. However, your text is sent to OpenAI for processing, and OpenAI may
+            retain it in abuse monitoring logs for up to 30 days by default.
           </li>
           <li>
             <strong>Session telemetry:</strong> If you consent, we record session duration, response
@@ -82,7 +83,7 @@ export default function PrivacyPolicyPage() {
       <section className="space-y-3">
         <h2 className="text-base font-medium text-zinc-800">Data Retention</h2>
         <ul className="text-sm text-zinc-600 space-y-2 leading-relaxed">
-          <li><strong>User text input:</strong> 0 days (never persisted)</li>
+          <li><strong>User text input:</strong> 0 days on our servers. OpenAI retains prompts/responses for up to 30 days in abuse monitoring logs by default.</li>
           <li><strong>Session telemetry:</strong> 90 days, then aggregated and anonymized</li>
           <li><strong>Consent records:</strong> Account lifetime + 365 days</li>
           <li><strong>Subscription reference:</strong> Account lifetime + 30 days</li>
@@ -95,8 +96,10 @@ export default function PrivacyPolicyPage() {
         <h2 className="text-base font-medium text-zinc-800">Third-Party Processors</h2>
         <ul className="text-sm text-zinc-600 space-y-2 leading-relaxed">
           <li>
-            <strong>OpenAI:</strong> Processes your session text to generate briefs. Text is
-            transient and not used for model training (per OpenAI API data usage policy).{" "}
+            <strong>OpenAI:</strong> Processes your session text to generate briefs. Not used
+            for model training (since March 2023). However, OpenAI retains prompts and responses
+            in abuse monitoring logs for up to 30 days by default. Zero Data Retention requires
+            separate approval.{" "}
             <a href="https://openai.com/policies/privacy-policy" className="underline hover:text-zinc-900">
               OpenAI Privacy Policy
             </a>
@@ -129,7 +132,7 @@ export default function PrivacyPolicyPage() {
         <h2 className="text-base font-medium text-zinc-800">Contact</h2>
         <p className="text-sm text-zinc-600 leading-relaxed">
           For privacy inquiries, contact us at:{" "}
-          <span className="font-mono text-zinc-500">FILL_BEFORE_LAUNCH</span>
+          <a href="mailto:irfankabir02@gmail.com" className="font-mono underline hover:text-zinc-900">irfankabir02@gmail.com</a>
         </p>
       </section>
 

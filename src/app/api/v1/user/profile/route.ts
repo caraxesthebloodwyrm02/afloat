@@ -40,7 +40,14 @@ export async function PATCH(request: NextRequest) {
   const updates: Record<string, string> = {};
   for (const field of ALLOWED_FIELDS) {
     if (field in body && typeof body[field] === "string") {
-      updates[field] = body[field] as string;
+      const value = body[field] as string;
+      if (value.length > 200) {
+        return NextResponse.json<ApiError>(
+          { error: "empty_input", message: `${field} must be 200 characters or fewer.` },
+          { status: 400 }
+        );
+      }
+      updates[field] = value;
     }
   }
 

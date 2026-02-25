@@ -26,6 +26,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Inform user if their account is pending deletion
+  if (userRecord.pending_deletion) {
+    return NextResponse.json<ApiError>(
+      {
+        error: "forbidden",
+        message: `Your account is scheduled for deletion on ${userRecord.pending_deletion.deletion_date}. Visit settings to cancel deletion and continue using Afloat.`,
+      },
+      { status: 403 }
+    );
+  }
+
   const session = await createSession(user.user_id);
 
   await writeAuditLog({

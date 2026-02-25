@@ -33,7 +33,7 @@ export default function SettingsPage() {
           });
         }
       } catch {
-        // silent
+        setMessage("Failed to load settings.");
       }
     }
 

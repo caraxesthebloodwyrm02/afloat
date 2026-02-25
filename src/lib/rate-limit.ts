@@ -5,6 +5,8 @@ import type { ApiError } from "@/types/api";
 
 let sessionLimiter: Ratelimit | null = null;
 let dataRightsLimiter: Ratelimit | null = null;
+let subscribeLimiter: Ratelimit | null = null;
+let sessionEndLimiter: Ratelimit | null = null;
 
 export function getSessionRateLimiter(): Ratelimit {
   if (!sessionLimiter) {
@@ -26,6 +28,28 @@ export function getDataRightsRateLimiter(): Ratelimit {
     });
   }
   return dataRightsLimiter;
+}
+
+export function getSubscribeRateLimiter(): Ratelimit {
+  if (!subscribeLimiter) {
+    subscribeLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(10, "1 h"),
+      prefix: "rl:subscribe",
+    });
+  }
+  return subscribeLimiter;
+}
+
+export function getSessionEndRateLimiter(): Ratelimit {
+  if (!sessionEndLimiter) {
+    sessionEndLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(30, "1 h"),
+      prefix: "rl:session_end",
+    });
+  }
+  return sessionEndLimiter;
 }
 
 export async function checkRateLimit(

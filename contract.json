@@ -1,7 +1,7 @@
 {
   "contract": {
     "id": "7a55f0f1-84be-43b7-8385-5dc0cbb49bed",
-    "version": "1.4.0",
+    "version": "1.4.2",
     "created": "2026-02-25T18:04:41.157591+00:00",
     "status": "pre_launch",
     "time_window": {
@@ -13,8 +13,8 @@
     "parties": {
       "provider": {
         "identity": {
-          "name": "FILL_BEFORE_START",
-          "contact_email": "FILL_BEFORE_START"
+          "name": "Irfan Kabir",
+          "contact_email": "irfankabir02@gmail.com"
         },
         "role": "tool_operator",
         "responsibilities": [
@@ -30,11 +30,11 @@
     },
     "governance": {
       "responsibility_owners": {
-        "system_architecture": "FILL_BEFORE_START",
-        "instrumentation": "FILL_BEFORE_START",
-        "payment_integration": "FILL_BEFORE_START",
-        "marketing": "FILL_BEFORE_START",
-        "ledger_reporting": "FILL_BEFORE_START"
+        "system_architecture": "Irfan Kabir",
+        "instrumentation": "Irfan Kabir",
+        "payment_integration": "Irfan Kabir",
+        "marketing": "Irfan Kabir",
+        "ledger_reporting": "Irfan Kabir"
       }
     }
   },
@@ -493,7 +493,7 @@
       "audit_logging_specified": true,
       "retention_policies_specified": true,
       "privacy_policy_specified": true,
-      "third_party_dpas_pending": ["OpenAI", "Stripe", "Vercel"],
+      "third_party_dpas_pending": [],
       "pre_launch_blockers": [
         "Sign DPAs with all third-party processors",
         "Draft and publish privacy policy v1.0",
@@ -764,7 +764,7 @@
       ],
       "versioning": {
         "format": "privacy_policy_v{MAJOR}.{MINOR}",
-        "current_version": "pending_initial_draft",
+        "current_version": "privacy_policy_v1.0",
         "change_notification": "Email + in-app banner 14 days before material changes take effect",
         "consent_impact": "Material changes trigger consent_renewal (CM-03)"
       },
@@ -774,21 +774,27 @@
           "purpose": "LLM inference for context-gate briefs",
           "data_shared": ["user_text_input (transient)"],
           "dpa_required": true,
-          "dpa_status": "pending"
+          "dpa_status": "auto_incorporated",
+          "dpa_mechanism": "Incorporated by reference into OpenAI Services Agreement per https://openai.com/policies/data-processing-addendum/ (effective 2026-01-01)",
+          "dpa_verified_date": "2026-02-26"
         },
         {
           "name": "Stripe",
           "purpose": "Payment processing for $3/mo subscription",
           "data_shared": ["email", "payment_method_token"],
           "dpa_required": true,
-          "dpa_status": "pending"
+          "dpa_status": "auto_incorporated",
+          "dpa_mechanism": "Forms part of Stripe Services Agreement (SSA) per https://stripe.com/legal/dpa",
+          "dpa_verified_date": "2026-02-26"
         },
         {
           "name": "Vercel",
           "purpose": "Application hosting (free tier)",
           "data_shared": ["server_logs (IP addresses, request metadata)"],
           "dpa_required": true,
-          "dpa_status": "pending"
+          "dpa_status": "auto_incorporated",
+          "dpa_mechanism": "Data Processing Addendum incorporated into Agreement per https://vercel.com/legal/dpa",
+          "dpa_verified_date": "2026-02-26"
         }
       ]
     },
@@ -862,6 +868,24 @@
     }
   },
   "changelog": [
+    {
+      "version": "1.4.2",
+      "date": "2026-02-26T05:40:00+06:00",
+      "changes": [
+        "Compliance sprint: verified all three DPAs are auto-incorporated (OpenAI, Stripe, Vercel)",
+        "Updated dpa_status from pending to auto_incorporated with mechanism references and verification dates",
+        "Cleared third_party_dpas_pending array",
+        "Published privacy policy v1.0 at /privacy with contact email, effective date 2026-03-01",
+        "Completed Data Protection Impact Assessment (DPIA.md): 5 risks assessed, all acceptable",
+        "Updated privacy_policy.versioning.current_version to privacy_policy_v1.0",
+        "Added error.tsx, not-found.tsx, loading.tsx boundary files",
+        "Fixed localhost fallback in subscribe route (fail-fast if NEXT_PUBLIC_APP_URL missing)",
+        "Fixed silent catch block in settings page",
+        "Added tests: api-routes.test.ts (16 tests), edge-cases.test.ts (30 tests), reliability-run.ts script",
+        "Fixed provenance test failures (added env block to vitest.config.ts)",
+        "All 85 tests passing, TypeScript clean, ESLint clean, build clean"
+      ]
+    },
     {
       "version": "1.4.0",
       "date": "2026-02-26T01:00:00+06:00",
