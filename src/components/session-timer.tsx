@@ -6,9 +6,11 @@ interface SessionTimerProps {
   startTime: number;
   maxDurationMs: number;
   isActive: boolean;
+  onExpire?: () => void;
 }
 
-export function SessionTimer({ startTime, maxDurationMs, isActive }: SessionTimerProps) {
+export function SessionTimer({ startTime, maxDurationMs, isActive, onExpire }: SessionTimerProps) {
+  "use no memo";
   const calcRemaining = useCallback(() => {
     if (!startTime) return maxDurationMs;
     const elapsed = Date.now() - startTime;
@@ -20,10 +22,14 @@ export function SessionTimer({ startTime, maxDurationMs, isActive }: SessionTime
   useEffect(() => {
     if (!isActive) return;
     const interval = setInterval(() => {
-      setRemaining(calcRemaining());
+      const newRemaining = calcRemaining();
+      setRemaining(newRemaining);
+      if (newRemaining <= 0 && onExpire) {
+        onExpire();
+      }
     }, 200);
     return () => clearInterval(interval);
-  }, [isActive, calcRemaining]);
+  }, [isActive, calcRemaining, onExpire]);
 
   const totalSeconds = Math.ceil(remaining / 1000);
   const minutes = Math.floor(totalSeconds / 60);
