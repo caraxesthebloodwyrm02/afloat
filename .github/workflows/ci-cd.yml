@@ -68,9 +68,8 @@ jobs:
           path: |
             .next/BUILD_ID
             .next/build-manifest.json
-            .next/prerender-manifest.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
 
   deploy_preview:
     name: Deploy preview to Vercel
