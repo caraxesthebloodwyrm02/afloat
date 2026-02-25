@@ -8,13 +8,13 @@ function SubscribeSuccessContent() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
 
   useEffect(() => {
-    const sessionId = searchParams.get("session_id");
-    if (!sessionId) {
-      setStatus("error");
-      return;
-    }
-
     async function verify() {
+      const sessionId = searchParams.get("session_id");
+      if (!sessionId) {
+        setStatus("error");
+        return;
+      }
+
       try {
         const res = await fetch("/api/v1/subscribe/verify", {
           method: "POST",

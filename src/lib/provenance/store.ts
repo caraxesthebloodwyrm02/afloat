@@ -61,7 +61,8 @@ export async function verifySessionChain(
   for (let i = 0; i < chain.length; i++) {
     const dpr = chain[i];
 
-    const { chain_hash, signature, ...rest } = dpr;
+    const { chain_hash: _, signature: __, ...rest } = dpr;
+    void _; void __;
     const serialized = serializeDPRForHashing(
       rest as Omit<DecisionProvenanceRecord, "chain_hash" | "signature">
     );

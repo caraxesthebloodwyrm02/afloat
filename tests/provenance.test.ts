@@ -68,7 +68,8 @@ describe("Hash chain integrity", () => {
     const dpr = createDPR(makeInput(), null);
     const tampered = { ...dpr, chain_hash: "tampered_hash_value" };
 
-    const { chain_hash, signature, ...rest } = tampered;
+    const { chain_hash: _, signature: __, ...rest } = tampered;
+    void _; void __;
     const serialized = serializeDPRForHashing(rest as Parameters<typeof serializeDPRForHashing>[0]);
     const parentHash = null;
     const expectedHash = computeChainHash(parentHash, serialized);

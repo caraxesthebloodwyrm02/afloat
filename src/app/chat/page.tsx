@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ChatWindow } from "@/components/chat-window";
 import { ChatInput } from "@/components/chat-input";
 import { SessionTimer } from "@/components/session-timer";
@@ -22,67 +22,68 @@ interface Message {
 
 const MAX_DURATION_MS = 120_000;
 
+function readToken(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("afloat_token") ?? "";
+}
+
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessionState, setSessionState] = useState<SessionState>("waiting_for_input");
+  const [sessionState, setSessionState] = useState<SessionState>(() =>
+    readToken() ? "waiting_for_input" : "not_subscribed"
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [startTime, setStartTime] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [token, setToken] = useState<string>("");
+  const tokenRef = useRef(readToken());
 
   useEffect(() => {
-    const stored = localStorage.getItem("afloat_token");
-    if (!stored) {
-      setSessionState("not_subscribed");
-      return;
-    }
-    setToken(stored);
-  }, []);
+    const tok = tokenRef.current;
+    if (!tok || sessionId) return;
 
-  const startSession = useCallback(async () => {
-    if (!token) {
-      setSessionState("not_subscribed");
-      return;
-    }
+    const controller = new AbortController();
+    let cancelled = false;
 
-    try {
-      const res = await fetch("/api/v1/session/start", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+    fetch("/api/v1/session/start", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tok}` },
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === 403) {
+          setSessionState("not_subscribed");
+          return;
+        }
+        if (!res.ok) {
+          setSessionState("error");
+          setErrorMessage("Failed to start session.");
+          return;
+        }
+        return res.json().then((data) => {
+          if (cancelled) return;
+          setSessionId(data.session_id);
+          setStartTime(Date.now());
+          setMessages([]);
+          setSessionState("waiting_for_input");
+          setErrorMessage("");
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSessionState("error");
+        setErrorMessage("Network error. Please try again.");
       });
 
-      if (res.status === 403) {
-        setSessionState("not_subscribed");
-        return;
-      }
-
-      if (!res.ok) {
-        setSessionState("error");
-        setErrorMessage("Failed to start session.");
-        return;
-      }
-
-      const data = await res.json();
-      setSessionId(data.session_id);
-      setStartTime(Date.now());
-      setMessages([]);
-      setSessionState("waiting_for_input");
-      setErrorMessage("");
-    } catch {
-      setSessionState("error");
-      setErrorMessage("Network error. Please try again.");
-    }
-  }, [token]);
-
-  useEffect(() => {
-    if (token && !sessionId) {
-      startSession();
-    }
-  }, [token, sessionId, startSession]);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [sessionId]);
 
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!sessionId || !token) return;
+      if (!sessionId || !tokenRef.current) return;
 
       setMessages((prev) => [...prev, { role: "user", content: text }]);
       setSessionState("waiting_for_response");
@@ -92,7 +93,7 @@ export default function ChatPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${tokenRef.current}`,
           },
           body: JSON.stringify({ message: text }),
         });
@@ -128,23 +129,23 @@ export default function ChatPage() {
         setErrorMessage("Network error. Please try again.");
       }
     },
-    [sessionId, token]
+    [sessionId]
   );
 
   const endSession = useCallback(async () => {
-    if (!sessionId || !token) return;
+    if (!sessionId || !tokenRef.current) return;
 
     try {
       await fetch(`/api/v1/session/${sessionId}/end`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
     } catch {
       // best-effort
     }
 
     setSessionState("follow_up_delivered");
-  }, [sessionId, token]);
+  }, [sessionId]);
 
   const handleNewSession = useCallback(() => {
     setSessionId(null);
@@ -153,6 +154,19 @@ export default function ChatPage() {
     setErrorMessage("");
     setStartTime(0);
   }, []);
+
+  const handleTimerExpire = useCallback(() => {
+    if (sessionState === "waiting_for_input" || sessionState === "brief_delivered") {
+      setSessionState("session_timed_out");
+      // Best-effort end session on server
+      if (sessionId && tokenRef.current) {
+        fetch(`/api/v1/session/${sessionId}/end`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${tokenRef.current}` },
+        }).catch(() => {});
+      }
+    }
+  }, [sessionState, sessionId]);
 
   const isTimerActive =
     sessionState === "waiting_for_input" ||
@@ -183,6 +197,7 @@ export default function ChatPage() {
             startTime={startTime}
             maxDurationMs={MAX_DURATION_MS}
             isActive={isTimerActive}
+            onExpire={handleTimerExpire}
           />
         )}
       </header>
