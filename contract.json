@@ -1,0 +1,934 @@
+{
+  "contract": {
+    "id": "7a55f0f1-84be-43b7-8385-5dc0cbb49bed",
+    "version": "1.4.0",
+    "created": "2026-02-25T18:04:41.157591+00:00",
+    "status": "pre_launch",
+    "time_window": {
+      "days": 90,
+      "start": "2026-03-01T00:00:00+06:00",
+      "end": "2026-05-29T23:59:59+06:00",
+      "note": "Start date is set when Phase 1 begins. End date auto-calculated as start + 90 days."
+    },
+    "parties": {
+      "provider": {
+        "identity": {
+          "name": "FILL_BEFORE_START",
+          "contact_email": "FILL_BEFORE_START"
+        },
+        "role": "tool_operator",
+        "responsibilities": [
+          "Build and maintain the tool",
+          "Ensure baselines are met",
+          "Track and report all costs transparently",
+          "Deliver revenue target within time window"
+        ]
+      },
+      "stakeholder_domains": ["art", "market", "finance"],
+      "stakeholders": [],
+      "note": "Stakeholder identities to be populated when onboarded. Domains define the evaluation lens."
+    },
+    "governance": {
+      "responsibility_owners": {
+        "system_architecture": "FILL_BEFORE_START",
+        "instrumentation": "FILL_BEFORE_START",
+        "payment_integration": "FILL_BEFORE_START",
+        "marketing": "FILL_BEFORE_START",
+        "ledger_reporting": "FILL_BEFORE_START"
+      }
+    }
+  },
+  "tool": {
+    "name": "Afloat",
+    "type": "assistive",
+    "mode": "collaborative",
+    "deployment": "vercel_free_tier",
+    "relation_to_existing_projects": "none",
+    "target_users": "general",
+    "description": "A no-fluff, grounded, transparent quick-chat AI assistant (~2 min max per session) focused on cognitive and decision-support tasks. Helps users get past context gates — moments where a brief summary or decision nudge unblocks engagement.",
+    "scope": {
+      "focus": "cognitive_decision_support",
+      "examples": [
+        "meeting_triage: should I set this meeting or skip it?",
+        "priority_decisions: which of these should I tackle first?",
+        "quick_briefings: give me the gist so I can engage",
+        "context_gate_resolution: I'm stuck because I don't understand the situation"
+      ],
+      "session_max_duration_minutes": 2,
+      "session_style": "no_fluff_grounded_transparent_honest",
+      "out_of_scope": [
+        "Autonomously completing tasks for the user",
+        "Extended multi-hour workflows",
+        "Tasks requiring high effort or specialized credentials",
+        "Anything that replaces the user's decision-making"
+      ],
+      "session_flow": [
+        {
+          "step": 1,
+          "name": "user_input",
+          "description": "User describes their context or question"
+        },
+        {
+          "step": 2,
+          "name": "gate_detection",
+          "description": "LLM identifies the context gate type (meeting_triage, priority_decision, quick_briefing, or context_gate_resolution)"
+        },
+        {
+          "step": 3,
+          "name": "brief_delivery",
+          "description": "LLM returns a proportional brief (max 150 words) to unblock the user"
+        },
+        {
+          "step": 4,
+          "name": "user_decision",
+          "description": "User proceeds or asks one follow-up (max 1 follow-up before session ends)"
+        }
+      ]
+    },
+    "principles": [
+      {
+        "name": "functional",
+        "definition": "The tool completes its core workflow reliably without errors"
+      },
+      {
+        "name": "efficient",
+        "definition": "Responses are fast and sessions stay within the 2-minute scope"
+      },
+      {
+        "name": "productive",
+        "definition": "Users measurably get past context gates after using the tool"
+      }
+    ],
+    "behavior": {
+      "autonomous_completion": false,
+      "scope_identification": true,
+      "context_delivery": true,
+      "collaborative_ambiance": true,
+      "proportional_assistance": true,
+      "user_encouragement": true
+    },
+    "architecture": {
+      "llm_layer": {
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "max_tokens_per_response": 300,
+        "system_prompt_strategy": "context_gate_detection_and_brief_delivery"
+      },
+      "session_controller": {
+        "max_turns": 3,
+        "max_duration_seconds": 120,
+        "enforcement": "server_side_timer_and_turn_counter"
+      },
+      "data_layer": {
+        "format": "json_logging",
+        "upgrade_path": "sqlite",
+        "fields_per_session": [
+          "session_id",
+          "start_time",
+          "end_time",
+          "turns",
+          "gate_type",
+          "user_proceeded",
+          "latency_per_turn"
+        ]
+      },
+      "payment_layer": {
+        "provider": "stripe",
+        "integration": "stripe_checkout",
+        "plan": "$3/mo_recurring"
+      },
+      "frontend": {
+        "type": "minimal_chat_ui",
+        "framework": "nextjs_app_router",
+        "deployment": "vercel_free_tier"
+      }
+    },
+    "documentation": {
+      "architecture": "ARCHITECTURE.md",
+      "build_guide": "BUILD_GUIDE.md",
+      "scope": "Baseline system design, component map, session lifecycle, LLM prompt strategy, data layer schema, instrumentation hooks, API route map, security boundaries, and 9-step plain-English build sequence."
+    },
+    "repository": {
+      "url": "https://github.com/caraxesthebloodwyrm02/afloat",
+      "visibility": "private",
+      "platform": "github"
+    }
+  },
+  "baselines": {
+    "functional": {
+      "metric": "session_success_rate",
+      "description": "Percentage of sessions that complete without errors",
+      "threshold": 0.95,
+      "unit": "ratio",
+      "measurement": "total_successful_sessions / total_sessions"
+    },
+    "efficient": {
+      "metric": "response_latency",
+      "description": "Time from user input to tool response per turn",
+      "threshold": 3.0,
+      "unit": "seconds",
+      "measurement": "avg(response_time_per_turn)"
+    },
+    "productive": {
+      "metric": "context_gate_pass_rate",
+      "description": "Percentage of sessions where user proceeds past the context gate",
+      "threshold": 0.70,
+      "unit": "ratio",
+      "measurement": "sessions_where_user_proceeded / total_sessions"
+    },
+    "session_scope": {
+      "metric": "avg_session_duration",
+      "description": "Average time a user spends in a single session",
+      "threshold": 2.0,
+      "unit": "minutes",
+      "measurement": "avg(session_end - session_start)"
+    },
+    "revenue_net": {
+      "metric": "net_revenue",
+      "description": "Total revenue minus all costs after 90 days",
+      "threshold": 22.00,
+      "unit": "usd",
+      "measurement": "sum(gross_revenue) - sum(all_costs)"
+    },
+    "transparency": {
+      "metric": "cost_coverage_ratio",
+      "description": "Gross revenue covers net target plus all costs with zero hidden extras",
+      "threshold": 1.0,
+      "unit": "ratio",
+      "measurement": "gross_revenue / (net_target + total_costs)"
+    },
+    "instrumentation": {
+      "session_success_rate": {
+        "collection": "Log session_completed boolean per session at session end",
+        "storage": "data_layer session log",
+        "reporting": "Daily aggregate ratio"
+      },
+      "response_latency": {
+        "collection": "Timestamp diff between request_received and response_sent per turn",
+        "storage": "data_layer latency_per_turn array",
+        "reporting": "Rolling 7-day average"
+      },
+      "context_gate_pass_rate": {
+        "collection": "Log user_proceeded boolean per session (true if user engages after brief)",
+        "storage": "data_layer session log",
+        "reporting": "Daily aggregate ratio"
+      },
+      "avg_session_duration": {
+        "collection": "Timestamp diff between session_start and session_end",
+        "storage": "data_layer session log",
+        "reporting": "Rolling 7-day average in minutes"
+      }
+    }
+  },
+  "revenue": {
+    "net_target_usd": 22.00,
+    "selected_model": "A_micro_subscription",
+    "selected_model_details": {
+      "name": "Micro-Subscription",
+      "price_usd": 3.00,
+      "billing_period": "monthly",
+      "users_needed": 12,
+      "projected_gross_usd": 36.00,
+      "acquisition_rate": "~1 user per week via organic channels",
+      "risk_level": "low",
+      "rationale": "Predictable recurring revenue. Small user base needed. Low acquisition pressure."
+    },
+    "alternative_models": {
+      "B_pay_per_use": {
+        "price_usd": 0.25,
+        "per": "session",
+        "sessions_needed": 140,
+        "projected_gross_usd": 35.00,
+        "risk_level": "medium"
+      },
+      "C_one_time_purchase": {
+        "price_usd": 5.00,
+        "per": "lifetime",
+        "users_needed": 7,
+        "projected_gross_usd": 35.00,
+        "risk_level": "lowest"
+      },
+      "D_hybrid_freemium": {
+        "free_sessions_per_day": 3,
+        "premium_usd": 2.00,
+        "users_needed": "10-15",
+        "risk_level": "variable"
+      }
+    },
+    "estimated_costs": {
+      "llm_api": {
+        "estimate_usd": 6.00,
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "basis": "~2 min sessions, small token footprint, 90-day projection"
+      },
+      "hosting": {
+        "estimate_usd": 0.00,
+        "provider": "free_tier",
+        "basis": "Vercel/Netlify/Railway free tier or local-first deployment"
+      },
+      "marketing": {
+        "estimate_usd": 5.00,
+        "channel": "organic_plus_minimal_ads",
+        "basis": "Social media, word of mouth, optional $5 ad spend"
+      },
+      "domain": {
+        "estimate_usd": 1.00,
+        "provider": "optional",
+        "basis": "Free subdomain available; $1 if custom domain desired"
+      },
+      "payment_processing": {
+        "estimate_usd": 1.10,
+        "provider": "stripe_or_gumroad",
+        "rate": 0.03,
+        "basis": "~3% of projected $36 gross = ~$1.08, rounded up to $1.10"
+      }
+    },
+    "total_estimated_costs_usd": 13.10,
+    "gross_target_usd": 35.10,
+    "conservative_gross_target_usd": 36.00,
+    "projected_gross_with_model_A_usd": 36.00,
+    "projected_net_with_model_A_usd": 22.90,
+    "surplus_usd": 0.90,
+    "rule": "gross_revenue >= net_target + sum(all_costs); zero hidden extras. If actual costs exceed estimates, gross target adjusts upward to preserve $22 net.",
+    "acquisition_stress_test": {
+      "best_case": {
+        "rate": "1.2 users/week",
+        "subscribers_90d": 14,
+        "gross_usd": 42.00,
+        "net_usd": 28.90,
+        "result": "PASS"
+      },
+      "expected_case": {
+        "rate": "1.0 users/week",
+        "subscribers_90d": 12,
+        "gross_usd": 36.00,
+        "net_usd": 22.90,
+        "result": "PASS"
+      },
+      "worst_case": {
+        "rate": "0.7 users/week",
+        "subscribers_90d": 9,
+        "gross_usd": 27.00,
+        "net_usd": 13.90,
+        "result": "FAIL",
+        "mitigation": "Activate Model C (one-time $5 purchase) as supplementary channel by day 60"
+      }
+    },
+    "ledger": {
+      "description": "Real-time transparency ledger. Every financial event is recorded with itemized breakdown.",
+      "schema": {
+        "entry": {
+          "date": "ISO-8601",
+          "type": "revenue | cost",
+          "category": "subscription | llm_api | hosting | marketing | domain | payment_processing | other",
+          "amount_usd": 0.00,
+          "description": "",
+          "running_gross_total": 0.00,
+          "running_cost_total": 0.00,
+          "running_net_total": 0.00
+        }
+      },
+      "entries": [
+        {
+          "date": "2026-02-26T00:00:00+06:00",
+          "type": "cost",
+          "category": "other",
+          "amount_usd": 0.00,
+          "description": "Ledger initialization — test entry to validate audit trail",
+          "running_gross_total": 0.00,
+          "running_cost_total": 0.00,
+          "running_net_total": 0.00
+        }
+      ]
+    }
+  },
+  "deliverables": [
+    {
+      "phase": 1,
+      "name": "Contract & Architecture",
+      "days": "1-30",
+      "status": "in_progress",
+      "items": [
+        {
+          "id": "1.1",
+          "name": "Finalize contract.json v1.0",
+          "status": "complete",
+          "description": "This file."
+        },
+        {
+          "id": "1.2",
+          "name": "Define cognitive scope boundaries",
+          "status": "complete",
+          "description": "Defined in tool.scope: meeting triage, priority decisions, quick briefings, context gate resolution."
+        },
+        {
+          "id": "1.3",
+          "name": "Select revenue model",
+          "status": "complete",
+          "description": "Model A (Micro-Subscription $3/mo) selected."
+        },
+        {
+          "id": "1.4",
+          "name": "Design session flow",
+          "status": "complete",
+          "description": "4-step flow defined in tool.scope.session_flow: user_input → gate_detection → brief_delivery → user_decision."
+        },
+        {
+          "id": "1.5",
+          "name": "System architecture",
+          "status": "complete",
+          "description": "Defined in tool.architecture: LLM layer (gpt-4o-mini), session controller (3 turns / 120s), JSON data layer, Stripe payment, minimal chat UI on Vercel."
+        },
+        {
+          "id": "1.6",
+          "name": "Baseline instrumentation plan",
+          "status": "complete",
+          "description": "Defined in baselines.instrumentation: collection method, storage, and reporting cadence for all four operational metrics."
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Build & Test",
+      "days": "31-60",
+      "status": "pending",
+      "items": [
+        {
+          "id": "2.1",
+          "name": "Build core tool",
+          "status": "pending",
+          "description": "Implement the cognitive-assistive chat with session scope enforcement."
+        },
+        {
+          "id": "2.2",
+          "name": "Agent-based reliability testing",
+          "status": "pending",
+          "description": "Automated testing for session success rate, latency, and scope compliance."
+        },
+        {
+          "id": "2.3",
+          "name": "Session scope validation",
+          "status": "pending",
+          "description": "Verify sessions stay within ~2 min and tool provides proportional assistance."
+        },
+        {
+          "id": "2.4",
+          "name": "Payment/revenue integration",
+          "status": "pending",
+          "description": "Stripe or Gumroad integration for $3/mo subscription."
+        },
+        {
+          "id": "2.5",
+          "name": "Update contract.json v1.1",
+          "status": "pending",
+          "description": "Update with actual cost data from build phase."
+        },
+        {
+          "id": "2.6",
+          "name": "Soft launch",
+          "status": "pending",
+          "description": "Deploy to initial users for feedback."
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Revenue & Verification",
+      "days": "61-90",
+      "status": "pending",
+      "items": [
+        {
+          "id": "3.1",
+          "name": "User acquisition",
+          "status": "pending",
+          "description": "Organic acquisition targeting ~1 new subscriber per week."
+        },
+        {
+          "id": "3.2",
+          "name": "Daily revenue vs. ledger tracking",
+          "status": "pending",
+          "description": "Record all revenue and costs in the transparency ledger daily."
+        },
+        {
+          "id": "3.3",
+          "name": "Hit $22 net revenue milestone",
+          "status": "pending",
+          "description": "Primary financial deliverable."
+        },
+        {
+          "id": "3.4",
+          "name": "Final contract.json v1.2",
+          "status": "pending",
+          "description": "Contract with actuals vs. projections, final ledger."
+        },
+        {
+          "id": "3.5",
+          "name": "Stakeholder reliability report",
+          "status": "pending",
+          "description": "Summary for Art, Market, and Finance domain stakeholders."
+        },
+        {
+          "id": "3.6",
+          "name": "Financial verification",
+          "status": "pending",
+          "description": "Confirm net >= $22, all costs covered, zero hidden extras."
+        }
+      ]
+    }
+  ],
+  "compliance": {
+    "transparency": "All costs declared upfront in estimated_costs and tracked in real-time via the revenue ledger. No cost category may be added post-hoc without updating gross_target to preserve net_target.",
+    "hidden_extras": false,
+    "stakeholder_visibility": true,
+    "cost_coverage_guarantee": "Gross revenue always covers net target + all actual costs. If costs exceed estimates, gross target adjusts upward automatically.",
+    "audit_trail": true,
+    "audit_trail_location": "revenue.ledger.entries",
+    "amendment_policy": "Any changes to baselines, revenue targets, or compliance terms require a new contract version (version field increment) with changelog.",
+    "api_data_compliance": {
+      "governing_spec": "api_compliance",
+      "data_flow_audit_complete": true,
+      "consent_mechanism_specified": true,
+      "data_rights_endpoints_specified": true,
+      "audit_logging_specified": true,
+      "retention_policies_specified": true,
+      "privacy_policy_specified": true,
+      "third_party_dpas_pending": ["OpenAI", "Stripe", "Vercel"],
+      "pre_launch_blockers": [
+        "Sign DPAs with all third-party processors",
+        "Draft and publish privacy policy v1.0",
+        "Complete Data Protection Impact Assessment (DPIA)",
+        "Implement consent management UI (CM-01, CM-02, CM-03)",
+        "Implement data rights API endpoints (DR-01 through DR-04)",
+        "Implement audit logging infrastructure",
+        "Implement auto-deletion scheduled job",
+        "Pass all compliance test cases (TC-01 through TC-08)"
+      ]
+    }
+  },
+  "risk_controls": {
+    "acquisition_shortfall": {
+      "trigger": "< 6 subscribers by day 60",
+      "action": "Activate Model C (one-time $5 purchase) as supplementary channel"
+    },
+    "latency_breach": {
+      "trigger": "avg response_latency > 3.0s for 7 consecutive days",
+      "action": "Downgrade prompt complexity or switch to lighter model variant"
+    },
+    "cost_overrun": {
+      "trigger": "running_cost_total exceeds estimated total by > 15%",
+      "action": "Freeze discretionary spend (marketing, domain), raise gross target, log amendment in changelog"
+    },
+    "contract_amendment_rule": "All changes require version increment + changelog entry + stakeholder notification within 48 hours"
+  },
+  "api_compliance": {
+    "status": "specified",
+    "applicable_frameworks": [
+      "GDPR (General Data Protection Regulation)",
+      "CCPA (California Consumer Privacy Act)",
+      "DPDPA (Digital Personal Data Protection Act — regional consideration)"
+    ],
+    "data_flow_audit": {
+      "description": "Map of all user data collection, processing, and storage points in the system.",
+      "flows": [
+        {
+          "id": "DF-01",
+          "name": "session_input",
+          "source": "user",
+          "destination": "session_controller",
+          "data_collected": ["user_text_input", "session_id", "timestamp"],
+          "purpose": "Deliver context-gate resolution",
+          "retention": "session_log",
+          "pii_risk": "medium",
+          "note": "User text may contain incidental PII. No PII is intentionally requested."
+        },
+        {
+          "id": "DF-02",
+          "name": "llm_api_relay",
+          "source": "session_controller",
+          "destination": "openai_api",
+          "data_collected": ["user_text_input", "system_prompt"],
+          "purpose": "Generate context-gate brief via LLM",
+          "retention": "transient (not stored by provider beyond API processing)",
+          "pii_risk": "medium",
+          "note": "OpenAI data usage policy applies. API data not used for training when using API (per OpenAI policy as of 2026)."
+        },
+        {
+          "id": "DF-03",
+          "name": "session_telemetry",
+          "source": "session_controller",
+          "destination": "data_layer",
+          "data_collected": ["session_id", "start_time", "end_time", "turns", "gate_type", "user_proceeded", "latency_per_turn"],
+          "purpose": "Baseline instrumentation and KPI reporting",
+          "retention": "90_days_then_aggregate",
+          "pii_risk": "low",
+          "note": "Telemetry contains no user text content. Session IDs are pseudonymous."
+        },
+        {
+          "id": "DF-04",
+          "name": "payment_processing",
+          "source": "user",
+          "destination": "stripe",
+          "data_collected": ["email", "payment_method_token"],
+          "purpose": "Process $3/mo subscription",
+          "retention": "managed_by_stripe",
+          "pii_risk": "high",
+          "note": "PII handled entirely by Stripe. No card data touches our servers. Stripe is PCI-DSS compliant."
+        },
+        {
+          "id": "DF-05",
+          "name": "subscription_reference",
+          "source": "stripe",
+          "destination": "data_layer",
+          "data_collected": ["stripe_customer_id", "subscription_status", "billing_cycle_anchor"],
+          "purpose": "Link subscription state to user account for access control",
+          "retention": "account_lifetime_plus_30_days",
+          "pii_risk": "low",
+          "note": "Only Stripe reference IDs stored. No email or card data stored locally."
+        }
+      ]
+    },
+    "consent_management": {
+      "description": "Mechanisms for obtaining, recording, and managing user consent for data processing.",
+      "requirements": [
+        {
+          "id": "CM-01",
+          "name": "initial_consent",
+          "trigger": "account_creation",
+          "mechanism": "Explicit opt-in checkbox (unchecked by default) with plain-language summary",
+          "consent_categories": ["essential_processing", "session_telemetry", "marketing_communications"],
+          "storage": "consent_record in data_layer with timestamp and version",
+          "status": "pending_implementation"
+        },
+        {
+          "id": "CM-02",
+          "name": "granular_opt_out",
+          "trigger": "user_settings_page",
+          "mechanism": "Toggle switches per consent category. Changes effective immediately.",
+          "minimum_required": ["essential_processing"],
+          "optional": ["session_telemetry", "marketing_communications"],
+          "status": "pending_implementation"
+        },
+        {
+          "id": "CM-03",
+          "name": "consent_renewal",
+          "trigger": "privacy_policy_update",
+          "mechanism": "Re-consent prompt on next login after policy change. Service degraded (not blocked) until re-consent.",
+          "status": "pending_implementation"
+        }
+      ],
+      "consent_record_schema": {
+        "user_id": "string",
+        "consents": {
+          "essential_processing": {"granted": true, "timestamp": "ISO-8601", "policy_version": "string"},
+          "session_telemetry": {"granted": false, "timestamp": "ISO-8601", "policy_version": "string"},
+          "marketing_communications": {"granted": false, "timestamp": "ISO-8601", "policy_version": "string"}
+        }
+      }
+    },
+    "data_rights_api": {
+      "description": "API endpoints enabling users to exercise their data rights. All requests authenticated and logged.",
+      "endpoints": [
+        {
+          "id": "DR-01",
+          "right": "right_to_access",
+          "method": "GET",
+          "path": "/api/v1/user/data-export",
+          "description": "Returns all data associated with the authenticated user in JSON format",
+          "response_time_sla": "72 hours",
+          "format": "JSON (machine-readable)",
+          "includes": ["session_logs", "consent_records", "subscription_reference", "telemetry_aggregates"],
+          "excludes": ["raw_llm_api_payloads (transient, not stored)"],
+          "status": "pending_implementation"
+        },
+        {
+          "id": "DR-02",
+          "right": "right_to_delete",
+          "method": "DELETE",
+          "path": "/api/v1/user/data",
+          "description": "Permanently deletes all user data and revokes subscription. Irreversible after 7-day grace period.",
+          "response_time_sla": "72 hours",
+          "grace_period_days": 7,
+          "cascade_targets": ["session_logs", "consent_records", "subscription_reference", "telemetry (anonymized aggregates retained)"],
+          "stripe_action": "Cancel subscription and request Stripe customer deletion",
+          "status": "pending_implementation"
+        },
+        {
+          "id": "DR-03",
+          "right": "right_to_portability",
+          "method": "GET",
+          "path": "/api/v1/user/data-export?format=portable",
+          "description": "Returns user data in a portable, machine-readable format (JSON + CSV bundle)",
+          "response_time_sla": "72 hours",
+          "format": "ZIP containing JSON + CSV",
+          "status": "pending_implementation"
+        },
+        {
+          "id": "DR-04",
+          "right": "right_to_rectification",
+          "method": "PATCH",
+          "path": "/api/v1/user/profile",
+          "description": "Allows user to correct inaccurate personal data (limited to profile fields, not session logs)",
+          "scope": ["display_name", "email_preference"],
+          "status": "pending_implementation"
+        }
+      ],
+      "authentication": "Bearer token (JWT) tied to authenticated session",
+      "rate_limit": "10 requests per hour per user",
+      "abuse_protection": "Repeated deletion requests within grace period do not reset the timer"
+    },
+    "audit_logging": {
+      "description": "Immutable log of all data operations for compliance verification and incident response.",
+      "log_schema": {
+        "log_id": "uuid",
+        "timestamp": "ISO-8601",
+        "actor": "user_id | system | admin",
+        "action": "create | read | update | delete | export | consent_change",
+        "resource_type": "session_log | consent_record | subscription | user_profile",
+        "resource_id": "string",
+        "outcome": "success | failure | denied",
+        "ip_hash": "SHA-256 of client IP (not raw IP)",
+        "metadata": {}
+      },
+      "retention_days": 365,
+      "immutability": "Append-only log. No edits or deletions permitted. Archived to cold storage after 90 days.",
+      "access_control": "Read-only for auditors. Write-only for system. No admin delete capability.",
+      "alerting": {
+        "bulk_deletion_request": "Alert if > 5 deletion requests in 24 hours",
+        "unauthorized_access_attempt": "Alert on any failed authentication to data rights endpoints",
+        "consent_revocation_spike": "Alert if > 10% of users revoke consent in 7-day window"
+      }
+    },
+    "data_retention": {
+      "description": "Policies governing how long each data category is stored before automatic deletion or anonymization.",
+      "policies": [
+        {
+          "data_category": "session_logs",
+          "contains_pii": false,
+          "retention_period": "90 days",
+          "post_retention_action": "Aggregate into anonymized statistics, then delete raw logs",
+          "legal_basis": "Legitimate interest (service improvement)"
+        },
+        {
+          "data_category": "user_text_input",
+          "contains_pii": true,
+          "retention_period": "0 days (not persisted)",
+          "post_retention_action": "Discarded after LLM response is delivered. Never written to data_layer.",
+          "legal_basis": "Necessary for service delivery (transient processing)"
+        },
+        {
+          "data_category": "consent_records",
+          "contains_pii": true,
+          "retention_period": "Account lifetime + 365 days",
+          "post_retention_action": "Delete after retention period post-account-deletion",
+          "legal_basis": "Legal obligation (proof of consent)"
+        },
+        {
+          "data_category": "subscription_reference",
+          "contains_pii": false,
+          "retention_period": "Account lifetime + 30 days",
+          "post_retention_action": "Delete. Stripe-side data governed by Stripe retention policy.",
+          "legal_basis": "Contract performance"
+        },
+        {
+          "data_category": "audit_logs",
+          "contains_pii": false,
+          "retention_period": "365 days",
+          "post_retention_action": "Archive to cold storage for 2 additional years, then delete",
+          "legal_basis": "Legal obligation (regulatory compliance)"
+        },
+        {
+          "data_category": "telemetry_aggregates",
+          "contains_pii": false,
+          "retention_period": "Indefinite",
+          "post_retention_action": "None (fully anonymized, no re-identification possible)",
+          "legal_basis": "Legitimate interest (service improvement)"
+        }
+      ],
+      "auto_deletion": {
+        "mechanism": "Scheduled job runs daily at 02:00 UTC. Scans for records past retention period.",
+        "logging": "All auto-deletions recorded in audit_logging",
+        "failure_handling": "Retry 3x over 24 hours. Alert admin if still failing."
+      }
+    },
+    "privacy_policy": {
+      "description": "Privacy policy integration requirements and versioning.",
+      "requirements": [
+        "Plain-language privacy policy accessible from every page (footer link)",
+        "Policy must enumerate all data flows from data_flow_audit",
+        "Policy must explain each consent category and how to opt out",
+        "Policy must describe data rights and how to exercise them",
+        "Policy must state retention periods per data category",
+        "Policy must identify third-party processors (OpenAI, Stripe) with links to their privacy policies",
+        "Policy must include contact method for privacy inquiries"
+      ],
+      "versioning": {
+        "format": "privacy_policy_v{MAJOR}.{MINOR}",
+        "current_version": "pending_initial_draft",
+        "change_notification": "Email + in-app banner 14 days before material changes take effect",
+        "consent_impact": "Material changes trigger consent_renewal (CM-03)"
+      },
+      "third_party_processors": [
+        {
+          "name": "OpenAI",
+          "purpose": "LLM inference for context-gate briefs",
+          "data_shared": ["user_text_input (transient)"],
+          "dpa_required": true,
+          "dpa_status": "pending"
+        },
+        {
+          "name": "Stripe",
+          "purpose": "Payment processing for $3/mo subscription",
+          "data_shared": ["email", "payment_method_token"],
+          "dpa_required": true,
+          "dpa_status": "pending"
+        },
+        {
+          "name": "Vercel",
+          "purpose": "Application hosting (free tier)",
+          "data_shared": ["server_logs (IP addresses, request metadata)"],
+          "dpa_required": true,
+          "dpa_status": "pending"
+        }
+      ]
+    },
+    "testing_and_documentation": {
+      "description": "Validation procedures and documentation requirements for compliance verification.",
+      "test_plan": [
+        {
+          "id": "TC-01",
+          "name": "consent_flow_validation",
+          "description": "Verify initial consent form renders correctly, defaults to unchecked, and records consent with timestamp",
+          "type": "integration",
+          "status": "pending"
+        },
+        {
+          "id": "TC-02",
+          "name": "opt_out_effectiveness",
+          "description": "Verify that opting out of session_telemetry stops telemetry collection within same session",
+          "type": "integration",
+          "status": "pending"
+        },
+        {
+          "id": "TC-03",
+          "name": "data_export_completeness",
+          "description": "Verify GET /api/v1/user/data-export returns all user-associated data and no other user's data",
+          "type": "integration",
+          "status": "pending"
+        },
+        {
+          "id": "TC-04",
+          "name": "data_deletion_cascade",
+          "description": "Verify DELETE /api/v1/user/data removes all user data from data_layer and triggers Stripe customer deletion",
+          "type": "integration",
+          "status": "pending"
+        },
+        {
+          "id": "TC-05",
+          "name": "deletion_grace_period",
+          "description": "Verify data is recoverable within 7-day grace period and permanently gone after",
+          "type": "integration",
+          "status": "pending"
+        },
+        {
+          "id": "TC-06",
+          "name": "audit_log_immutability",
+          "description": "Verify audit logs cannot be modified or deleted via any API endpoint or direct DB access",
+          "type": "security",
+          "status": "pending"
+        },
+        {
+          "id": "TC-07",
+          "name": "retention_auto_deletion",
+          "description": "Verify scheduled job correctly identifies and deletes expired records, and logs each deletion",
+          "type": "integration",
+          "status": "pending"
+        },
+        {
+          "id": "TC-08",
+          "name": "pii_leak_scan",
+          "description": "Verify user_text_input is never written to data_layer session logs or telemetry",
+          "type": "security",
+          "status": "pending"
+        }
+      ],
+      "documentation_requirements": [
+        "Data Protection Impact Assessment (DPIA) — required before launch",
+        "Record of Processing Activities (ROPA) — derived from data_flow_audit",
+        "Incident Response Plan — procedure for data breach notification within 72 hours",
+        "Data Processing Agreements (DPAs) — signed with OpenAI, Stripe, Vercel before launch",
+        "Internal compliance runbook — step-by-step procedures for handling data rights requests"
+      ]
+    }
+  },
+  "changelog": [
+    {
+      "version": "1.4.0",
+      "date": "2026-02-26T01:00:00+06:00",
+      "changes": [
+        "Named the tool: Afloat (was TBD)",
+        "Created private GitHub repository: caraxesthebloodwyrm02/afloat",
+        "Added tool.repository reference to contract"
+      ]
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-02-26T00:48:00+06:00",
+      "changes": [
+        "Created ARCHITECTURE.md: 11-section baseline system design (5-layer component map, 4-step session lifecycle, LLM prompt strategy, session controller enforcement rules, data layer schema, instrumentation hooks, payment flow, frontend spec, API route map, security boundaries)",
+        "Created BUILD_GUIDE.md: 9-step plain-English build sequence with inputs/outputs/tests/pitfalls per step, estimated ~20-27 hours total effort",
+        "Set frontend framework to nextjs_app_router (was TBD)",
+        "Added tool.documentation references to ARCHITECTURE.md and BUILD_GUIDE.md"
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-02-26T00:45:00+06:00",
+      "changes": [
+        "Added api_compliance section with 7 subsystems: data_flow_audit, consent_management, data_rights_api, audit_logging, data_retention, privacy_policy, testing_and_documentation",
+        "Mapped 5 data flows (DF-01 through DF-05) with PII risk classification",
+        "Specified 3 consent mechanisms (CM-01 through CM-03) with consent_record_schema",
+        "Defined 4 data rights API endpoints (DR-01 through DR-04) with SLAs",
+        "Defined immutable audit log schema with alerting thresholds",
+        "Defined 6 data retention policies with auto-deletion mechanism",
+        "Specified privacy policy requirements with third-party processor DPA tracking (OpenAI, Stripe, Vercel)",
+        "Defined 8 compliance test cases (TC-01 through TC-08)",
+        "Listed 5 documentation requirements (DPIA, ROPA, Incident Response, DPAs, Runbook)",
+        "Added api_data_compliance cross-reference in compliance section with 8 pre-launch blockers",
+        "Applicable frameworks: GDPR, CCPA, DPDPA"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-02-26T00:00:00+06:00",
+      "changes": [
+        "Set launch date: 2026-03-01 (90-day window ends 2026-05-29)",
+        "Added structured provider identity placeholders (FILL_BEFORE_START)",
+        "Set deployment target: vercel_free_tier",
+        "Added governance.responsibility_owners",
+        "Defined session flow (tool.scope.session_flow)",
+        "Defined system architecture (tool.architecture)",
+        "Defined baseline instrumentation plan (baselines.instrumentation)",
+        "Fixed payment processing estimate: $0.80 → $1.10",
+        "Recalculated totals: costs $13.10, net $22.90, surplus $0.90",
+        "Added acquisition stress test with worst-case mitigation",
+        "Added risk_controls section with triggers and fallback actions",
+        "Seeded transparency ledger with test entry",
+        "Marked deliverables 1.4, 1.5, 1.6 as complete",
+        "Status: draft → pre_launch"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-02-25T18:04:41.157591+00:00",
+      "changes": [
+        "Initial contract creation",
+        "Revenue model A (Micro-Subscription $3/mo) selected",
+        "All baselines defined",
+        "Cost estimates populated",
+        "Transparency ledger schema established",
+        "Phase 1 items 1.1, 1.2, 1.3 marked complete"
+      ]
+    }
+  ]
+}
