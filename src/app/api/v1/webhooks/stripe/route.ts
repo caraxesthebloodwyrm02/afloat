@@ -2,15 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { constructWebhookEvent } from "@/lib/stripe";
 import {
   createUser,
-  getUser,
   getUserByStripeCustomerId,
   setStripeCustomerMapping,
   updateUser,
 } from "@/lib/data-layer";
 import { createDefaultConsents } from "@/lib/consent";
 import { writeAuditLog } from "@/lib/audit";
+import { getRedis } from "@/lib/redis";
 import { v4 as uuidv4 } from "uuid";
 import type Stripe from "stripe";
+
+// Idempotency: track processed event IDs to handle Stripe retries
+async function isEventProcessed(eventId: string): Promise<boolean> {
+  const redis = getRedis();
+  const existing = await redis.get(`stripe_event:${eventId}`);
+  return existing !== null;
+}
+
+async function markEventProcessed(eventId: string): Promise<void> {
+  const redis = getRedis();
+  // Store for 24 hours — Stripe retries within this window
+  await redis.set(`stripe_event:${eventId}`, "1", { ex: 86400 });
+}
 
 export async function POST(request: NextRequest) {
   const signature = request.headers.get("stripe-signature");
@@ -30,6 +43,11 @@ export async function POST(request: NextRequest) {
       { error: "unauthorized", message: "Invalid webhook signature." },
       { status: 401 }
     );
+  }
+
+  // Idempotency check — skip already-processed events
+  if (await isEventProcessed(event.id)) {
+    return NextResponse.json({ received: true, deduplicated: true });
   }
 
   switch (event.type) {
@@ -98,6 +116,9 @@ export async function POST(request: NextRequest) {
       break;
     }
   }
+
+  // Mark event as processed after successful handling
+  await markEventProcessed(event.id);
 
   return NextResponse.json({ received: true });
 }
