@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface ConsentState {
   session_telemetry: boolean;
@@ -27,7 +27,8 @@ export default function SettingsPage() {
         if (res.ok) {
           const data = await res.json();
           setConsents({
-            session_telemetry: data.consent_records?.session_telemetry?.granted ?? false,
+            session_telemetry:
+              data.consent_records?.session_telemetry?.granted ?? false,
             marketing_communications:
               data.consent_records?.marketing_communications?.granted ?? false,
           });
@@ -78,7 +79,7 @@ export default function SettingsPage() {
     if (!token) return;
 
     const confirmed = window.confirm(
-      "Are you sure you want to delete your account? You have a 7-day grace period to cancel."
+      "Are you sure you want to delete your account? You have a 7-day grace period to cancel.",
     );
     if (!confirmed) return;
 
@@ -105,14 +106,14 @@ export default function SettingsPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        const data = await res.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-          type: "application/json",
-        });
+        const blob = await res.blob();
+        const disposition = res.headers.get("Content-Disposition") ?? "";
+        const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+        const filename = filenameMatch?.[1] ?? "afloat-data-export.zip";
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "afloat-data-export.json";
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
       }
@@ -169,9 +170,7 @@ export default function SettingsPage() {
               <p className="text-sm font-medium text-zinc-700">
                 Marketing communications
               </p>
-              <p className="text-xs text-zinc-400 mt-1">
-                Feature updates
-              </p>
+              <p className="text-xs text-zinc-400 mt-1">Feature updates</p>
             </div>
             <input
               type="checkbox"

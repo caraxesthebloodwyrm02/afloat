@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { ChatWindow } from "@/components/chat-window";
 import { ChatInput } from "@/components/chat-input";
-import { SessionTimer } from "@/components/session-timer";
+import { ChatWindow } from "@/components/chat-window";
 import { SessionStatus } from "@/components/session-status";
+import { SessionTimer } from "@/components/session-timer";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type SessionState =
   | "waiting_for_input"
@@ -30,7 +30,7 @@ function readToken(): string {
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionState, setSessionState] = useState<SessionState>(() =>
-    readToken() ? "waiting_for_input" : "not_subscribed"
+    readToken() ? "waiting_for_input" : "not_subscribed",
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [startTime, setStartTime] = useState<number>(0);
@@ -95,7 +95,13 @@ export default function ChatPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${tokenRef.current}`,
           },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify({
+            message: text,
+            history: messages.slice(-4).map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+          }),
         });
 
         const data = await res.json();
@@ -129,7 +135,7 @@ export default function ChatPage() {
         setErrorMessage("Network error. Please try again.");
       }
     },
-    [sessionId]
+    [sessionId, messages],
   );
 
   const endSession = useCallback(async () => {
@@ -156,7 +162,10 @@ export default function ChatPage() {
   }, []);
 
   const handleTimerExpire = useCallback(() => {
-    if (sessionState === "waiting_for_input" || sessionState === "brief_delivered") {
+    if (
+      sessionState === "waiting_for_input" ||
+      sessionState === "brief_delivered"
+    ) {
       setSessionState("session_timed_out");
       // Best-effort end session on server
       if (sessionId && tokenRef.current) {

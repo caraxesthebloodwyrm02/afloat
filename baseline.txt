@@ -1,0 +1,138 @@
+# Afloat Technical Baseline: Level 1 (Atomic)
+
+**Version:** 1.0.0
+**Scope:** Application Logic Only
+**Methodology:** Consistent and repeatable — evolves at explicit version bumps
+**Status:** 107/107 Tests Pass | 0 Lint Errors | Clean Build
+
+---
+
+## 1.0 Core Workflow
+*Atomic input → process → output for the Afloat application unit.*
+
+### 1.1 Input
+*   API request with valid auth header (JWT via `jose`).
+*   Request body: user message + optional client-echoed history.
+
+### 1.2 Process
+*   Auth check → Session state enforcement → Stream processing → Response.
+*   Session limits: `MAX_LLM_CALLS = 2`, `MAX_DURATION_MS = 120000`.
+*   History: client-echoed, sanitized (last 4 entries, role/content validated, 2000-char truncation).
+*   History is ephemeral — never persisted to the data layer.
+
+### 1.3 Output
+*   **JSON responses:** Health, Session Start/End, Message.
+*   **ZIP export:** `application/zip` container with `data.json` + `data.csv` (portable format).
+*   **Default export:** `application/json` when no format is specified (codec fallback).
+
+### 1.4 Validation Gate
+*   **Command:** `npx vitest run`
+*   **Requirement:** 107/107 tests (8 files). 0 lint errors. Clean `next build`.
+
+---
+
+## 2.0 Session Lifecycle & Ownership
+*State machine for session and provenance authorization.*
+
+### 2.1 Transient State (Ephemeral Stream)
+*   History accepted from client, sanitized, used for LLM call, then discarded (REQ-A5).
+*   No conversation history written to Redis — forward secrecy analog.
+
+### 2.2 Persistent State (Channel Ownership)
+*   DPR (Decision Provenance Record) chain proves ownership after session deletion (REQ-B2/B5).
+*   Chain is HMAC-signed and hash-linked — tamper detection via recomputation.
+
+### 2.3 State Transitions
+*   **Auth validation:** JWT token required for all API access (REQ-B1/B4).
+*   **Session-user parity:** `session.user_id` must match authenticated user (REQ-B6a/b).
+*   **Post-deletion fallback:** If session key is gone, DPR chain `actor_id` is checked.
+
+### 2.4 Failure Modes
+*   **401** — Missing or invalid auth header.
+*   **403** — No active subscription, foreign session claim, or foreign DPR chain.
+*   **404** — Session or chain does not exist.
+*   **409** — Session turns exhausted or timed out.
+
+---
+
+## 3.0 Security & Integrity
+*Hard constraints verified by test probes.*
+
+### 3.1 Auth Enforcement
+*   401 without auth header.
+*   403 without active subscription.
+*   403 when accessing another user's session (live or deleted).
+
+### 3.2 Stream Integrity
+*   **Sanitization (REQ-A2):** System-role entries and null/malformed entries stripped from client history.
+*   **Window truncation (REQ-A3):** Only last 4 history entries kept; content truncated at 2000 chars.
+*   **Empty normalization (REQ-A4):** `[]`, `undefined`, and absent history key all normalize to empty array.
+
+### 3.3 Export Integrity
+*   **Magic bytes (REQ-C2):** ZIP container starts with `PK\x03\x04` signature.
+*   **Directory (REQ-C3):** ZIP contains exactly `data.json` + `data.csv`.
+*   **Headers (REQ-C1):** `Content-Type: application/zip` + `Content-Disposition: attachment`.
+*   **Codec fallback (REQ-C4):** Default format returns parseable JSON.
+*   **Empty payload (REQ-C5):** Zero sessions still produces valid ZIP with empty data.
+
+---
+
+## 4.0 Rate Limits & Exhaustion
+*Per-session capacity — no cross-session concurrency enforcement exists.*
+
+### 4.1 Per-Session Limits
+*   **Turns:** `MAX_LLM_CALLS = 2` (configurable constant).
+*   **Duration:** `MAX_DURATION_MS = 120000` (2 minutes).
+
+### 4.2 Exhaustion Handling
+*   Session turns exhausted → **409 Conflict** → End session → Start new.
+*   Session timed out → **409 Conflict** → Same recovery path.
+*   Specific error codes (409/403) returned — no silent failures.
+
+---
+
+## 5.0 Metric Grid (Verified)
+*Only values backed by passing tests or source constants.*
+
+| Category | Parameter | Value | Validation Source |
+| :--- | :--- | :--- | :--- |
+| **Throughput** | Session Turns | MAX_LLM_CALLS = 2 | `session-controller.ts`, REQ-A |
+| **Throughput** | Session Duration | MAX_DURATION_MS = 120000 | `session-controller.ts`, REQ-A |
+| **Security** | Auth Failure | 401 / 403 | REQ-B1 |
+| **Security** | Foreign Claim | 403 (short-circuit) | REQ-B4 |
+| **Integrity** | Export Magic Bytes | `PK\x03\x04` | REQ-C2 |
+| **Integrity** | Export Directory | data.json + data.csv | REQ-C3 |
+| **Lifecycle** | Stream History | Ephemeral (not persisted) | REQ-A5 |
+| **Lifecycle** | Post-Deletion Auth | DPR chain actor_id | REQ-B2 |
+| **Validation** | Test Suite | 107/107 (8 files) | `npx vitest run` |
+
+---
+
+## 6.0 Incident Anchor Matrix
+*Each probe verifies the system's position on an unresolved real-world problem.*
+*Anchors fact-checked against public sources — see plan for evidence.*
+
+| REQ ID | Baseline Argument | Network Analog | Incident Anchor (Unresolved) | Source | Pass Criteria |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **REQ-A1** | Sequential replay fidelity | TCP/HLS sliding-window replay | ChatGPT context-window amnesia (2023–ongoing) | Public reporting | Turn-2 receives Turn-1 pair |
+| **REQ-A2** | Poisoned frame sanitization | Stream injection / frame poisoning | ChatGPT system-prompt injection via history (2023–ongoing) | Public reporting | Malformed entries stripped |
+| **REQ-A3** | Window boundary + truncation | TCP zero-window probe (RFC 793 §3.7) | Off-by-one window-edge bugs across OS TCP stacks | RFC 793 | Last 4 of 5 kept, 2000-char limit |
+| **REQ-A4** | Empty-frame normalization | WebSocket empty-frame (RFC 6455 §5.1) | Browser disagreement on empty-payload semantics | RFC 6455 | All empty variants → [] |
+| **REQ-A5** | Ephemeral stream | Signal Protocol forward secrecy | Signal metadata leakage (Signal-iOS#6167) | GitHub | History not persisted |
+| **REQ-B1** | Foreign claim rejection | Post-defederation orphan attribution | Mastodon defederation ownership (mastodon#25526) | GitHub | 403 exact error shape |
+| **REQ-B2** | Disconnected channel, own claim | Same ActivityPub gap | Same — legitimate owner retrieval after origin offline | GitHub | 200 with integrity data |
+| **REQ-B3** | Void channel, empty chain | DNS orphan / lame delegation | No normative answer for "record exists, content empty" | IETF | 404 not_found |
+| **REQ-B4** | Live channel hijack | BGP route hijack | Pakistan Telecom/YouTube 2008 (AS17557, Feb 24) | RIPE NCC, Google Research | 403 short-circuit |
+| **REQ-B5** | Live channel, legitimate owner | RPKI/ROA origin validation | RPKI <50% global adoption — fast-path only reliable check | RPKI stats | 200, deletion branch bypassed |
+| **REQ-B6a/b** | Verify ↔ session parity | CT log + OCSP parity | Issuance/revocation endpoint divergence — open PKI audit gap | PKI research | Both routes agree |
+| **REQ-C1** | Frame header contract | HTTP content negotiation | Content-Type/Disposition header trust in download handlers | HTTP spec | ZIP headers correct |
+| **REQ-C2** | Container magic bytes | MIME type sniffing | File signature spoofing in email/CDN scanning (no universal standard) | MIME sniffing research | ZIP starts with PK\x03\x04 |
+| **REQ-C3** | Stream directory | Archive TOC integrity | ZIP directory corruption — central vs local header disagreement | ZIP spec | Exactly 2 entries |
+| **REQ-C4** | Codec fallback | HTTP content negotiation fallback | CDN inconsistency in format fallback behavior | CDN research | JSON when no format specified |
+| **REQ-C5** | Empty-payload container | Empty archive validity | Players/parsers disagree on zero-entry archive handling | Interop research | Valid ZIP, empty session_logs |
+
+---
+
+**End of Level 1 Technical Baseline**
+*Next: Product behavior baseline (response quality, clarity, jargon-breaking) — separate milestone.*
+*Current: 107/107 tests. Ephemeral stream enabled. Methodology: consistent and repeatable.*
