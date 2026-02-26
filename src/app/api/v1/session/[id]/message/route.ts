@@ -8,7 +8,8 @@ import {
   acquireSessionLock,
   releaseSessionLock,
 } from "@/lib/session-controller";
-import { callLLMWithRetry, LLMError } from "@/lib/llm";
+import { LLMError } from "@/lib/llm";
+import { generateMessageResponse } from "@/lib/session-message-adapter";
 import { getSessionRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { MAX_LLM_CALLS } from "@/types/session";
 import { createDPR, getChainRef, storeDPR } from "@/lib/provenance";
@@ -141,7 +142,7 @@ export async function POST(
     const startTime = Date.now();
 
     try {
-      const llmResponse = await callLLMWithRetry(
+      const llmResponse = await generateMessageResponse(
         userMessage,
         session.conversation_history
       );

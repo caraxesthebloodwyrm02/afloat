@@ -57,6 +57,16 @@ vi.mock("@/lib/provenance", () => ({
   storeDPR: vi.fn(async () => {}),
 }));
 
+const mockGenerateMessageResponse = vi.fn(async () => ({
+  gate_type: "context_gate_resolution",
+  brief: "adapter-response",
+  raw: "adapter-raw",
+}));
+
+vi.mock("@/lib/session-message-adapter", () => ({
+  generateMessageResponse: (...args: unknown[]) => mockGenerateMessageResponse(...args),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -179,6 +189,7 @@ describe("POST /api/v1/session/start", () => {
 describe("POST /api/v1/session/[id]/message", () => {
   beforeEach(() => {
     mockRedisStore.clear();
+    mockGenerateMessageResponse.mockClear();
   });
 
   it("returns 401 without auth", async () => {
@@ -305,6 +316,30 @@ describe("POST /api/v1/session/[id]/message", () => {
 
     const body = await response.json();
     expect(body.error).toBe("session_timeout");
+  });
+
+  it("returns message response using adapter boundary", async () => {
+    seedUser(TEST_USER_ID);
+    seedSession("sess-success", TEST_USER_ID);
+    const { POST } = await import("@/app/api/v1/session/[id]/message/route");
+    const request = new NextRequest("http://localhost/api/v1/session/sess-success/message", {
+      method: "POST",
+      headers: {
+        authorization: await makeAuthHeader(),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ message: "help me decide" }),
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ id: "sess-success" }) });
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.gate_type).toBe("context_gate_resolution");
+    expect(body.brief).toBe("adapter-response");
+    expect(body.session_status).toBe("active");
+    expect(body.turns_remaining).toBe(1);
+    expect(mockGenerateMessageResponse).toHaveBeenCalledTimes(1);
   });
 });
 
