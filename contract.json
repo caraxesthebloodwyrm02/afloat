@@ -1,7 +1,7 @@
 {
   "contract": {
     "id": "7a55f0f1-84be-43b7-8385-5dc0cbb49bed",
-    "version": "1.4.2",
+    "version": "1.5.1",
     "created": "2026-02-25T18:04:41.157591+00:00",
     "status": "pre_launch",
     "time_window": {
@@ -135,7 +135,7 @@
       "payment_layer": {
         "provider": "stripe",
         "integration": "stripe_checkout",
-        "plan": "$3/mo_recurring"
+        "plan": "$9/qtr_recurring"
       },
       "frontend": {
         "type": "minimal_chat_ui",
@@ -225,13 +225,13 @@
     "selected_model": "A_micro_subscription",
     "selected_model_details": {
       "name": "Micro-Subscription",
-      "price_usd": 3.00,
-      "billing_period": "monthly",
+      "price_usd": 9.00,
+      "billing_period": "quarterly",
       "users_needed": 12,
-      "projected_gross_usd": 36.00,
-      "acquisition_rate": "~1 user per week via organic channels",
+      "projected_gross_usd": 108.00,
+      "acquisition_rate": "~1 user per week via organic channels (billed quarterly)",
       "risk_level": "low",
-      "rationale": "Predictable recurring revenue. Small user base needed. Low acquisition pressure."
+      "rationale": "Predictable recurring revenue. Small user base needed. Low acquisition pressure. Quarterly billing reduces Stripe per-transaction fee impact from 12.9% to 6.2%."
     },
     "alternative_models": {
       "B_pay_per_use": {
@@ -278,39 +278,53 @@
         "basis": "Free subdomain available; $1 if custom domain desired"
       },
       "payment_processing": {
-        "estimate_usd": 1.10,
-        "provider": "stripe_or_gumroad",
-        "rate": 0.03,
-        "basis": "~3% of projected $36 gross = ~$1.08, rounded up to $1.10"
+        "estimate_usd": 2.24,
+        "provider": "stripe",
+        "rate": "$0.30 + 2.9% per transaction",
+        "basis": "4 quarterly transactions × ($0.30 + 2.9% of $9) = 4 × $0.561 ≈ $2.24"
+      },
+      "redis": {
+        "estimate_usd": 0.00,
+        "provider": "upstash",
+        "basis": "Free tier (10K commands/day). Monitor for overages at $0.20/100K commands."
       }
     },
-    "total_estimated_costs_usd": 13.10,
-    "gross_target_usd": 35.10,
+    "total_estimated_costs_usd": 14.24,
+    "gross_target_usd": 36.24,
     "conservative_gross_target_usd": 36.00,
     "projected_gross_with_model_A_usd": 36.00,
-    "projected_net_with_model_A_usd": 22.90,
-    "surplus_usd": 0.90,
+    "projected_net_with_model_A_usd": 21.76,
+    "surplus_usd": -0.24,
+    "surplus_note": "Margin is tight (-$0.24). Quarterly billing reduces Stripe fee drag vs monthly ($2.24 vs $4.64). Any acquisition above 12 subscriber-quarters covers the shortfall.",
     "rule": "gross_revenue >= net_target + sum(all_costs); zero hidden extras. If actual costs exceed estimates, gross target adjusts upward to preserve $22 net.",
     "acquisition_stress_test": {
+      "billing_note": "Quarterly billing at $9/qtr. Stripe fee per transaction: $0.30 + 2.9% = $0.561. Users subscribe once per quarter.",
       "best_case": {
         "rate": "1.2 users/week",
         "subscribers_90d": 14,
-        "gross_usd": 42.00,
-        "net_usd": 28.90,
+        "quarterly_transactions": 5,
+        "gross_usd": 45.00,
+        "stripe_fees_usd": 2.81,
+        "net_usd": 28.76,
         "result": "PASS"
       },
       "expected_case": {
         "rate": "1.0 users/week",
         "subscribers_90d": 12,
+        "quarterly_transactions": 4,
         "gross_usd": 36.00,
-        "net_usd": 22.90,
-        "result": "PASS"
+        "stripe_fees_usd": 2.24,
+        "net_usd": 21.76,
+        "result": "MARGINAL",
+        "note": "Misses $22 target by $0.24. 1 additional subscriber covers the gap."
       },
       "worst_case": {
         "rate": "0.7 users/week",
         "subscribers_90d": 9,
+        "quarterly_transactions": 3,
         "gross_usd": 27.00,
-        "net_usd": 13.90,
+        "stripe_fees_usd": 1.68,
+        "net_usd": 14.76,
         "result": "FAIL",
         "mitigation": "Activate Model C (one-time $5 purchase) as supplementary channel by day 60"
       }
@@ -321,7 +335,7 @@
         "entry": {
           "date": "ISO-8601",
           "type": "revenue | cost",
-          "category": "subscription | llm_api | hosting | marketing | domain | payment_processing | other",
+          "category": "subscription | llm_api | hosting | marketing | domain | payment_processing | redis | other",
           "amount_usd": 0.00,
           "description": "",
           "running_gross_total": 0.00,
@@ -392,43 +406,43 @@
       "phase": 2,
       "name": "Build & Test",
       "days": "31-60",
-      "status": "pending",
+      "status": "in_progress",
       "items": [
         {
           "id": "2.1",
           "name": "Build core tool",
-          "status": "pending",
-          "description": "Implement the cognitive-assistive chat with session scope enforcement."
+          "status": "complete",
+          "description": "Implement the cognitive-assistive chat with session scope enforcement. Session controller, LLM layer, chat UI, and 4-step flow all implemented."
         },
         {
           "id": "2.2",
           "name": "Agent-based reliability testing",
-          "status": "pending",
-          "description": "Automated testing for session success rate, latency, and scope compliance."
+          "status": "complete",
+          "description": "Automated testing for session success rate, latency, and scope compliance. 118+ tests + reliability-run.ts."
         },
         {
           "id": "2.3",
           "name": "Session scope validation",
-          "status": "pending",
-          "description": "Verify sessions stay within ~2 min and tool provides proportional assistance."
+          "status": "complete",
+          "description": "Verify sessions stay within ~2 min and tool provides proportional assistance. 2-min + 2-turn enforcement tested."
         },
         {
           "id": "2.4",
           "name": "Payment/revenue integration",
-          "status": "pending",
-          "description": "Stripe or Gumroad integration for $3/mo subscription."
+          "status": "complete",
+          "description": "Stripe checkout, webhooks, and idempotency implemented."
         },
         {
           "id": "2.5",
           "name": "Update contract.json v1.1",
-          "status": "pending",
-          "description": "Update with actual cost data from build phase."
+          "status": "complete",
+          "description": "Contract updated through v1.5.0 with actual build data."
         },
         {
           "id": "2.6",
           "name": "Soft launch",
-          "status": "pending",
-          "description": "Deploy to initial users for feedback."
+          "status": "in_progress",
+          "description": "Code ready, deployment pending real-world configuration (Stripe, Vercel env vars)."
         }
       ]
     },
@@ -495,14 +509,16 @@
       "privacy_policy_specified": true,
       "third_party_dpas_pending": [],
       "pre_launch_blockers": [
-        "Sign DPAs with all third-party processors",
-        "Draft and publish privacy policy v1.0",
-        "Complete Data Protection Impact Assessment (DPIA)",
-        "Implement consent management UI (CM-01, CM-02, CM-03)",
-        "Implement data rights API endpoints (DR-01 through DR-04)",
-        "Implement audit logging infrastructure",
         "Implement auto-deletion scheduled job",
         "Pass all compliance test cases (TC-01 through TC-08)"
+      ],
+      "pre_launch_completed": [
+        "Sign DPAs with all third-party processors — auto-incorporated (verified 2026-02-26)",
+        "Draft and publish privacy policy v1.0 — published at /privacy (effective 2026-03-01)",
+        "Complete Data Protection Impact Assessment (DPIA) — DPIA.md complete",
+        "Implement consent management UI (CM-01, CM-02, CM-03) — consent page + settings page + consent.ts",
+        "Implement data rights API endpoints (DR-01 through DR-04) — data-export, data, profile routes",
+        "Implement audit logging infrastructure — audit.ts with append-only rpush"
       ]
     }
   },
@@ -570,7 +586,7 @@
           "source": "user",
           "destination": "stripe",
           "data_collected": ["email", "payment_method_token"],
-          "purpose": "Process $3/mo subscription",
+          "purpose": "Process $9/qtr subscription",
           "retention": "managed_by_stripe",
           "pii_risk": "high",
           "note": "PII handled entirely by Stripe. No card data touches our servers. Stripe is PCI-DSS compliant."
@@ -765,6 +781,7 @@
       "versioning": {
         "format": "privacy_policy_v{MAJOR}.{MINOR}",
         "current_version": "privacy_policy_v1.0",
+        "effective_date": "2026-03-01",
         "change_notification": "Email + in-app banner 14 days before material changes take effect",
         "consent_impact": "Material changes trigger consent_renewal (CM-03)"
       },
@@ -780,7 +797,7 @@
         },
         {
           "name": "Stripe",
-          "purpose": "Payment processing for $3/mo subscription",
+          "purpose": "Payment processing for $9/qtr subscription",
           "data_shared": ["email", "payment_method_token"],
           "dpa_required": true,
           "dpa_status": "auto_incorporated",
@@ -820,14 +837,14 @@
           "name": "data_export_completeness",
           "description": "Verify GET /api/v1/user/data-export returns all user-associated data and no other user's data",
           "type": "integration",
-          "status": "pending"
+          "status": "covered"
         },
         {
           "id": "TC-04",
           "name": "data_deletion_cascade",
           "description": "Verify DELETE /api/v1/user/data removes all user data from data_layer and triggers Stripe customer deletion",
           "type": "integration",
-          "status": "pending"
+          "status": "covered"
         },
         {
           "id": "TC-05",
@@ -855,7 +872,7 @@
           "name": "pii_leak_scan",
           "description": "Verify user_text_input is never written to data_layer session logs or telemetry",
           "type": "security",
-          "status": "pending"
+          "status": "covered"
         }
       ],
       "documentation_requirements": [
@@ -868,6 +885,39 @@
     }
   },
   "changelog": [
+    {
+      "version": "1.5.1",
+      "date": "2026-02-28T18:00:00+06:00",
+      "changes": [
+        "CRITICAL FIX: Corrected Stripe fee estimate from flat 3% ($1.10) to actual per-transaction rate ($0.30 + 2.9%). Effective rate on $3/mo was 12.9%, not 3%.",
+        "Switched billing period from monthly ($3/mo) to quarterly ($9/qtr) to reduce Stripe fee drag from $4.64 to $2.24 over 12 subscriber-months",
+        "Updated payment_layer.plan from $3/mo_recurring to $9/qtr_recurring",
+        "Added Upstash Redis as tracked cost category (estimate: $0.00, free tier with monitoring note)",
+        "Added redis to ledger category enum",
+        "Recalculated totals: total_estimated_costs $13.10 → $14.24, projected_net $22.90 → $21.76, surplus $0.90 → -$0.24",
+        "Updated acquisition stress test with quarterly transaction counts and per-case Stripe fee breakdowns",
+        "Expected case reclassified from PASS to MARGINAL (misses $22 target by $0.24)",
+        "Updated selected_model_details: price $3 → $9, billing monthly → quarterly, projected_gross $36 → $108 (annualized), rationale updated",
+        "Updated DF-04 and Stripe third-party processor descriptions to reflect $9/qtr billing",
+        "Note: No code changes required — billing period is controlled by STRIPE_PRICE_ID in Stripe dashboard"
+      ]
+    },
+    {
+      "version": "1.5.0",
+      "date": "2026-02-28T12:00:00+06:00",
+      "changes": [
+        "Updated Phase 2 deliverables 2.1–2.5 from pending to complete (core tool, testing, scope validation, payment, contract updates all implemented)",
+        "Updated deliverable 2.6 (soft launch) to in_progress — code ready, deployment pending",
+        "Updated Phase 2 status from pending to in_progress",
+        "Marked compliance test cases TC-03, TC-04, TC-08 as covered by existing tests",
+        "Moved 6 completed pre-launch blockers to pre_launch_completed (DPAs, privacy policy, DPIA, consent UI, data rights API, audit logging)",
+        "Implemented auto-deletion cron job (src/app/api/cron/cleanup/route.ts) with vercel.json schedule",
+        "Added formal compliance test suite (tests/compliance.test.ts) covering TC-01 through TC-08",
+        "Fixed unused variable lint warning in session-controller.ts",
+        "Verified privacy policy footer link present in layout.tsx",
+        "Updated CONTRACT_LAUNCH_CHECKLIST.md to reflect actual implementation status"
+      ]
+    },
     {
       "version": "1.4.2",
       "date": "2026-02-26T05:40:00+06:00",

@@ -42,8 +42,7 @@ export async function updateSession(session: SessionState): Promise<void> {
   const ttlSeconds = Math.max(Math.ceil(ttlMs / 1000) + 30, 10);
 
   // Strip conversation_history before persisting — user text must not be written to the data layer (DF-01)
-  const { conversation_history: _stripped, ...persistable } = session;
-  const toStore = { ...persistable, conversation_history: [] };
+  const toStore = { ...session, conversation_history: [] as Array<{ role: "user" | "assistant"; content: string }> };
 
   await redis.set(`${SESSION_PREFIX}${session.session_id}`, JSON.stringify(toStore), {
     ex: ttlSeconds,
