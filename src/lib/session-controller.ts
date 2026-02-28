@@ -1,17 +1,19 @@
 import { v4 as uuidv4 } from "uuid";
 import { getRedis } from "./redis";
 import type { SessionState, GateType } from "@/types/session";
-import { MAX_LLM_CALLS, MAX_DURATION_MS } from "@/types/session";
+import { getTierLimits } from "@/types/session";
 
 const SESSION_PREFIX = "session:";
 const SESSION_LOCK_PREFIX = "session_lock:";
-const SESSION_TTL_SECONDS = 150; // slightly longer than 120s to allow final writes
 
-export async function createSession(userId: string): Promise<SessionState> {
+export async function createSession(userId: string, tier: string = "trial"): Promise<SessionState> {
   const redis = getRedis();
+  const limits = getTierLimits(tier);
+  const ttlSeconds = Math.ceil(limits.maxDurationMs / 1000) + 30;
   const session: SessionState = {
     session_id: uuidv4(),
     user_id: userId,
+    tier,
     start_time: new Date().toISOString(),
     llm_call_count: 0,
     gate_type: null,
@@ -23,7 +25,7 @@ export async function createSession(userId: string): Promise<SessionState> {
   };
 
   await redis.set(`${SESSION_PREFIX}${session.session_id}`, JSON.stringify(session), {
-    ex: SESSION_TTL_SECONDS,
+    ex: ttlSeconds,
   });
 
   return session;
@@ -33,12 +35,14 @@ export async function getSession(sessionId: string): Promise<SessionState | null
   const redis = getRedis();
   const data = await redis.get<string>(`${SESSION_PREFIX}${sessionId}`);
   if (!data) return null;
-  return typeof data === "string" ? JSON.parse(data) : data as unknown as SessionState;
+  const parsed = typeof data === "string" ? JSON.parse(data) : data as unknown as SessionState;
+  if (!parsed.tier) parsed.tier = "trial";
+  return parsed;
 }
 
 export async function updateSession(session: SessionState): Promise<void> {
   const redis = getRedis();
-  const ttlMs = MAX_DURATION_MS - (Date.now() - new Date(session.start_time).getTime());
+  const ttlMs = getTierLimits(session.tier).maxDurationMs - (Date.now() - new Date(session.start_time).getTime());
   const ttlSeconds = Math.max(Math.ceil(ttlMs / 1000) + 30, 10);
 
   // Strip conversation_history before persisting — user text must not be written to the data layer (DF-01)
@@ -87,8 +91,10 @@ export function enforceSessionLimits(
     };
   }
 
+  const limits = getTierLimits(session.tier);
+
   const elapsed = Date.now() - new Date(session.start_time).getTime();
-  if (elapsed > MAX_DURATION_MS) {
+  if (elapsed > limits.maxDurationMs) {
     return {
       allowed: false,
       errorCode: "session_timeout",
@@ -96,7 +102,7 @@ export function enforceSessionLimits(
     };
   }
 
-  if (session.llm_call_count >= MAX_LLM_CALLS) {
+  if (session.llm_call_count >= limits.maxLlmCalls) {
     return {
       allowed: false,
       errorCode: "session_complete",

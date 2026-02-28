@@ -16,6 +16,9 @@ export interface ApiError {
 
 export interface SessionStartResponse {
   session_id: string;
+  tier: string;
+  max_duration_ms: number;
+  max_turns: number;
 }
 
 export interface SessionMessageResponse {

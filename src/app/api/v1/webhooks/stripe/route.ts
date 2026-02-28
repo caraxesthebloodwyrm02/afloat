@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { constructWebhookEvent } from "@/lib/stripe";
+import { constructWebhookEvent, getStripe } from "@/lib/stripe";
+import type { SubscriptionTier } from "@/types/user";
 import {
   createUser,
   getUserByStripeCustomerId,
@@ -55,6 +56,23 @@ export async function POST(request: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
       const stripeCustomerId = session.customer as string;
 
+      // Detect tier from price ID
+      let subscriptionTier: SubscriptionTier = "trial";
+      try {
+        const stripe = getStripe();
+        const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+          expand: ["line_items"],
+        });
+        const continuousPriceId = process.env.STRIPE_CONTINUOUS_PRICE_ID;
+        if (continuousPriceId && fullSession.line_items?.data?.some(
+          (item) => item.price?.id === continuousPriceId
+        )) {
+          subscriptionTier = "continuous";
+        }
+      } catch {
+        // Default to trial if detection fails
+      }
+
       const existing = await getUserByStripeCustomerId(stripeCustomerId);
       if (!existing) {
         const userId = uuidv4();
@@ -62,6 +80,7 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           stripe_customer_id: stripeCustomerId,
           subscription_status: "active" as const,
+          subscription_tier: subscriptionTier,
           billing_cycle_anchor: new Date().toISOString(),
           consents: createDefaultConsents(true, false, false),
           pending_deletion: null,
@@ -77,8 +96,12 @@ export async function POST(request: NextRequest) {
           resource_id: userId,
           outcome: "success",
           ip_hash: "webhook",
-          metadata: { event_type: event.type, stripe_customer_id: stripeCustomerId },
+          metadata: { event_type: event.type, stripe_customer_id: stripeCustomerId, tier: subscriptionTier },
         });
+      } else {
+        // Update existing user's tier if they upgrade
+        existing.subscription_tier = subscriptionTier;
+        await updateUser(existing);
       }
       break;
     }

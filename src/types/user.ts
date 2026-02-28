@@ -12,12 +12,16 @@ export interface UserConsents {
 
 export type SubscriptionStatus = "active" | "past_due" | "canceled" | "pending";
 
+export type SubscriptionTier = "trial" | "continuous";
+
 export interface UserRecord {
   user_id: string;
   stripe_customer_id: string;
   subscription_status: SubscriptionStatus;
+  subscription_tier: SubscriptionTier;
   billing_cycle_anchor: string;
   consents: UserConsents;
+  stripe_subscription_item_id?: string;
   display_name?: string;
   email_preference?: string;
   pending_deletion?: {

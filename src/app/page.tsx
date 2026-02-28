@@ -40,10 +40,10 @@ export default function Home() {
             href="/subscribe"
             className="inline-flex items-center justify-center w-full h-12 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors"
           >
-            Subscribe — $3/month
+            Get Started — from $9/quarter
           </a>
           <p className="text-xs text-zinc-400">
-            Cancel anytime. No hidden fees.
+            Trial at $9/quarter or continuous at $3/hour. Cancel anytime.
           </p>
         </div>
 

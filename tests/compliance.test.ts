@@ -87,6 +87,7 @@ function seedUser(userId: string, overrides: Record<string, unknown> = {}): void
     user_id: userId,
     stripe_customer_id: `cus_${userId}`,
     subscription_status: "active",
+    subscription_tier: "trial",
     billing_cycle_anchor: new Date().toISOString(),
     consents: {
       essential_processing: { granted: true, timestamp: new Date().toISOString(), policy_version: "v1.0" },

@@ -29,7 +29,9 @@ export async function getUser(userId: string): Promise<UserRecord | null> {
   const redis = getRedis();
   const data = await redis.get<string>(`${USER_PREFIX}${userId}`);
   if (!data) return null;
-  return typeof data === "string" ? JSON.parse(data) : data as unknown as UserRecord;
+  const parsed = typeof data === "string" ? JSON.parse(data) : data as unknown as UserRecord;
+  if (!parsed.subscription_tier) parsed.subscription_tier = "trial";
+  return parsed;
 }
 
 export async function updateUser(user: UserRecord): Promise<void> {

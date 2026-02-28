@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createCheckoutSession } from "@/lib/stripe";
+import { createCheckoutSession, createMeteredCheckoutSession } from "@/lib/stripe";
 import { getSubscribeRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { hashIP, getClientIP } from "@/lib/audit";
 
@@ -12,7 +12,18 @@ export async function POST(request: NextRequest) {
   );
   if (rateLimitResponse) return rateLimitResponse;
 
-  const priceId = process.env.STRIPE_PRICE_ID;
+  let tier = "trial";
+  try {
+    const body = await request.json();
+    if (body.tier === "continuous") tier = "continuous";
+  } catch {
+    // Default to trial if no body
+  }
+
+  const trialPriceId = process.env.STRIPE_PRICE_ID;
+  const continuousPriceId = process.env.STRIPE_CONTINUOUS_PRICE_ID;
+
+  const priceId = tier === "continuous" ? continuousPriceId : trialPriceId;
   if (!priceId) {
     return NextResponse.json(
       { error: "server_error", message: "Payment not configured." },
@@ -29,11 +40,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const session = await createCheckoutSession(
-      priceId,
-      `${appUrl}/subscribe/success`,
-      `${appUrl}/subscribe`
-    );
+    const session = tier === "continuous"
+      ? await createMeteredCheckoutSession(priceId, `${appUrl}/subscribe/success`, `${appUrl}/subscribe`)
+      : await createCheckoutSession(priceId, `${appUrl}/subscribe/success`, `${appUrl}/subscribe`);
 
     return NextResponse.json({ url: session.url });
   } catch {

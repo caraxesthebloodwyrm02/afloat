@@ -1,0 +1,49 @@
+# Lifeguard Custom Rules
+# Replace these examples with rules specific to your project
+# Each rule should have a clear name and detailed description
+
+# Example rules (uncomment and modify as needed):
+# rules:
+#   - name: "Database transactions must be properly handled"
+#     description: "Ensure all database operations are wrapped in transactions with proper rollback handling. Check that commit/rollback is called in all code paths including error scenarios."
+#
+#   - name: "API responses must include proper error context"
+#     description: "Verify that API error responses include sufficient context for debugging (request ID, timestamp, user context) without exposing sensitive information."
+#
+#   - name: "Async operations should have timeout handling"
+#     description: "Check that long-running async operations (API calls, database queries, file operations) include appropriate timeout mechanisms to prevent hanging requests."
+
+# Your custom rules:
+rules:
+  - name: "API endpoints must return expected data formats"
+    description: "Ensure that API endpoints return data in the format expected by client code. For example, /api/v1/user/data-export?format=portable should return JSON, not ZIP."
+
+  - name: "Implement automated data retention and deletion schedulers"
+    description: "All user data and system records must have automated retention and deletion schedulers to comply with data protection regulations and prevent data accumulation."
+
+  - name: "Secure ownership checks for sensitive endpoints"
+    description: "Provenance and other sensitive endpoints must implement proper authorization checks that do not rely solely on session presence. Handle cases where session keys may be expired or invalid."
+
+  - name: "Resolve all lint warnings before committing"
+    description: "All code must pass linting without warnings. Remove unused variables, fix formatting issues, and address all ESLint/TypeScript warnings before merging."
+
+  - name: "Declare all script dependencies in package.json"
+    description: "Any dependencies used in npm scripts (e.g., tsx for reliability-run script) must be declared in package.json devDependencies to ensure reproducible builds."
+
+  - name: "Validate JWT tokens properly in API routes"
+    description: "All API routes using JWT authentication must validate tokens thoroughly, including expiration checks and signature verification, to prevent unauthorized access."
+
+  - name: "Handle Redis connection errors gracefully"
+    description: "Upstash Redis operations must include proper error handling and fallback mechanisms to prevent application crashes during Redis outages."
+
+  - name: "Secure Stripe webhook endpoints"
+    description: "Stripe webhook handlers must verify webhook signatures and validate payload data to prevent fraudulent requests and ensure data integrity."
+
+  - name: "Implement rate limiting on API endpoints"
+    description: "All public API endpoints must have appropriate rate limiting to prevent abuse and ensure fair resource usage across users."
+
+  - name: "Log security-relevant events"
+    description: "All authentication attempts, authorization failures, and sensitive data access must be logged with appropriate detail for audit purposes."
+
+  - name: "Validate OpenAI API responses"
+    description: "OpenAI API calls must validate response data and handle API errors, rate limits, and unexpected response formats gracefully."

@@ -1,6 +1,6 @@
 # Afloat — Architecture & Mechanics
 
-**Contract reference:** `contract.json` v1.4.0 · Contract ID `7a55f0f1`
+**Contract reference:** `contract.json` v1.6.0 · Contract ID `7a55f0f1`
 **Repository:** [github.com/caraxesthebloodwyrm02/afloat](https://github.com/caraxesthebloodwyrm02/afloat) (private)
 **Purpose:** Baseline system design for Afloat, derived directly from the contract. This document is the technical blueprint for Phase 2 (Build & Test, Days 31–60).
 
@@ -51,8 +51,8 @@ The system has five distinct layers. Each layer has one job.
 │   No user text stored · Upgrade path → SQLite    │
 ├─────────────────────────────────────────────────┤
 │               PAYMENT LAYER                      │
-│   Stripe Checkout · $3/mo recurring              │
-│   No card data on our servers                    │
+│   Stripe Checkout · Trial $9/qtr · Continuous    │
+│   $3/hr metered · No card data on our servers    │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -64,7 +64,7 @@ The system has five distinct layers. Each layer has one job.
 | **Session Controller** | Orchestrate the 4-step session flow, enforce turn + time limits, log telemetry | Server-side enforcement only (client cannot override) |
 | **LLM Layer** | Detect context-gate type, generate proportional brief | ≤ 300 tokens per response, ≤ 3s latency target |
 | **Data Layer** | Store session telemetry, consent records, subscription references | Never stores user text input. JSON files initially, SQLite later. |
-| **Payment Layer** | Handle $3/mo subscription via Stripe Checkout | All PII stays on Stripe. We store only `stripe_customer_id`. |
+| **Payment Layer** | Handle trial ($9/qtr) and continuous ($3/hr metered) subscriptions via Stripe Checkout | All PII stays on Stripe. We store `stripe_customer_id`, `subscription_tier`, and optionally `stripe_subscription_item_id`. |
 
 ---
 
@@ -214,7 +214,18 @@ If the LLM response doesn't contain a valid `[GATE: ...]` tag, the Session Contr
 
 The Session Controller is the gatekeeper. It is the **only server-side component that talks to both the Frontend and the LLM**. Nothing bypasses it.
 
-### Turn counting
+### Tier-aware limits
+
+Session limits are configurable per subscription tier via `getTierLimits(tier)`:
+
+| Tier | Max LLM Calls | Max Duration | Use Case |
+|------|--------------|-------------|----------|
+| `trial` | 2 | 120s (2 min) | Quick decision support |
+| `continuous` | 6 | 1,800s (30 min) | Extended analysis sessions |
+
+Unknown tiers fall back to trial limits. Existing sessions without a `tier` field default to `"trial"`.
+
+### Turn counting (trial tier example)
 
 ```
 Turn 1: User sends input    → Controller forwards to LLM → LLM responds (brief)
@@ -396,7 +407,7 @@ duration_minutes = (end_time - start_time) / 60
 
 ```
 1. User visits the tool landing page (unauthenticated, can see what the tool does)
-2. User clicks "Subscribe — $3/month"
+2. User selects a tier: Trial ($9/quarter) or Continuous ($3/hour metered)
 3. Redirect to Stripe Checkout (hosted by Stripe, not us)
 4. User enters email + payment method on Stripe's page
 5. Stripe processes payment, creates customer + subscription
@@ -495,7 +506,23 @@ All routes are server-side. The frontend calls these.
 
 ---
 
-## 11. Security Boundaries
+## 11. Safety Gradient Layer
+
+The safety gradient provides tier-proportional safety checks, inspired by Grid's BoundaryContract and aligned with Anthropic RSP 3.0 fail-closed defaults.
+
+### How it works
+
+- **Trial tier:** Passes through with no additional checks (low capability = low risk)
+- **Continuous tier:** Checks for rapid-fire abuse patterns — if average interval between messages is under 5 seconds, the request is blocked with 429
+- **Fail-closed default:** If the safety evaluation function throws an exception, access is denied. This ensures that safety failures always err on the side of caution.
+
+### Integration point
+
+The safety gradient runs in the message route (`/api/v1/session/[id]/message`) after session limit enforcement passes but before the LLM call. A blocked request returns `429` with a reason string.
+
+---
+
+## 12. Security Boundaries
 
 ### What runs where
 

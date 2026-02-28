@@ -20,7 +20,7 @@ interface Message {
   content: string;
 }
 
-const MAX_DURATION_MS = 120_000;
+const DEFAULT_MAX_DURATION_MS = 120_000;
 
 function readToken(): string {
   if (typeof window === "undefined") return "";
@@ -34,6 +34,8 @@ export default function ChatPage() {
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [startTime, setStartTime] = useState<number>(0);
+  const [maxDurationMs, setMaxDurationMs] = useState<number>(DEFAULT_MAX_DURATION_MS);
+  const [tier, setTier] = useState<string>("trial");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const tokenRef = useRef(readToken());
 
@@ -64,6 +66,8 @@ export default function ChatPage() {
           if (cancelled) return;
           setSessionId(data.session_id);
           setStartTime(Date.now());
+          if (data.max_duration_ms) setMaxDurationMs(data.max_duration_ms);
+          if (data.tier) setTier(data.tier);
           setMessages([]);
           setSessionState("waiting_for_input");
           setErrorMessage("");
@@ -159,6 +163,8 @@ export default function ChatPage() {
     setSessionState("waiting_for_input");
     setErrorMessage("");
     setStartTime(0);
+    setMaxDurationMs(DEFAULT_MAX_DURATION_MS);
+    setTier("trial");
   }, []);
 
   const handleTimerExpire = useCallback(() => {
@@ -202,12 +208,17 @@ export default function ChatPage() {
       <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
         <h1 className="text-base font-semibold text-zinc-900">Afloat</h1>
         {startTime > 0 && (
-          <SessionTimer
-            startTime={startTime}
-            maxDurationMs={MAX_DURATION_MS}
-            isActive={isTimerActive}
-            onExpire={handleTimerExpire}
-          />
+          <>
+            {tier !== "trial" && (
+              <span className="text-xs text-zinc-400 mr-2">{tier}</span>
+            )}
+            <SessionTimer
+              startTime={startTime}
+              maxDurationMs={maxDurationMs}
+              isActive={isTimerActive}
+              onExpire={handleTimerExpire}
+            />
+          </>
         )}
       </header>
 

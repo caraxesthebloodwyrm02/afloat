@@ -11,9 +11,10 @@ import {
     releaseSessionLock,
     updateSession,
 } from "@/lib/session-controller";
+import { evaluateSafetyGradient, failClosedSafetyCheck } from "@/lib/safety";
 import { generateMessageResponse } from "@/lib/session-message-adapter";
 import type { ApiError, SessionMessageResponse } from "@/types/api";
-import { MAX_LLM_CALLS } from "@/types/session";
+import { getTierLimits } from "@/types/session";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -211,6 +212,18 @@ export async function POST(
       confidence: 1.0,
     });
 
+    // Safety gradient check (tier-proportional)
+    const sessionElapsedMs = Date.now() - new Date(session.start_time).getTime();
+    const safetyResult = failClosedSafetyCheck(() =>
+      evaluateSafetyGradient(session.tier, session.llm_call_count, sessionElapsedMs)
+    );
+    if (!safetyResult.allowed) {
+      return NextResponse.json<ApiError>(
+        { error: "rate_limit", message: safetyResult.reason ?? "Safety check blocked request." },
+        { status: 429 },
+      );
+    }
+
     const enforceDPR = createDPR(
       {
         decision_type: "gate_verdict",
@@ -243,7 +256,7 @@ export async function POST(
       );
       await updateSession(session);
 
-      const turnsRemaining = MAX_LLM_CALLS - session.llm_call_count;
+      const turnsRemaining = getTierLimits(session.tier).maxLlmCalls - session.llm_call_count;
 
       const generationDPR = createDPR(
         {

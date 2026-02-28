@@ -9,6 +9,7 @@ export type GateType =
 export interface SessionState {
   session_id: string;
   user_id: string;
+  tier: string;
   start_time: string;
   llm_call_count: number;
   gate_type: GateType | null;
@@ -22,6 +23,7 @@ export interface SessionState {
 export interface SessionLog {
   session_id: string;
   user_id: string;
+  tier: string;
   start_time: string;
   end_time: string;
   turns: number;
@@ -34,3 +36,17 @@ export interface SessionLog {
 
 export const MAX_LLM_CALLS = 2;
 export const MAX_DURATION_MS = 120_000;
+
+export interface TierLimits {
+  maxLlmCalls: number;
+  maxDurationMs: number;
+}
+
+export const TIER_LIMITS: Record<string, TierLimits> = {
+  trial: { maxLlmCalls: 2, maxDurationMs: 120_000 },
+  continuous: { maxLlmCalls: 6, maxDurationMs: 1_800_000 }, // 6 turns, 30 min
+};
+
+export function getTierLimits(tier: string): TierLimits {
+  return TIER_LIMITS[tier] ?? TIER_LIMITS["trial"];
+}

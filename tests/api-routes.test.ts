@@ -115,6 +115,7 @@ function seedUser(userId: string, status: "active" | "canceled" = "active") {
     user_id: userId,
     stripe_customer_id: "cus_test",
     subscription_status: status,
+    subscription_tier: "trial" as const,
     billing_cycle_anchor: new Date().toISOString(),
     consents: {
       essential_processing: {
@@ -146,6 +147,7 @@ function seedSession(
   const session: SessionState = {
     session_id: sessionId,
     user_id: userId,
+    tier: "trial",
     start_time: new Date().toISOString(),
     llm_call_count: 0,
     gate_type: null,

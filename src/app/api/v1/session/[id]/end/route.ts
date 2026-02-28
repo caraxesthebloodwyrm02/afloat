@@ -6,6 +6,7 @@ import { getUser } from "@/lib/data-layer";
 import { shouldWriteTelemetry } from "@/lib/consent";
 import { getSessionEndRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { reportUsage } from "@/lib/stripe";
 import type { SessionEndResponse, ApiError } from "@/types/api";
 
 export async function POST(
@@ -53,6 +54,7 @@ export async function POST(
     await writeSessionLog({
       session_id: session.session_id,
       user_id: session.user_id,
+      tier: session.tier,
       start_time: session.start_time,
       end_time: endTime,
       turns: session.llm_call_count,
@@ -62,6 +64,21 @@ export async function POST(
       latency_per_turn: session.latency_per_turn,
       error: session.error,
     });
+  }
+
+  // Report metered usage for continuous tier
+  if (session.tier === "continuous" && userRecord) {
+    const durationMs = new Date(endTime).getTime() - new Date(session.start_time).getTime();
+    const usageMinutes = Math.max(1, Math.ceil(durationMs / 60_000));
+    try {
+      await reportUsage(
+        userRecord.stripe_customer_id,
+        usageMinutes,
+        Math.floor(Date.now() / 1000)
+      );
+    } catch {
+      // Best-effort usage reporting — don't block session end
+    }
   }
 
   await writeAuditLog({

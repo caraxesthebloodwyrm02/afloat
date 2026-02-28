@@ -74,7 +74,7 @@ export function SessionStatus({
           href="/subscribe"
           className="inline-flex items-center justify-center h-10 px-6 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors"
         >
-          Subscribe — $3/month
+          Subscribe — from $9/quarter
         </a>
       </div>
     );

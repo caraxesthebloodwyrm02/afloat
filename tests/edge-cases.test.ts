@@ -19,6 +19,7 @@ function makeSession(overrides: Partial<SessionState> = {}): SessionState {
   return {
     session_id: "edge-test-session",
     user_id: "edge-test-user",
+    tier: "trial",
     start_time: new Date().toISOString(),
     llm_call_count: 0,
     gate_type: null,

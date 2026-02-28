@@ -4,6 +4,7 @@ import { createSession } from "@/lib/session-controller";
 import { getUser } from "@/lib/data-layer";
 import { getSessionRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { getTierLimits } from "@/types/session";
 import type { SessionStartResponse, ApiError } from "@/types/api";
 
 export async function POST(request: NextRequest) {
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const session = await createSession(user.user_id);
+  const tier = userRecord.subscription_tier ?? "trial";
+  const session = await createSession(user.user_id, tier);
 
   await writeAuditLog({
     actor: user.user_id,
@@ -46,10 +48,15 @@ export async function POST(request: NextRequest) {
     resource_id: session.session_id,
     outcome: "success",
     ip_hash: hashIP(getClientIP(request)),
-    metadata: {},
+    metadata: { tier },
   });
+
+  const limits = getTierLimits(tier);
 
   return NextResponse.json<SessionStartResponse>({
     session_id: session.session_id,
+    tier,
+    max_duration_ms: limits.maxDurationMs,
+    max_turns: limits.maxLlmCalls,
   });
 }

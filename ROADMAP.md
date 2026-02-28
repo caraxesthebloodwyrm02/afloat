@@ -89,34 +89,61 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ---
 
-## Milestone 3 — Session Depth (Controlled Expansion)
+## Milestone 3 — Session Depth & Tier System (COMPLETE)
 
-*Currently sessions are 2 turns / 2 minutes. This milestone explores whether more turns improve outcomes without degrading quality.*
+*Introduced a two-tier subscription system (trial + continuous) with configurable session limits, metered billing, and safety gradient.*
 
-**Goal:** Make session limits configurable per-tier without breaking the exhaustion handling contract (§4.0).
+**Goal:** Make session limits configurable per-tier, add continuous tier with metered billing, and implement safety guardrails proportional to capability.
 
-**Baseline properties to preserve:** §4.2 exhaustion handling (409 codes), §2.1 ephemeral stream, all auth.
+**Baseline properties preserved:** §4.2 exhaustion handling (409 codes), §2.1 ephemeral stream, all auth.
 
-### 3.1 Extract limits to configuration
+### 3.1 Tier configuration
 
-- **Work:**
-  - Move `MAX_LLM_CALLS` and `MAX_DURATION_MS` from hardcoded constants to a tier-aware config lookup.
-  - Default tier returns current values (2 / 120000). No behavior change for existing users.
-  - New tiers (if/when defined) return higher values.
+- **Shipped:** `TierLimits` type, `TIER_LIMITS` config, `getTierLimits()` lookup in `types/session.ts`
+- Trial tier: 2 LLM calls, 120s max. Continuous tier: 6 LLM calls, 1800s (30 min) max.
+- `SubscriptionTier` type added to `types/user.ts`. `tier` field added to `SessionState` and `SessionLog`.
+- Session controller updated: `createSession`, `enforceSessionLimits`, `updateSession`, `getSession` all tier-aware.
+- Backward compatible: sessions without `tier` field default to `"trial"`.
 
-### 3.2 Write probes (before any code)
+### 3.2 Continuous tier billing
+
+- **Shipped:** Metered checkout session, usage reporting via `stripe.ts`
+- Subscribe route accepts `{ tier }` in POST body, routes to correct Stripe price ID
+- Webhook detects tier from checkout line items, stores `subscription_tier` and `stripe_subscription_item_id`
+- Session end reports usage minutes for continuous tier
+
+### 3.3 Safety gradient
+
+- **Shipped:** `src/lib/safety.ts` with `evaluateSafetyGradient` and `failClosedSafetyCheck`
+- Trial tier: passes through (low capability, low risk)
+- Continuous tier: blocks rapid-fire messages (<5s average interval)
+- Fail-closed default: if evaluation throws, access denied (RSP 3.0 alignment)
+
+### 3.4 Subscribe page redesign
+
+- **Shipped:** Two-tier comparison layout (trial left, continuous right)
+- Pricing display fixed: "$3/month" → "from $9/quarter" across all files
+- Chat page uses dynamic `max_duration_ms` from session start response
+
+### 3.5 Probes
 
 | Probe | What it tests | Pass criteria |
 |-------|--------------|---------------|
-| REQ-E1 | Default tier returns MAX_LLM_CALLS = 2 | Exact match |
-| REQ-E2 | Default tier returns MAX_DURATION_MS = 120000 | Exact match |
-| REQ-E3 | Unknown tier falls back to default | Same as E1/E2 |
-| REQ-E4 | Exhaustion still returns 409 at new tier boundary | Status code check |
-| REQ-E5 | Ephemeral stream property holds across all tiers | History not persisted |
+| REQ-T1 | Trial tier max calls | `getTierLimits("trial").maxLlmCalls === 2` |
+| REQ-T2 | Trial tier duration | `getTierLimits("trial").maxDurationMs === 120_000` |
+| REQ-T3 | Unknown tier fallback | `getTierLimits("unknown")` equals trial |
+| REQ-T4 | Continuous tier calls | `maxLlmCalls === 6` |
+| REQ-T5 | Continuous tier duration | `maxDurationMs === 1_800_000` |
+| REQ-T6 | Exhaustion 409 at trial boundary | Status 409 at `llm_call_count=2` |
+| REQ-T7 | Exhaustion 409 at continuous boundary | Status 409 at `llm_call_count=6` |
+| REQ-T8 | Ephemeral stream for continuous | History not persisted (REQ-A5) |
+| REQ-SF1 | Trial passes safety gradient | `allowed: true` |
+| REQ-SF2 | Continuous blocks rapid-fire | `allowed: false` when <5s gap |
+| REQ-SF3 | Fail-closed on error | `allowed: false` |
 
 ### Quality Gate
-- All existing + E-series probes pass
-- §4.0 baseline values unchanged for default tier
+- All existing + T-series + SF-series probes pass
+- §4.0 baseline values unchanged for trial tier
 - 0 lint errors, clean build
 
 ---
@@ -234,7 +261,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 |---------|-----------|-------|--------|
 | 1.0.0 | M1 — Technical Baseline | 107/107 | **COMPLETE** |
 | — | M2 — Response Quality Foundation | TBD | Next |
-| — | M3 — Session Depth | TBD | Planned |
+| 1.6.0 | M3 — Session Depth & Tier System | 107 + T/SF probes | **COMPLETE** |
 | — | M4 — Data Retention & Cleanup | TBD | Planned |
 | — | M5 — Observability | TBD | Planned |
 | 2.0.0 | M6 — Product Behavior Baseline | TBD | Planned |

@@ -6,6 +6,7 @@ function makeSession(overrides: Partial<SessionState> = {}): SessionState {
   return {
     session_id: "test-session-id",
     user_id: "test-user-id",
+    tier: "trial",
     start_time: new Date().toISOString(),
     llm_call_count: 0,
     gate_type: null,

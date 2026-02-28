@@ -1,7 +1,7 @@
 {
   "contract": {
     "id": "7a55f0f1-84be-43b7-8385-5dc0cbb49bed",
-    "version": "1.5.1",
+    "version": "1.6.0",
     "created": "2026-02-25T18:04:41.157591+00:00",
     "status": "pre_launch",
     "time_window": {
@@ -117,7 +117,12 @@
       "session_controller": {
         "max_turns": 3,
         "max_duration_seconds": 120,
-        "enforcement": "server_side_timer_and_turn_counter"
+        "enforcement": "server_side_timer_and_turn_counter",
+        "tier_aware": true,
+        "tiers": {
+          "trial": { "max_llm_calls": 2, "max_duration_ms": 120000 },
+          "continuous": { "max_llm_calls": 6, "max_duration_ms": 1800000 }
+        }
       },
       "data_layer": {
         "format": "json_logging",
@@ -135,7 +140,10 @@
       "payment_layer": {
         "provider": "stripe",
         "integration": "stripe_checkout",
-        "plan": "$9/qtr_recurring"
+        "plan": {
+          "trial": "$9/qtr_recurring",
+          "continuous": "$3/hr_metered"
+        }
       },
       "frontend": {
         "type": "minimal_chat_ui",
@@ -227,6 +235,10 @@
       "name": "Micro-Subscription",
       "price_usd": 9.00,
       "billing_period": "quarterly",
+      "continuous_tier": {
+        "price_usd": 3.00,
+        "billing_period": "hourly_metered"
+      },
       "users_needed": 12,
       "projected_gross_usd": 108.00,
       "acquisition_rate": "~1 user per week via organic channels (billed quarterly)",
@@ -885,6 +897,29 @@
     }
   },
   "changelog": [
+    {
+      "version": "1.6.0",
+      "date": "2026-02-28T22:00:00+06:00",
+      "changes": [
+        "Added tier system: trial ($9/qtr) and continuous ($3/hr metered) subscription tiers",
+        "Added TierLimits type system with configurable maxLlmCalls and maxDurationMs per tier",
+        "Trial tier: 2 LLM calls, 120s max. Continuous tier: 6 LLM calls, 1800s (30 min) max",
+        "Updated session controller for tier-aware enforcement (createSession, enforceSessionLimits, updateSession, getSession)",
+        "Added metered billing support: createMeteredCheckoutSession, reportUsage in stripe.ts",
+        "Subscribe route now accepts { tier } in POST body, routes to correct Stripe price",
+        "Webhook detects tier from checkout line items, stores subscription_tier and stripe_subscription_item_id on user",
+        "Session end route reports metered usage minutes for continuous tier",
+        "Redesigned subscribe page with two-tier comparison (trial left, continuous right)",
+        "Fixed pricing display mismatch: '$3/month' updated to 'from $9/quarter' across 3 files",
+        "Chat page now uses dynamic max_duration_ms from session start response, displays tier indicator",
+        "Added safety gradient layer (src/lib/safety.ts): evaluateSafetyGradient with fail-closed defaults",
+        "Safety gradient integrated into message route — blocks rapid-fire messages in continuous tier",
+        "Added STRIPE_CONTINUOUS_PRICE_ID to .env.example",
+        "Updated session_controller in architecture to document tier-aware limits",
+        "Updated payment_layer.plan to support both trial and continuous plans",
+        "Updated selected_model_details with continuous_tier pricing"
+      ]
+    },
     {
       "version": "1.5.1",
       "date": "2026-02-28T18:00:00+06:00",
