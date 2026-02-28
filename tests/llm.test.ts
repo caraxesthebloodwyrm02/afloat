@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { assessResponseQuality } from "@/lib/llm";
 
 const VALID_GATE_TYPES = [
   "meeting_triage",
@@ -81,6 +82,43 @@ describe("parseGateAndBrief", () => {
   it("handles empty response", () => {
     const result = parseGateAndBrief("");
     expect(result.gate_type).toBe("unclassified");
-    expect(result.brief).toBe("");
+  expect(result.brief).toBe("");
+});
+
+describe("assessResponseQuality", () => {
+  it("flags missing gate tag", () => {
+    const r = assessResponseQuality("unclassified", "Some brief.");
+    expect(r.missing_gate_tag).toBe(true);
   });
+
+  it("flags word count over 150", () => {
+    const longBrief = Array(160).fill("word").join(" ");
+    const r = assessResponseQuality("meeting_triage", longBrief);
+    expect(r.exceeds_word_limit).toBe(true);
+    expect(r.word_count).toBe(160);
+  });
+
+  it("flags open-ended questions", () => {
+    const r = assessResponseQuality("meeting_triage", "Should you attend?");
+    expect(r.ends_with_question).toBe(true);
+  });
+
+  it("passes clean response", () => {
+    const r = assessResponseQuality("priority_decision", "Focus on task A first.");
+    expect(r.missing_gate_tag).toBe(false);
+    expect(r.exceeds_word_limit).toBe(false);
+    expect(r.ends_with_question).toBe(false);
+  });
+
+  it("counts words correctly with multiple spaces", () => {
+    const r = assessResponseQuality("quick_briefing", "Hello   world   test");
+    expect(r.word_count).toBe(3);
+  });
+
+  it("handles empty brief", () => {
+    const r = assessResponseQuality("context_gate_resolution", "");
+    expect(r.word_count).toBe(0);
+    expect(r.ends_with_question).toBe(false);
+  });
+});
 });

@@ -1,7 +1,7 @@
 # Afloat Product Development Roadmap
 
-**Anchored to:** `baseline.txt` v1.0.0 (Level 1 Technical Baseline)
-**Quality rule:** No milestone ships unless the validation gate passes (107/107 tests, 0 lint errors, clean build). If work drifts from a baseline-defined behavior, stop and reconcile before continuing.
+**Anchored to:** `baseline.txt` v1.1.0 (Level 1 Technical Baseline)
+**Quality rule:** No milestone ships unless the validation gate passes (153/153 tests, 0 lint errors, clean build). If work drifts from a baseline-defined behavior, stop and reconcile before continuing.
 **Methodology:** Each milestone adds probes before code. Tests define the contract; implementation satisfies it.
 
 ---
@@ -83,7 +83,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 | REQ-D5 | Prompt token count stays under 500 | Tokenizer check on SYSTEM_PROMPT |
 
 ### Quality Gate
-- 107 existing + new D-series probes all pass
+- 153 existing + new D-series probes all pass
 - 0 lint errors, clean build
 - No baseline §1–§4 properties changed
 
@@ -260,8 +260,8 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 | Version | Milestone | Tests | Status |
 |---------|-----------|-------|--------|
 | 1.0.0 | M1 — Technical Baseline | 107/107 | **COMPLETE** |
-| — | M2 — Response Quality Foundation | TBD | Next |
-| 1.6.0 | M3 — Session Depth & Tier System | 107 + T/SF probes | **COMPLETE** |
+| — | M2 — Response Quality Foundation | TBD | **Active** |
+| 1.6.0 | M3 — Session Depth & Tier System | 153/153 | **COMPLETE** |
 | — | M4 — Data Retention & Cleanup | TBD | Planned |
 | — | M5 — Observability | TBD | Planned |
 | 2.0.0 | M6 — Product Behavior Baseline | TBD | Planned |

@@ -174,7 +174,7 @@ describe("GET /api/v1/health", () => {
     expect(response.status).toBe(200);
     expect(body.status).toBe("ok");
     expect(body.timestamp).toBeDefined();
-    expect(body.version).toBe("0.1.0");
+    expect(body.version).toBe("0.1.1");
   });
 });
 
@@ -351,7 +351,7 @@ describe("POST /api/v1/session/[id]/message", () => {
 
     const body = await response.json();
     expect(body.error).toBe("empty_input");
-    expect(body.message).toContain("2000");
+    expect(body.message).toContain("INPUT_TOO_LONG");
   });
 
   it("rejects when session turns exhausted (409)", async () => {

@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "./prompt";
 import type { GateType } from "@/types/session";
+import { recordSafetyEvent } from "./safety-telemetry";
 
 let openai: OpenAI | null = null;
 
@@ -48,6 +49,23 @@ function parseGateAndBrief(raw: string): { gate_type: GateType; brief: string } 
   return { gate_type, brief };
 }
 
+export interface ResponseQualityFlags {
+  missing_gate_tag: boolean;
+  exceeds_word_limit: boolean;
+  word_count: number;
+  ends_with_question: boolean;
+}
+
+export function assessResponseQuality(gateType: GateType, brief: string): ResponseQualityFlags {
+  const wordCount = brief.split(/\s+/).filter(Boolean).length;
+  return {
+    missing_gate_tag: gateType === "unclassified",
+    exceeds_word_limit: wordCount > 150,
+    word_count: wordCount,
+    ends_with_question: brief.trimEnd().endsWith("?"),
+  };
+}
+
 export async function callLLM(
   userMessage: string,
   conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
@@ -89,6 +107,13 @@ export async function callLLM(
     }
 
     const { gate_type, brief } = parseGateAndBrief(raw);
+    const qualityFlags = assessResponseQuality(gate_type, brief);
+    
+    // Fire-and-forget telemetry
+    if (qualityFlags.missing_gate_tag || qualityFlags.exceeds_word_limit || qualityFlags.ends_with_question) {
+      recordSafetyEvent({ event_type: "response_quality_flag", flags: qualityFlags }).catch(() => {});
+    }
+    
     return { gate_type, brief, raw };
   } catch (error: unknown) {
     clearTimeout(timeout);

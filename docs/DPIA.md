@@ -12,7 +12,7 @@
 
 ### What is Afloat?
 
-Afloat is a micro-subscription ($3/month) web application that provides short-session cognitive decision support. Users describe what they are stuck on, and the tool returns a brief (under 300 tokens) to help them proceed. Sessions are capped at 2 minutes and 2 LLM calls.
+Afloat is a micro-subscription web application (trial at $9/quarter, continuous at $3/hour metered) that provides cognitive decision support. Users describe what they are stuck on, and the tool returns a brief (under 300 tokens) to help them proceed. Sessions are capped by tier: trial at 2 minutes and 2 LLM calls, continuous at 30 minutes and 6 LLM calls.
 
 ### Data processing overview
 

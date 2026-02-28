@@ -11,7 +11,9 @@ import {
     releaseSessionLock,
     updateSession,
 } from "@/lib/session-controller";
-import { evaluateSafetyGradient, failClosedSafetyCheck } from "@/lib/safety";
+import { detectAndRedactPII } from "@/lib/safety";
+import { runSafetyPipeline } from "@/lib/safety-pipeline";
+import { recordSafetyEvent } from "@/lib/safety-telemetry";
 import { generateMessageResponse } from "@/lib/session-message-adapter";
 import type { ApiError, SessionMessageResponse } from "@/types/api";
 import { getTierLimits } from "@/types/session";
@@ -165,18 +167,6 @@ export async function POST(
       }
     }
 
-    // Input length validation — prevent token abuse
-    const MAX_INPUT_LENGTH = 2000;
-    if (userMessage.length > MAX_INPUT_LENGTH) {
-      return NextResponse.json<ApiError>(
-        {
-          error: "empty_input",
-          message: `Message too long. Maximum ${MAX_INPUT_LENGTH} characters.`,
-        },
-        { status: 400 },
-      );
-    }
-
     const enforcement = enforceSessionLimits(session, userMessage);
     if (!enforcement.allowed) {
       safetyVerdicts.push({
@@ -212,14 +202,51 @@ export async function POST(
       confidence: 1.0,
     });
 
-    // Safety gradient check (tier-proportional)
+    // Unified Safety Pipeline
     const sessionElapsedMs = Date.now() - new Date(session.start_time).getTime();
-    const safetyResult = failClosedSafetyCheck(() =>
-      evaluateSafetyGradient(session.tier, session.llm_call_count, sessionElapsedMs)
-    );
-    if (!safetyResult.allowed) {
+    const pipeline = runSafetyPipeline({
+      userMessage,
+      tier: session.tier,
+      messageCount: session.llm_call_count,
+      sessionDurationMs: sessionElapsedMs,
+    });
+
+    // Fire-and-forget telemetry
+    recordSafetyEvent({
+      event_type: "pipeline_result",
+      pre_check_flags: pipeline.pre_check.flags,
+      pii_found: pipeline.pii.pii_found,
+      pii_types: pipeline.pii.type_counts,
+      blocked_by: pipeline.blocked_by,
+    }).catch(() => {});
+
+    // Add safety verdicts to DPR chain
+    safetyVerdicts.push({
+      gate_id: "pre_check",
+      gate_type: "guardrail",
+      verdict: pipeline.pre_check.blocked ? "block" : "pass",
+      latency_ms: 0,
+      confidence: 1.0,
+    });
+    if (pipeline.pii.pii_found) {
+      safetyVerdicts.push({
+        gate_id: "pii_shield",
+        gate_type: "guardrail",
+        verdict: "warn",
+        latency_ms: 0,
+        confidence: 1.0,
+      });
+    }
+
+    if (!pipeline.allowed) {
+      if (pipeline.blocked_by === "pre_check") {
+        return NextResponse.json<ApiError>(
+          { error: "empty_input", message: pipeline.reason ?? "Input validation failed" },
+          { status: 400 },
+        );
+      }
       return NextResponse.json<ApiError>(
-        { error: "rate_limit", message: safetyResult.reason ?? "Safety check blocked request." },
+        { error: "rate_limit", message: pipeline.reason ?? "Rate limit exceeded" },
         { status: 429 },
       );
     }
@@ -241,9 +268,16 @@ export async function POST(
     const startTime = Date.now();
 
     try {
+      // Use sanitized message from safety pipeline
+      const safeLLMInput = pipeline.sanitized_message;
+      const safeHistory = clientHistory.map(entry => ({
+        role: entry.role,
+        content: detectAndRedactPII(entry.content).redacted_text,
+      }));
+
       const llmResponse = await generateMessageResponse(
-        userMessage,
-        clientHistory,
+        safeLLMInput,
+        safeHistory,
       );
 
       const latencyMs = Date.now() - startTime;

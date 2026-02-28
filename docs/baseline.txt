@@ -1,9 +1,9 @@
 # Afloat Technical Baseline: Level 1 (Atomic)
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Scope:** Application Logic Only
 **Methodology:** Consistent and repeatable — evolves at explicit version bumps
-**Status:** 107/107 Tests Pass | 0 Lint Errors | Clean Build
+**Status:** 153/153 Tests Pass | 0 Lint Errors | Clean Build
 
 ---
 
@@ -16,7 +16,7 @@
 
 ### 1.2 Process
 *   Auth check → Session state enforcement → Stream processing → Response.
-*   Session limits: `MAX_LLM_CALLS = 2`, `MAX_DURATION_MS = 120000`.
+*   Session limits: configurable per tier via `getTierLimits(tier)`. Trial: `maxLlmCalls=2`, `maxDurationMs=120000`. Continuous: `maxLlmCalls=6`, `maxDurationMs=1800000`. Unknown tiers fall back to trial.
 *   History: client-echoed, sanitized (last 4 entries, role/content validated, 2000-char truncation).
 *   History is ephemeral — never persisted to the data layer.
 
@@ -27,7 +27,7 @@
 
 ### 1.4 Validation Gate
 *   **Command:** `npx vitest run`
-*   **Requirement:** 107/107 tests (8 files). 0 lint errors. Clean `next build`.
+*   **Requirement:** 153/153 tests (11 files). 0 lint errors. Clean `next build`.
 
 ---
 
@@ -81,8 +81,8 @@
 *Per-session capacity — no cross-session concurrency enforcement exists.*
 
 ### 4.1 Per-Session Limits
-*   **Turns:** `MAX_LLM_CALLS = 2` (configurable constant).
-*   **Duration:** `MAX_DURATION_MS = 120000` (2 minutes).
+*   **Turns:** configurable via `getTierLimits(tier).maxLlmCalls`. Trial: 2. Continuous: 6.
+*   **Duration:** configurable via `getTierLimits(tier).maxDurationMs`. Trial: 120000ms (2 min). Continuous: 1800000ms (30 min).
 
 ### 4.2 Exhaustion Handling
 *   Session turns exhausted → **409 Conflict** → End session → Start new.
@@ -96,15 +96,15 @@
 
 | Category | Parameter | Value | Validation Source |
 | :--- | :--- | :--- | :--- |
-| **Throughput** | Session Turns | MAX_LLM_CALLS = 2 | `session-controller.ts`, REQ-A |
-| **Throughput** | Session Duration | MAX_DURATION_MS = 120000 | `session-controller.ts`, REQ-A |
+| **Throughput** | Session Turns | Trial: 2 / Continuous: 6 | `types/session.ts`, TIER_LIMITS |
+| **Throughput** | Session Duration | Trial: 120000ms / Continuous: 1800000ms | `types/session.ts`, TIER_LIMITS |
 | **Security** | Auth Failure | 401 / 403 | REQ-B1 |
 | **Security** | Foreign Claim | 403 (short-circuit) | REQ-B4 |
 | **Integrity** | Export Magic Bytes | `PK\x03\x04` | REQ-C2 |
 | **Integrity** | Export Directory | data.json + data.csv | REQ-C3 |
 | **Lifecycle** | Stream History | Ephemeral (not persisted) | REQ-A5 |
 | **Lifecycle** | Post-Deletion Auth | DPR chain actor_id | REQ-B2 |
-| **Validation** | Test Suite | 107/107 (8 files) | `npx vitest run` |
+| **Validation** | Test Suite | 153/153 (11 files) | `npx vitest run` |
 
 ---
 
@@ -135,4 +135,4 @@
 
 **End of Level 1 Technical Baseline**
 *Next: Product behavior baseline (response quality, clarity, jargon-breaking) — separate milestone.*
-*Current: 107/107 tests. Ephemeral stream enabled. Methodology: consistent and repeatable.*
+*Current: 153/153 tests (M1 + M3). Ephemeral stream enabled. Tier system active. Methodology: consistent and repeatable.*

@@ -2,13 +2,13 @@
 
 **Contract reference:** `contract.json` v1.6.0 · Contract ID `7a55f0f1`
 **Repository:** [github.com/caraxesthebloodwyrm02/afloat](https://github.com/caraxesthebloodwyrm02/afloat) (private)
-**Purpose:** Baseline system design for Afloat, derived directly from the contract. This document is the technical blueprint for Phase 2 (Build & Test, Days 31–60).
+**Purpose:** Baseline system design for Afloat, derived directly from the contract. This document reflects the deployed system as of Phase 1 launch (2026-03-01).
 
 ---
 
 ## 1. System Overview
 
-Afloat is a **short-session cognitive assistant** — a web-based chat interface where a user asks a question, the system identifies what kind of "context gate" is blocking them, delivers a brief to unblock them, and ends the session. The entire interaction takes under 2 minutes.
+Afloat is a **short-session cognitive assistant** — a web-based chat interface where a user asks a question, the system identifies what kind of "context gate" is blocking them, delivers a brief to unblock them, and ends the session. The entire interaction takes under 2 minutes (trial tier) or up to 30 minutes (continuous tier).
 
 ### What the tool does
 
@@ -40,7 +40,7 @@ The system has five distinct layers. Each layer has one job.
 ├─────────────────────────────────────────────────┤
 │              SESSION CONTROLLER                  │
 │   Manages the 4-step flow, enforces limits       │
-│   Max 3 turns · Max 120 seconds · Server-side    │
+│   Trial: 2 calls·120s / Continuous: 6·1800s     │
 ├─────────────────────────────────────────────────┤
 │                  LLM LAYER                       │
 │   OpenAI gpt-4o-mini · Max 300 tokens/response   │
@@ -63,7 +63,7 @@ The system has five distinct layers. Each layer has one job.
 | **Frontend** | Render chat UI, send/receive messages, show session timer | Must work on free-tier Vercel deployment |
 | **Session Controller** | Orchestrate the 4-step session flow, enforce turn + time limits, log telemetry | Server-side enforcement only (client cannot override) |
 | **LLM Layer** | Detect context-gate type, generate proportional brief | ≤ 300 tokens per response, ≤ 3s latency target |
-| **Data Layer** | Store session telemetry, consent records, subscription references | Never stores user text input. JSON files initially, SQLite later. |
+| **Data Layer** | Store session telemetry, consent records, subscription references | Never stores user text input. Stored in Upstash Redis (sessions, users, audit logs). |
 | **Payment Layer** | Handle trial ($9/qtr) and continuous ($3/hr metered) subscriptions via Stripe Checkout | All PII stays on Stripe. We store `stripe_customer_id`, `subscription_tier`, and optionally `stripe_subscription_item_id`. |
 
 ---
@@ -79,7 +79,7 @@ The user types their question or describes what they're stuck on.
 **What happens technically:**
 - Frontend sends the user's text to the Session Controller via API
 - Session Controller generates a `session_id` (UUID v4)
-- Session Controller starts the **120-second timer** (server-side)
+- Session Controller starts the **tier-aware timer** (120s trial / 1800s continuous, server-side)
 - Session Controller records `start_time`
 - Turn counter set to `1`
 
@@ -151,7 +151,7 @@ The user either:
 | User sends no follow-up (closes tab / clicks "done") | `session_completed = true`, `user_proceeded = true` |
 | User sends 1 follow-up, gets response | `session_completed = true`, turn count = 2 |
 | Turn limit reached (3 turns total including user messages) | `session_completed = true`, forced end |
-| Timer expires (120 seconds) | `session_completed = true`, timeout flag |
+| Timer expires (120s trial / 1800s continuous) | `session_completed = true`, timeout flag |
 | Error (LLM failure, network issue) | `session_completed = false`, error logged |
 
 ---
@@ -245,7 +245,8 @@ Practical implementation:
 
 ```
 session_start = now()
-deadline = session_start + 120 seconds
+max_duration = getTierLimits(session.tier).maxDurationMs  // 120_000 trial / 1_800_000 continuous
+deadline = session_start + max_duration
 
 On every user message:
   if now() > deadline:
@@ -276,6 +277,8 @@ Written to data layer as a JSON log entry after session ends:
 ```json
 {
   "session_id": "uuid-v4",
+  "user_id": "uuid-v4",
+  "tier": "trial",
   "start_time": "2026-03-15T14:30:00Z",
   "end_time": "2026-03-15T14:31:22Z",
   "turns": 2,
@@ -302,6 +305,7 @@ Written to data layer as a JSON log entry after session ends:
   "user_id": "uuid-v4",
   "stripe_customer_id": "cus_abc123",
   "subscription_status": "active",
+  "subscription_tier": "trial",
   "billing_cycle_anchor": "2026-03-01T00:00:00Z",
   "consents": {
     "essential_processing": { "granted": true, "timestamp": "...", "policy_version": "v1.0" },
@@ -311,19 +315,17 @@ Written to data layer as a JSON log entry after session ends:
 }
 ```
 
-### File structure (initial JSON approach)
+### Redis key schema (Upstash)
 
-```
-data/
-├── sessions/
-│   └── 2026-03-15.json        # Array of session log entries for that day
-├── users/
-│   └── {user_id}.json         # One file per user (account + consent)
-└── audit/
-    └── 2026-03-15.audit.json  # Append-only audit log entries for that day
-```
-
-When traffic grows or complexity warrants it, migrate to SQLite (the `upgrade_path` defined in the contract).
+| Key pattern | Content | TTL |
+|---|---|---|
+| `user:{user_id}` | UserRecord JSON | Account lifetime |
+| `stripe_map:{customer_id}` | `user_id` string | Account lifetime |
+| `session:{session_id}` | SessionState JSON | ~150s (trial) / ~1830s (continuous) |
+| `sessions:{YYYY-MM-DD}` | List of SessionLog JSON strings | 90 days |
+| `audit:{YYYY-MM-DD}` | List of audit log JSON strings | 365 days |
+| `stripe_event:{event_id}` | Idempotency marker (`"1"`) | 24 hours |
+| `rl:{identifier}` | Rate limit counter | Sliding window |
 
 ---
 
@@ -532,7 +534,7 @@ The safety gradient runs in the message route (`/api/v1/session/[id]/message`) a
 | Session Controller + API routes | Vercel serverless functions | Trusted — server-side only |
 | LLM calls | OpenAI API (external) | Third-party — DPA required |
 | Payment | Stripe (external) | Third-party — PCI-DSS compliant, DPA required |
-| Data storage | Vercel/server filesystem or managed DB | Trusted — encrypted at rest |
+| Data storage | Upstash Redis (cloud, US-Central) | Trusted — TLS enforced, encrypted at rest |
 
 ### Key security rules
 

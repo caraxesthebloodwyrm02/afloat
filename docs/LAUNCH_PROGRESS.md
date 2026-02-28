@@ -1,7 +1,7 @@
 # Afloat — Launch Progress & Remaining Work
 
 **Document version:** 1.0.0
-**Last updated:** 2026-02-28
+**Last updated:** 2026-03-01
 **Production URL:** https://afloat-six.vercel.app
 **App version:** 0.1.1
 **Phase 1 start date:** 2026-03-01 (90-day clock)
@@ -138,7 +138,7 @@ Session End (telemetry written, usage reported for continuous tier)
 |---|---|---|
 | `user:{user_id}` | UserRecord JSON | Account lifetime |
 | `stripe_customer:{customer_id}` | user_id mapping | Account lifetime |
-| `session:{session_id}` | SessionState JSON | 24 hours |
+| `session:{session_id}` | SessionState JSON | ~150s (trial) / ~1830s (continuous) |
 | `sessions:{YYYY-MM-DD}` | Daily session log list | 90 days |
 | `audit:{YYYY-MM-DD}` | Audit log list | 365 days |
 | `stripe_event:{event_id}` | Idempotency marker | 24 hours |
@@ -557,10 +557,10 @@ M2 requires no infrastructure changes. It is pure code + tests:
 
 | Metric | Target | Basis |
 |---|---|---|
-| Gross revenue | $35.10 | 1 user/week × $3/month × 90 days |
-| Payment processor fees | $1.10 | ~3% of gross |
+| Gross revenue | $108.00 | 12 subscribers × $9/quarter (trial tier, one billing cycle) |
+| Payment processor fees | $3.24 | ~3% of gross |
 | Infrastructure costs | $0.00 | All services on free tiers |
-| Net revenue | ≥ $22.90 | Gross - fees - costs |
+| Net revenue | ≥ $104.76 | Gross - fees - costs |
 
 ### Cost Controls
 
