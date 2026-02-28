@@ -18,6 +18,14 @@ You describe what you're stuck on. Afloat identifies the block type (meeting tri
 | Rate Limiting | @upstash/ratelimit |
 | Hosting | Vercel (free tier) |
 
+## Prerequisites
+
+- **Node.js**: Version 20.x or higher
+- **Redis**: Upstash Redis account (for session storage)
+- **Stripe**: Account with webhook configuration
+- **OpenAI**: API key with gpt-4o-mini access
+- **Git**: For version control
+
 ## Setup
 
 ```bash
@@ -28,11 +36,23 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env.local
-# Fill in all values in .env.local
+# Fill in all 14 required values in .env.local
 
-# 3. Run locally
+# 3. Verify environment variables
+# Ensure you have all variables from the table above
+#特别注意: JWT_SECRET and PROVENANCE_SIGNING_KEY must be different
+
+# 4. Run locally
 npm run dev
 ```
+
+### Environment Setup Notes
+
+- **JWT_SECRET**: Use a cryptographically secure random string (32+ chars)
+- **PROVENANCE_SIGNING_KEY**: Use a different random string than JWT_SECRET
+- **CRON_SECRET**: Required for automated cleanup jobs in production
+- **PHASE4_MESSAGE_CAPABILITY_ENABLED**: Keep `false` for initial setup
+- **Stripe Webhooks**: Configure endpoint `https://your-domain.com/api/v1/webhooks/stripe`
 
 ### Required Environment Variables
 
@@ -45,8 +65,15 @@ npm run dev
 | `STRIPE_SECRET_KEY` | Stripe API secret key |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `STRIPE_PRICE_ID` | Stripe price ID for the $3/mo plan |
+| `STRIPE_PRICE_ID` | Stripe price ID for the $3/mo trial plan |
+| `STRIPE_CONTINUOUS_PRICE_ID` | Stripe price ID for continuous tier |
+| `STRIPE_METER_EVENT_NAME` | Stripe meter event for usage billing |
+| `PROVENANCE_SIGNING_KEY` | Signing key for audit trail integrity |
 | `NEXT_PUBLIC_APP_URL` | App URL (e.g. `https://your-app.vercel.app`) |
+| `PHASE4_MESSAGE_CAPABILITY_ENABLED` | Feature flag for Phase 4 capabilities (default: false) |
+| `CRON_SECRET` | Bearer token for cron job authentication |
+
+**Total Required Variables**: 14
 
 ## API Routes
 
@@ -65,33 +92,278 @@ npm run dev
 | `GET` | `/api/v1/provenance/session/{id}` | Get session provenance chain | JWT |
 | `GET` | `/api/v1/provenance/verify/{id}` | Verify session chain integrity | JWT |
 | `POST` | `/api/v1/webhooks/stripe` | Stripe webhook receiver | Stripe sig |
+| `GET` | `/api/cron/cleanup` | Automated data cleanup | Bearer token |
+
+**Total API Endpoints**: 14 (13 v1 routes + 1 cron endpoint)
+
+## Architecture Overview
+
+### Gate Classification System
+
+Afloat uses a **structured LLM classification system** to identify context gates:
+
+```typescript
+// System prompt enforces structured response format
+[GATE: gate_type_here]
+Your proportional brief here. Just enough to unblock the user.
+```
+
+**Gate Types:**
+- `meeting_triage` - Quick meeting decisions and prioritization
+- `priority_decision` - Choice framework for overwhelmed users
+- `quick_briefing` - Concise summaries of complex topics
+- `context_gate_resolution` - Breaking through analysis paralysis
+- `out_of_scope` - Requests outside quick decision support
+
+### Session Management Architecture
+
+```mermaid
+graph TD
+    A[User Request] --> B[Authentication Layer]
+    B --> C[Rate Limiting]
+    C --> D[Session Controller]
+    D --> E[Safety Pipeline]
+    E --> F[LLM Classification]
+    F --> G[Gate Detection]
+    G --> H[Response Generation]
+    H --> I[Session State Update]
+```
+
+**Session Constraints:**
+- **Time Limits**: 2 minutes (trial), 30 minutes (continuous tier)
+- **Turn Limits**: 2 turns (trial), 6 turns (continuous)
+- **Word Limits**: 150 words maximum per response
+- **Data Privacy**: Conversation history never persisted to disk
+
+### Multi-Layer Safety System
+
+```mermaid
+graph LR
+    A[User Input] --> B[Authentication]
+    B --> C[Rate Limiting]
+    C --> D[Session Locking]
+    D --> E[Pre-Check Validation]
+    E --> F[PII Detection]
+    F --> G[Content Filtering]
+    G --> H[LLM Call]
+```
+
+**Safety Components:**
+- **Pre-Check**: Input validation and format checking
+- **PII Shield**: Automatic detection and redaction of personal information
+- **Content Pipeline**: Multi-stage content safety validation
+- **Provenance Tracking**: Immutable audit trail for all decisions
+
+### Core Technical Components
+
+#### Session Controller (`src/lib/session-controller.ts`)
+- **Session Lifecycle**: Create, enforce limits, update, cleanup
+- **Lock Management**: Prevents concurrent LLM calls per session
+- **Turn Tracking**: Records latency and conversation flow
+- **Data Isolation**: Strips conversation history before persistence
+
+#### LLM Integration (`src/lib/llm.ts`)
+- **Structured Parsing**: Extracts gate tags from LLM responses
+- **Quality Assessment**: Word count, format validation
+- **Error Handling**: Timeout, rate limiting, server errors
+- **Retry Logic**: Automatic retry for transient failures
+
+#### Safety Pipeline (`src/lib/safety-pipeline.ts`)
+- **Unified Interface**: Single entry point for all safety checks
+- **Modular Design**: Composable safety stages
+- **Telemetry**: Fire-and-forget event recording
+- **Graceful Degradation**: Safe fallbacks on pipeline failures
+
+### Data Flow Architecture
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Redis
+    participant LLM
+    participant Safety
+
+    Client->>API: POST /session/start
+    API->>Redis: Create session state
+    Redis-->>API: Session ID + limits
+    API-->>Client: Session ready
+
+    Client->>API: POST /session/{id}/message
+    API->>Safety: Run safety pipeline
+    Safety-->>API: Input sanitized
+    API->>Redis: Acquire session lock
+    API->>LLM: Send classified message
+    LLM-->>API: Structured response
+    API->>Redis: Update session state
+    API->>Redis: Release session lock
+    API-->>Client: Gate type + brief
+```
+
+### State Management Patterns
+
+#### Session State (`src/types/session.ts`)
+```typescript
+interface SessionState {
+  session_id: string;
+  user_id: string;
+  tier: string;
+  start_time: string;
+  llm_call_count: number;
+  gate_type: GateType | null;
+  latency_per_turn: number[];
+  conversation_history: Array<{role: string; content: string}>;
+  session_completed: boolean | null;
+  user_proceeded: boolean | null;
+  error: string | null;
+}
+```
+
+#### Provenance Chain (`src/lib/provenance/`)
+- **Decision Provenance Records (DPRs)**: Immutable decision audit trail
+- **Chain Verification**: Cryptographic integrity validation
+- **Safety Verdicts**: Multi-gate safety decision tracking
+- **Authority Tracking**: System policy vs. automated decisions
+
+### Performance & Reliability
+
+#### Rate Limiting Strategy
+- **Session-based**: Per-user session creation limits
+- **Global**: API-wide request throttling
+- **Tier-aware**: Different limits by subscription tier
+- **Redis-backed**: Distributed rate limiting state
+
+#### Error Handling Patterns
+- **Graceful Degradation**: Safe fallbacks for LLM failures
+- **User-Friendly Messages**: Clear error descriptions
+- **Audit Logging**: All errors recorded for analysis
+- **Circuit Breakers**: Automatic retry with backoff
+
+#### Monitoring & Telemetry
+- **Latency Tracking**: Per-turn response times
+- **Success Rates**: Gate classification accuracy
+- **Safety Events**: PII detection, content blocks
+- **Session Analytics**: Duration, completion rates
+
+### Security Architecture
+
+#### Authentication & Authorization
+- **JWT Tokens**: Stateless session authentication with configurable expiration
+- **Middleware Pattern**: Route-level auth enforcement via `auth-middleware.ts`
+- **Subscription Validation**: Active status required for session creation
+- **Deletion Protection**: Pending deletion account blocking with 7-day grace period
+- **Provenance Signing**: Separate `PROVENANCE_SIGNING_KEY` for audit trail integrity
+
+#### Data Protection
+- **PII Redaction**: Automatic personal information detection and redaction
+- **Data Minimization**: Only essential data persisted, conversation history never stored to disk
+- **Right to Deletion**: Complete data removal capability with 7-day grace period
+- **Consent Management**: Granular privacy preferences via consent management system
+- **Retention Policy**: 90-day session log retention with automated cleanup
+
+#### Infrastructure Security
+- **Environment Variables**: All secrets in environment with secure defaults
+- **Vercel Integration**: Secure deployment pipeline with environment isolation
+- **Stripe Webhooks**: Signature-verified payment processing
+- **Redis Security**: TLS-encrypted session storage with Upstash
+- **Cron Security**: Bearer token authentication for automated cleanup jobs
 
 ## Project Structure
 
 ```
 src/
 ├── app/                  # Next.js pages and API routes
-│   ├── api/v1/           # 11 API route handlers
-│   ├── chat/             # Chat UI (subscribers)
-│   ├── consent/          # Post-signup consent form (CM-01)
-│   ├── settings/         # Consent toggles + data rights (CM-02)
-│   ├── subscribe/        # Subscribe flow + success page
-│   └── privacy/          # Privacy policy
-├── components/           # Chat window, input, timer, status
-├── lib/                  # Server-side logic
-│   ├── session-controller.ts  # Turn + timer enforcement
-│   ├── llm.ts                 # OpenAI wrapper + gate parsing
-│   ├── prompt.ts              # System prompt
-│   ├── redis.ts               # Upstash Redis client
-│   ├── auth.ts                # JWT create/verify
-│   ├── auth-middleware.ts     # Route-level JWT validation
-│   ├── rate-limit.ts          # Rate limiter
-│   ├── data-layer.ts          # Session logs, user store
-│   ├── audit.ts               # Immutable audit log
-│   ├── consent.ts             # Consent management
-│   └── stripe.ts              # Stripe client
-└── types/                # TypeScript type definitions
+│   ├── api/               # API endpoints
+│   │   ├── cron/          # Automated cleanup jobs
+│   │   └── v1/            # 13 API route handlers
+│   ├── chat/              # Chat UI (subscribers)
+│   ├── consent/           # Post-signup consent form (CM-01)
+│   ├── settings/          # Consent toggles + data rights (CM-02)
+│   ├── subscribe/         # Subscribe flow + success page
+│   └── privacy/           # Privacy policy
+├── components/            # Chat window, input, timer, status
+├── lib/                   # Server-side logic
+│   ├── session-controller.ts   # Turn + timer enforcement
+│   ├── llm.ts                  # OpenAI wrapper + gate parsing
+│   ├── prompt.ts               # System prompt
+│   ├── redis.ts                # Upstash Redis client
+│   ├── auth.ts                 # JWT create/verify
+│   ├── auth-middleware.ts      # Route-level JWT validation
+│   ├── rate-limit.ts           # Rate limiter
+│   ├── data-layer.ts           # Session logs, user store
+│   ├── audit.ts                # Immutable audit log
+│   ├── consent.ts              # Consent management
+│   ├── safety.ts               # Core safety logic
+│   ├── safety-pipeline.ts      # Unified safety interface
+│   ├── safety-telemetry.ts     # Safety event recording
+│   ├── provenance/             # Decision audit trail
+│   └── stripe.ts               # Stripe client
+└── types/                 # TypeScript type definitions
 ```
+
+## Operations & Maintenance
+
+### Automated Systems
+
+#### Cron Job Cleanup
+- **Endpoint**: `GET /api/cron/cleanup`
+- **Authentication**: Bearer token via `CRON_SECRET`
+- **Frequency**: Daily automated execution
+- **Functions**:
+  - Process pending user deletions after 7-day grace period
+  - Clean up session logs past 90-day retention
+  - Generate audit logs for all cleanup actions
+
+#### Data Retention Policies
+- **Session Logs**: 90-day automatic retention with daily cleanup
+- **User Data**: Immediate deletion after 7-day grace period
+- **Conversation History**: Never persisted to disk (in-memory only)
+- **Audit Trails**: Immutable provenance chains with cryptographic integrity
+
+### Feature Flags
+
+#### Phase-Based Rollouts
+- `PHASE4_MESSAGE_CAPABILITY_ENABLED` - Controls advanced messaging features
+- Default: `false` (disabled)
+- Environment-specific configuration recommended
+- Monitor performance metrics before enabling
+
+#### Rate Limiting Tiers
+- **Session Rate Limiting**: Per-user session creation throttling
+- **Data Rights Rate Limiting**: Separate limits for data export/deletion requests
+- **Tier-Aware Limits**: Different thresholds for trial vs continuous subscribers
+- **Redis-Backed**: Distributed state management for scalability
+
+### Development Workflow
+
+```bash
+# Testing
+npm run test              # Run all tests once
+npm run test:watch         # Run tests in watch mode
+
+# Code Quality
+npm run lint               # Run ESLint
+npm run build              # Production build
+
+# Local Development
+npm run dev                # Start development server
+npm run start              # Start production server
+```
+
+### Troubleshooting
+
+#### Common Setup Issues
+- **Missing Environment Variables**: Verify all 14 variables in .env.local
+- **Redis Connection**: Check Upstash Redis URL and token validity
+- **Stripe Integration**: Ensure webhook endpoint is accessible and configured
+- **JWT Errors**: Verify `JWT_SECRET` and `PROVENANCE_SIGNING_KEY` are different
+- **Cron Job Failures**: Check `CRON_SECRET` matches deployment configuration
+
+#### Performance Monitoring
+- **Response Latency**: Target ≤ 3.0 seconds per turn
+- **Session Success Rate**: Monitor ≥ 95% completion rate
+- **Gate Classification**: Track ≥ 70% accuracy for context identification
+- **Safety Events**: Monitor PII detection and content filtering rates
 
 ## Contract Reference
 
