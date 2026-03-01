@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { constructWebhookEvent, getStripe } from "@/lib/stripe";
+import { constructWebhookEvent, getStripe, isStripeConfigured } from "@/lib/stripe";
 import type { SubscriptionTier } from "@/types/user";
 import {
   createUser,
@@ -27,6 +27,13 @@ async function markEventProcessed(eventId: string): Promise<void> {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isStripeConfigured()) {
+    return NextResponse.json(
+      { error: "not_available", message: "Billing is not configured." },
+      { status: 501 }
+    );
+  }
+
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
     return NextResponse.json(

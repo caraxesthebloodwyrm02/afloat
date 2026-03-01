@@ -1,0 +1,132 @@
+{
+  "contract": {
+    "id": "7a55f0f1-84be-43b7-8385-5dc0cbb49bed",
+    "version": "1.7.0",
+    "created": "2026-02-25T18:04:41.157591+00:00",
+    "status": "hardened",
+    "time_window": {
+      "days": 90,
+      "start": "2026-03-01T00:00:00+06:00",
+      "end": "2026-05-29T23:59:59+06:00"
+    },
+    "hardening": {
+      "locked": true,
+      "locked_since": "2026-03-01T00:00:00Z",
+      "note": "Core parameters frozen after implementation verification. Amendments require version increment + changelog."
+    }
+  },
+  "enforcement": {
+    "session_limits": {
+      "trial_tier": {
+        "max_llm_calls": 2,
+        "max_turns": 3,
+        "max_duration_ms": 120000,
+        "max_duration_seconds": 120,
+        "description": "Trial tier: maximum 2 LLM calls, 3 total turns (user + assistant), 120-second server-side timer"
+      },
+      "continuous_tier": {
+        "max_llm_calls": 6,
+        "max_turns": 7,
+        "max_duration_ms": 1800000,
+        "max_duration_seconds": 1800,
+        "description": "Continuous tier: maximum 6 LLM calls, 7 total turns, 30-minute server-side timer"
+      },
+      "enforcement_rules": [
+        {
+          "rule_id": "ER-01",
+          "name": "turn_limit_hard_stop",
+          "description": "When llm_call_count >= max_llm_calls, reject with { 'error': 'session_complete' }",
+          "status_code": 409,
+          "response_body": { "error": "session_complete", "message": "Session limit reached." }
+        },
+        {
+          "rule_id": "ER-02",
+          "name": "timerExpiration_hard_stop",
+          "description": "When current_time > session_deadline, reject with { 'error': 'session_timeout' }",
+          "status_code": 409,
+          "response_body": { "error": "session_timeout", "message": "Session time limit reached." }
+        },
+        {
+          "rule_id": "ER-03",
+          "name": "empty_input_rejection",
+          "description": "When user message is empty or whitespace-only, reject with 400 (does not increment turn count)",
+          "status_code": 400,
+          "response_body": { "error": "empty_input", "message": "Please describe what you're stuck on." }
+        }
+      ],
+      "server_side_only": {
+        "description": "All limits enforced server-side. Client-side timers are cosmetic only.",
+        "rationale": "Client cannot override. Server is the authority.",
+        "implementation": "enforceSessionLimits() runs before every LLM call in POST /api/v1/session/{id}/message"
+      }
+    },
+    "success_targets": {
+      "response_latency": {
+        "threshold_seconds": 3.0,
+        "measurement": "avg(response_time_per_turn)",
+        "window": "rolling_7_day",
+        "enforcement": "If avg > 3.0s for 7 consecutive days, downgrade prompt complexity or switch to lighter model"
+      },
+      "session_success_rate": {
+        "threshold_ratio": 0.95,
+        "measurement": "successful_sessions / total_sessions",
+        "enforcement": "If ratio < 0.95 for 3 consecutive days, alert for investigation"
+      },
+      "context_gate_pass_rate": {
+        "threshold_ratio": 0.70,
+        "measurement": "sessions_where_user_proceeded / total_sessions",
+        "enforcement": "If ratio < 0.70 for 7 consecutive days, review LLM prompt effectiveness"
+      }
+    }
+  },
+  "billing": {
+    "tiers": {
+      "trial": {
+        "price_usd": 9.00,
+        "billing_period": "quarterly",
+        "max_llm_calls": 2,
+        "max_duration_seconds": 120,
+        "stripe_price_id_env": "STRIPE_PRICE_ID"
+      },
+      "continuous": {
+        "price_usd": 3.00,
+        "billing_period": "hourly_metered",
+        "max_llm_calls": 6,
+        "max_duration_seconds": 1800,
+        "stripe_price_id_env": "STRIPE_CONTINUOUS_PRICE_ID",
+        "metered": true
+      }
+    },
+    "payment_processing": {
+      "provider": "stripe",
+      "integration": "stripe_checkout",
+      "pci_compliance": "All card data handled by Stripe. No card data touches our servers."
+    }
+  },
+  "architecture": {
+    "session_controller": {
+      "enforcement_function": "enforceSessionLimits(session, userMessage, deadline)",
+      "returns": "{ allowed: boolean, errorCode?: 'session_complete' | 'session_timeout' | 'empty_input', errorMessage?: string }",
+      "invocation_point": "POST /api/v1/session/{id}/message before LLM call",
+      "timer_calculation": "deadline = session_start_time + tier_limits.max_duration_ms",
+      "turn_tracking": "llm_call_count increments on each successful LLM response"
+    }
+  },
+  "api_error_codes": {
+    "session_complete": {
+      "http_status": 409,
+      "description": "Turn limit reached (max 2 LLM calls for trial tier)",
+      "client_action": "Show session complete message, disable input"
+    },
+    "session_timeout": {
+      "http_status": 409,
+      "description": "Session timer expired (120s for trial tier)",
+      "client_action": "Show timeout message, prompt new session"
+    },
+    "empty_input": {
+      "http_status": 400,
+      "description": "User message empty or whitespace",
+      "client_action": "Prompt user to enter text"
+    }
+  }
+}

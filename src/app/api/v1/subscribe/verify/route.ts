@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { retrieveCheckoutSession } from "@/lib/stripe";
+import { retrieveCheckoutSession, isStripeConfigured } from "@/lib/stripe";
 import { getUserByStripeCustomerId } from "@/lib/data-layer";
 import { createToken } from "@/lib/auth";
 import { getSubscribeRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { hashIP, getClientIP } from "@/lib/audit";
 
 export async function POST(request: NextRequest) {
+  if (!isStripeConfigured()) {
+    return NextResponse.json(
+      { error: "not_available", message: "Billing is not configured." },
+      { status: 501 }
+    );
+  }
   // Rate limit by IP
   const ip = hashIP(getClientIP(request));
   const rateLimitResponse = await checkRateLimit(

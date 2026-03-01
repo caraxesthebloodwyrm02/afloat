@@ -6,7 +6,7 @@ import { getUser } from "@/lib/data-layer";
 import { shouldWriteTelemetry } from "@/lib/consent";
 import { getSessionEndRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
-import { reportUsage } from "@/lib/stripe";
+import { reportUsage, isStripeConfigured } from "@/lib/stripe";
 import type { SessionEndResponse, ApiError } from "@/types/api";
 
 export async function POST(
@@ -66,8 +66,8 @@ export async function POST(
     });
   }
 
-  // Report metered usage for continuous tier
-  if (session.tier === "continuous" && userRecord) {
+  // Report metered usage for continuous tier (only if Stripe is configured)
+  if (session.tier === "continuous" && userRecord && isStripeConfigured()) {
     const durationMs = new Date(endTime).getTime() - new Date(session.start_time).getTime();
     const usageMinutes = Math.max(1, Math.ceil(durationMs / 60_000));
     try {

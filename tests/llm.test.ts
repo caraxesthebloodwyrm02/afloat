@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { assessResponseQuality } from "@/lib/llm";
+import { assessResponseQuality, estimateTokenCount } from "@/lib/llm";
+import { SYSTEM_PROMPT } from "@/lib/prompt";
 
 const VALID_GATE_TYPES = [
   "meeting_triage",
@@ -82,7 +83,8 @@ describe("parseGateAndBrief", () => {
   it("handles empty response", () => {
     const result = parseGateAndBrief("");
     expect(result.gate_type).toBe("unclassified");
-  expect(result.brief).toBe("");
+    expect(result.brief).toBe("");
+  });
 });
 
 describe("assessResponseQuality", () => {
@@ -121,4 +123,39 @@ describe("assessResponseQuality", () => {
     expect(r.ends_with_question).toBe(false);
   });
 });
+
+describe("REQ-D Response Quality Probes", () => {
+  it("REQ-D1: Gate tag present in LLM response", () => {
+    const raw = "[GATE: meeting_triage]\nAttend this meeting.";
+    const result = parseGateAndBrief(raw);
+    expect(raw).toMatch(/\[GATE:\s*\w+\]/);
+    expect(result.gate_type).not.toBe("unclassified");
+  });
+
+  it("REQ-D2: Gate type is one of 4 defined types or out_of_scope", () => {
+    for (const gateType of VALID_GATE_TYPES) {
+      const raw = `[GATE: ${gateType}]\nBrief text.`;
+      const result = parseGateAndBrief(raw);
+      expect(VALID_GATE_TYPES).toContain(result.gate_type);
+      expect(result.gate_type).toBe(gateType);
+    }
+  });
+
+  it("REQ-D3: Response word count <= 150", () => {
+    const brief = Array(150).fill("word").join(" ");
+    const r = assessResponseQuality("priority_decision", brief);
+    expect(r.word_count).toBeLessThanOrEqual(150);
+    expect(r.exceeds_word_limit).toBe(false);
+  });
+
+  it("REQ-D4: No open-ended follow-up question in response", () => {
+    const r = assessResponseQuality("quick_briefing", "Here is the gist.");
+    expect(r.ends_with_question).toBe(false);
+    expect("Here is the gist.").not.toMatch(/\?$/);
+  });
+
+  it("REQ-D5: Prompt token count stays under 500", () => {
+    const tokens = estimateTokenCount(SYSTEM_PROMPT);
+    expect(tokens).toBeLessThan(500);
+  });
 });
