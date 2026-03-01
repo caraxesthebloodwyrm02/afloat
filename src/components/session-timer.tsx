@@ -37,11 +37,14 @@ export function SessionTimer({ startTime, maxDurationMs, isActive, onExpire }: S
   const formatted = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
   const isLow = totalSeconds <= 30;
+  const isCritical = totalSeconds <= 15;
 
   return (
     <span
       className={`tabular-nums text-sm font-mono ${
-        isLow ? "text-red-500" : "text-zinc-400"
+        isLow
+          ? `bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-md ${isCritical ? "animate-pulse" : ""}`
+          : "text-zinc-500 dark:text-zinc-400"
       }`}
     >
       {formatted}
