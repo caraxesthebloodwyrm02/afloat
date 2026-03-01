@@ -37,6 +37,7 @@ export default function ChatPage() {
   const [maxDurationMs, setMaxDurationMs] = useState<number>(DEFAULT_MAX_DURATION_MS);
   const [tier, setTier] = useState<string>("trial");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [turnsRemaining, setTurnsRemaining] = useState<number | null>(null);
   const tokenRef = useRef(readToken());
 
   useEffect(() => {
@@ -68,6 +69,9 @@ export default function ChatPage() {
           setStartTime(Date.now());
           if (data.max_duration_ms) setMaxDurationMs(data.max_duration_ms);
           if (data.tier) setTier(data.tier);
+          if (data.max_turns) {
+            setTurnsRemaining(data.max_turns);
+          }
           setMessages([]);
           setSessionState("waiting_for_input");
           setErrorMessage("");
@@ -129,6 +133,10 @@ export default function ChatPage() {
           { role: "assistant", content: data.brief },
         ]);
 
+        if (typeof data.turns_remaining === "number") {
+          setTurnsRemaining(data.turns_remaining);
+        }
+
         if (data.session_status === "complete" || data.turns_remaining === 0) {
           setSessionState("follow_up_delivered");
         } else {
@@ -165,6 +173,7 @@ export default function ChatPage() {
     setStartTime(0);
     setMaxDurationMs(DEFAULT_MAX_DURATION_MS);
     setTier("trial");
+    setTurnsRemaining(null);
   }, []);
 
   const handleTimerExpire = useCallback(() => {
@@ -205,12 +214,12 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-57px)] max-w-2xl mx-auto">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
-        <h1 className="text-base font-semibold text-zinc-900">Afloat</h1>
+      <header className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-200 dark:border-zinc-800">
+        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Afloat</h1>
         {startTime > 0 && (
-          <>
+          <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-3 py-1">
             {tier !== "trial" && (
-              <span className="text-xs text-zinc-400 mr-2">{tier}</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{tier}</span>
             )}
             <SessionTimer
               startTime={startTime}
@@ -218,13 +227,14 @@ export default function ChatPage() {
               isActive={isTimerActive}
               onExpire={handleTimerExpire}
             />
-          </>
+          </div>
         )}
       </header>
 
       <ChatWindow
         messages={messages}
         isLoading={sessionState === "waiting_for_response"}
+        turnsRemaining={turnsRemaining}
       />
 
       {showStatusOverlay ? (
@@ -240,6 +250,7 @@ export default function ChatPage() {
           onDone={endSession}
           disabled={isInputDisabled}
           showDone={showDone}
+          turnsRemaining={turnsRemaining}
           placeholder={
             messages.length === 0
               ? "Describe what you're stuck on..."
