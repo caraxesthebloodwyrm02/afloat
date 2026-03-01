@@ -117,7 +117,7 @@ Updated: 2026-02-28
 -   [x] Define retention policies for all 6 data categories
 -   [x] Confirm user_text_input is never persisted (0-day retention)
 -   [x] Define auto-deletion mechanism (daily scheduled job at 02:00 UTC)
--   [ ] Implement auto-deletion scheduled job (§7e.4 — cron/cleanup route)
+-   [x] Implement auto-deletion scheduled job (§7e.4 — cron/cleanup route, implemented at /api/cron/cleanup)
 
 ### 7f. Privacy Policy
 -   [x] Specify privacy policy content requirements (7 items)
@@ -129,7 +129,7 @@ Updated: 2026-02-28
 -   [x] Define 8 compliance test cases (TC-01 through TC-08)
 -   [x] List 5 documentation requirements (DPIA, ROPA, Incident Response, DPAs, Runbook)
 -   [x] Complete Data Protection Impact Assessment (§7g.3 — DPIA.md, 5 risks assessed)
--   [ ] Complete Record of Processing Activities (§7g.4 — ROPA)
--   [ ] Write Incident Response Plan (§7g.5 — 72-hour breach notification)
--   [ ] Write internal compliance runbook (§7g.6)
--   [ ] Pass all compliance test cases (§7g.7 — TC-01 through TC-08)
+-   [x] Complete Record of Processing Activities (§7g.4 — ROPA.md, 2026-03-01)
+-   [x] Write Incident Response Plan (§7g.5 — INCIDENT_RESPONSE.md, 2026-03-01)
+-   [x] Write internal compliance runbook (§7g.6 — RUNBOOK.md, 2026-03-01)
+-   [x] Pass all compliance test cases (§7g.7 — TC-01 through TC-08, 14/14 passed 2026-03-01)

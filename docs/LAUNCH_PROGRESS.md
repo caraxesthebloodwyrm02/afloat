@@ -52,9 +52,9 @@ The core product, billing stack, data layer, compliance infrastructure, and depl
 
 ### What is not done yet
 
-- ROPA (Record of Processing Activities)
-- Incident Response Plan
-- Internal compliance runbook
+- ~~ROPA (Record of Processing Activities)~~ ✅ Completed 2026-03-01
+- ~~Incident Response Plan~~ ✅ Completed 2026-03-01
+- ~~Internal compliance runbook~~ ✅ Completed 2026-03-01
 - Compliance test cases TC-01 through TC-08
 - Milestone 2 (Response Quality) and Milestones 4–6 (see §10)
 - First real paying user
@@ -502,10 +502,10 @@ Expected response:
 | 7f | Privacy policy v1.0 | ✅ Published at `/privacy` |
 | 7f | Footer link | ✅ In `layout.tsx` |
 | 7g | DPIA | ✅ `DPIA.md` complete |
-| 7g | ROPA | ❌ Not written |
-| 7g | Incident Response Plan | ❌ Not written |
-| 7g | Compliance Runbook | ❌ Not written |
-| 7g | TC-01 through TC-08 | ❌ Not executed |
+| 7g | ROPA | ✅ `ROPA.md` complete (2026-03-01) |
+| 7g | Incident Response Plan | ✅ `INCIDENT_RESPONSE.md` complete (2026-03-01) |
+| 7g | Compliance Runbook | ✅ `RUNBOOK.md` complete (2026-03-01) |
+| 7g | TC-01 through TC-08 | ✅ 14/14 passed (2026-03-01) |
 
 ### Key Security Properties
 
@@ -582,10 +582,10 @@ The following is the authoritative ordered checklist for moving from infrastruct
 
 ### Immediate (do before any user)
 
-- [ ] Write ROPA (`docs/ROPA.md`)
-- [ ] Write Incident Response Plan (`docs/INCIDENT_RESPONSE.md`)
-- [ ] Write compliance runbook (`docs/RUNBOOK.md`)
-- [ ] Execute TC-01 through TC-08 manually and record results
+- [x] Write ROPA (`docs/ROPA.md`) — completed 2026-03-01
+- [x] Write Incident Response Plan (`docs/INCIDENT_RESPONSE.md`) — completed 2026-03-01
+- [x] Write compliance runbook (`docs/RUNBOOK.md`) — completed 2026-03-01
+- [x] Execute TC-01 through TC-08 manually and record results — **14/14 passed** (2026-03-01)
 
 ### On first user
 
@@ -630,9 +630,9 @@ The following is the authoritative ordered checklist for moving from infrastruct
 | `contract.json` | Machine-readable contract, ledger, and KPIs |
 | `baseline.txt` | Technical baseline v1.0.0 (ratified) |
 | `docs/LAUNCH_PROGRESS.md` | This document |
-| `docs/ROPA.md` | ❌ Not yet written |
-| `docs/INCIDENT_RESPONSE.md` | ❌ Not yet written |
-| `docs/RUNBOOK.md` | ❌ Not yet written |
+| `docs/ROPA.md` | ✅ Record of Processing Activities (GDPR Art 30) |
+| `docs/INCIDENT_RESPONSE.md` | ✅ Breach response plan (72-hour notification) |
+| `docs/RUNBOOK.md` | ✅ Operational compliance guide |
 | `src/lib/stripe.ts` | Stripe client, checkout, webhook, metered billing |
 | `src/lib/auth.ts` | JWT creation and verification |
 | `src/lib/auth-middleware.ts` | Route-level auth enforcement |
