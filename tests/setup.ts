@@ -37,7 +37,7 @@ vi.mock("@upstash/ratelimit", () => ({
   })),
 }));
 
-vi.mock("./lib/redis", () => ({
+vi.mock("@/lib/redis", () => ({
   getRedis: vi.fn(() => {
     const store = new Map<string, string>();
     return {

@@ -1,3 +1,5 @@
+import { describe, test, expect, beforeAll } from "vitest";
+
 // Mock database for John's apples
 const mockDatabase = {
   users: {

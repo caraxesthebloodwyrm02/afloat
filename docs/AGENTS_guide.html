@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afloat AGENTS.md — Agent Guidelines</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 2rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { 
+            color: #00d9ff; 
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { 
+            color: #ff6b6b; 
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 0.5rem;
+        }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+        th, td { 
+            text-align: left; 
+            padding: 0.75rem; 
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        th { color: #00d9ff; }
+        code { 
+            background: rgba(0,217,255,0.1); 
+            padding: 0.2rem 0.4rem; 
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        pre { 
+            background: #0d1117; 
+            padding: 1rem; 
+            border-radius: 8px; 
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .tag {
+            display: inline-block;
+            background: #00d9ff;
+            color: #1a1a2e;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        .tag.warning { background: #ffd93d; }
+        .tag.info { background: #6bcb77; }
+        .section { margin-bottom: 1.5rem; }
+        .section h3 { color: #ff6b6b; margin-bottom: 0.5rem; }
+        ul { padding-left: 1.5rem; }
+        li { margin-bottom: 0.3rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AGENTS.md — Afloat Agent Guidelines</h1>
+        
+        <div class="card">
+            <h2>📋 Quick Commands</h2>
+            <table>
+                <tr><th>Command</th><th>Purpose</th></tr>
+                <tr><td><code>npm run dev</code></td><td>Start dev server</td></tr>
+                <tr><td><code>npm run lint</code></td><td>Run ESLint</td></tr>
+                <tr><td><code>npm run test</code></td><td>Run Vitest suite</td></tr>
+                <tr><td><code>npx vitest run src/path/test.test.ts</code></td><td>Single test file</td></tr>
+                <tr><td><code>npx vitest run -t "test name"</code></td><td>Single test by name</td></tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>🎨 Code Style</h2>
+            <div class="section">
+                <h3>TypeScript</h3>
+                <ul>
+                    <li><span class="tag">NO</span> <code>any</code> types — use <code>unknown</code></li>
+                    <li><span class="tag">NO</span> <code>as</code> casts — use type guards or Zod</li>
+                    <li>Explicit return types on exported functions</li>
+                </ul>
+            </div>
+            <div class="section">
+                <h3>Naming</h3>
+                <ul>
+                    <li>Components: <code>PascalCase</code> → <code>ChatWindow.tsx</code></li>
+                    <li>Utils/hooks: <code>camelCase</code> → <code>useSession.ts</code></li>
+                    <li>Constants: <code>UPPER_SNAKE_CASE</code></li>
+                </ul>
+            </div>
+            <div class="section">
+                <h3>Imports</h3>
+                <pre>import { getUser } from "@/lib/data-layer";  // ✓
+import "../utils";                               // ✗</pre>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔐 Secret Governance (Two-Step)</h2>
+            <div class="section">
+                <h3>Step 1: Entry Validation</h3>
+                <ul>
+                    <li>Runs at app startup via <code>instrumentation.ts</code></li>
+                    <li>Validates all secrets exist and meet minimum length</li>
+                    <li>Cross-checks: JWT_SECRET ≠ PROVENANCE_SIGNING_KEY</li>
+                    <li>Fails fast on critical errors</li>
+                </ul>
+            </div>
+            <div class="section">
+                <h3>Step 2: Cleanup</h3>
+                <ul>
+                    <li>Called on SIGTERM/SIGINT/uncaughtException</li>
+                    <li>Scrubs secrets from memory</li>
+                    <li>Prevents leak in crash dumps</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🛡️ Safety Rules</h2>
+            <ul>
+                <li><span class="tag warning">NEVER</span> Weaken rate limiting or auth</li>
+                <li><span class="tag warning">NEVER</span> Log user text content</li>
+                <li><span class="tag warning">NEVER</span> Expose secrets in responses</li>
+                <li><span class="tag info">ALWAYS</span> Fail-closed on safety exceptions</li>
+                <li><span class="tag info">ALWAYS</span> Validate input with Zod</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>📁 Architecture</h2>
+            <pre>src/
+├── app/api/          # Next.js API routes
+├── components/       # React components
+├── lib/              # Server-side logic
+│   ├── llm.ts           # Multi-provider fallback
+│   ├── safety.ts        # PII detection
+│   ├── secrets.ts       # Secret governance
+│   └── provenance/     # DPR audit chain
+└── types/            # TypeScript definitions</pre>
+        </div>
+
+        <div class="card">
+            <h2>📄 Full Documentation</h2>
+            <p>View the complete AGENTS.md file: <code>AGENTS.md</code></p>
+            <p style="margin-top: 0.5rem; color: #888;">Location: <code>E:\Seeds\afloat\AGENTS.md</code></p>
+        </div>
+    </div>
+</body>
+</html>

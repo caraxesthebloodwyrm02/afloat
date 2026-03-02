@@ -59,7 +59,7 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(async () => null),
 }));
 
-const mockWriteAuditLog = vi.fn(async () => {});
+const mockWriteAuditLog = vi.fn();
 vi.mock("@/lib/audit", () => ({
   writeAuditLog: (...args: unknown[]) => mockWriteAuditLog(...args),
   hashIP: vi.fn(() => "hashed-ip"),
@@ -395,6 +395,7 @@ describe("TC-08: pii_leak_scan", () => {
     const log = {
       session_id: "sess-pii-check",
       user_id: "user-pii",
+      tier: "trial",
       start_time: "2026-02-28T10:00:00Z",
       end_time: "2026-02-28T10:01:30Z",
       turns: 2,

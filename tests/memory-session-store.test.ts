@@ -207,7 +207,7 @@ describe("Session Enforcement Rules", () => {
     it("appends to conversation_history", () => {
       const session = createSession("user-123");
       
-      recordTurn(session, 100, "test", "First brief", "First message");
+      recordTurn(session, 100, "meeting_triage", "First brief", "First message");
       
       expect(session.conversation_history).toHaveLength(2);
       expect(session.conversation_history[0]).toEqual({ role: "user", content: "First message" });
