@@ -2,6 +2,15 @@ import { getRedis } from "./redis";
 import type { SessionLog } from "@/types/session";
 import type { UserRecord } from "@/types/user";
 
+const LUA_REPLACE_LIST = `
+local current = redis.call('LRANGE', KEYS[1], 0, -1)
+redis.call('DEL', KEYS[1])
+if #ARGV > 0 then
+  redis.call('RPUSH', KEYS[1], unpack(ARGV))
+end
+return #ARGV
+`;
+
 // --- Session Logs ---
 
 export async function writeSessionLog(log: SessionLog): Promise<void> {
@@ -157,10 +166,15 @@ export async function permanentlyDeleteUserData(userId: string): Promise<void> {
           remaining.push(typeof entry === "string" ? entry : JSON.stringify(entry));
         }
       }
-      // Replace the list atomically: delete then re-push
-      await redis.del(key);
-      if (remaining.length > 0) {
-        await redis.rpush(key, ...remaining);
+      if (entries.length !== remaining.length) {
+        if ("eval" in redis && typeof redis.eval === "function") {
+          await redis.eval(LUA_REPLACE_LIST, [key], remaining);
+        } else {
+          await redis.del(key);
+          if (remaining.length > 0) {
+            await redis.rpush(key, ...remaining);
+          }
+        }
       }
     }
   } while (cursor !== 0);
