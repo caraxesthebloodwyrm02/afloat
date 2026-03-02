@@ -1,14 +1,12 @@
 import { SignJWT, jwtVerify } from "jose";
-import { randomBytes } from "crypto";
+import { getValidatedSecret } from "./secrets";
 
 const JWT_EXPIRY = "1h";
 const JWT_ISSUER = "afloat";
 const JWT_AUDIENCE = "afloat-api";
 
-let generatedDevSecret: string | null = null;
-
 function getSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET;
+  const secret = getValidatedSecret("JWT_SECRET");
   if (secret) {
     return new TextEncoder().encode(secret);
   }
@@ -17,14 +15,7 @@ function getSecret(): Uint8Array {
     throw new Error("Missing JWT_SECRET environment variable (required in production)");
   }
 
-  // Dev mode: auto-generate a random secret per process lifetime
-  if (!generatedDevSecret) {
-    generatedDevSecret = randomBytes(32).toString("hex");
-    console.warn(
-      "[afloat] JWT_SECRET not set — using auto-generated secret. Tokens will not survive restarts."
-    );
-  }
-  return new TextEncoder().encode(generatedDevSecret);
+  return new TextEncoder().encode("dev-secret-not-for-production");
 }
 
 export interface JWTPayload {

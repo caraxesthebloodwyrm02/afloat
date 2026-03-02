@@ -6,11 +6,11 @@ export default defineConfig({
     globals: true,
     environment: "node",
     env: {
-      PROVENANCE_SIGNING_KEY: "test-provenance-key-minimum-32-chars-long",
-      JWT_SECRET: "test-jwt-secret-for-vitest",
+      PROVENANCE_SIGNING_KEY: "NsRYe4D6gqT8mh300LKybRZ0kTRBfoAXTPTEmOPGG1I",
+      JWT_SECRET: "B9WqS5sMazj8bfDlHkktwSv7jI6r74nxYnMkA1Re4E",
       UPSTASH_REDIS_REST_URL: "http://localhost:6379",
-      UPSTASH_REDIS_REST_TOKEN: "test-token",
-      OPENAI_API_KEY: "sk-test-openai-key",
+      UPSTASH_REDIS_REST_TOKEN: "XpT9mW3kR7vL2nQ8sY4hB6cJ",
+      OPENAI_API_KEY: "sk-Xt9mW3kR7vL2nQ8sY4hB6cJ1fA5dE",
     },
     setupFiles: ["./tests/setup.ts"],
     coverage: {

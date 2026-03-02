@@ -1,9 +1,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { getValidatedSecret } from "../secrets";
 
 function getSigningSecret(): string {
-  // Provenance signing MUST use a dedicated key — never share with JWT auth.
-  // Sharing keys means a compromised auth secret also compromises the entire provenance chain.
-  const secret = process.env.PROVENANCE_SIGNING_KEY;
+  const secret = getValidatedSecret("PROVENANCE_SIGNING_KEY");
   if (!secret) {
     throw new Error(
       "Missing PROVENANCE_SIGNING_KEY environment variable. " +
@@ -11,7 +10,8 @@ function getSigningSecret(): string {
       "Set PROVENANCE_SIGNING_KEY to a secure random value (min 32 chars)."
     );
   }
-  if (process.env.JWT_SECRET && secret === process.env.JWT_SECRET) {
+  const jwtSecret = getValidatedSecret("JWT_SECRET");
+  if (jwtSecret && secret === jwtSecret) {
     throw new Error(
       "PROVENANCE_SIGNING_KEY must differ from JWT_SECRET. " +
       "Using the same key for auth and provenance defeats key isolation."
