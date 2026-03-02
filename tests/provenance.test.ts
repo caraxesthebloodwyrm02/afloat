@@ -1,11 +1,17 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createDPR, getChainRef, serializeDPRForHashing } from "@/lib/provenance/record";
 import { computeHash, computeChainHash } from "@/lib/provenance/chain";
 import { signRecord, verifySignature } from "@/lib/provenance/signer";
 import type { DPRCreateInput } from "@/lib/provenance/types";
+import { resetValidationCache } from "@/lib/secrets";
 
 beforeAll(() => {
-  process.env.JWT_SECRET = "test-provenance-secret";
+  resetValidationCache();
+  process.env.JWT_SECRET = "test-provenance-secret-for-unit-tests";
+});
+
+afterAll(() => {
+  resetValidationCache();
 });
 
 function makeInput(overrides: Partial<DPRCreateInput> = {}): DPRCreateInput {

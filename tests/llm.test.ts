@@ -1,6 +1,49 @@
-import { describe, it, expect } from "vitest";
-import { assessResponseQuality, estimateTokenCount } from "@/lib/llm";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { assessResponseQuality, estimateTokenCount, callLLMWithFallback, LLMError } from "@/lib/llm";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
+import OpenAI from "openai";
+
+const mocks = vi.hoisted(() => ({
+  openaiCreate: vi.fn(),
+  groqCreate: vi.fn(),
+  geminiSend: vi.fn(),
+}));
+
+vi.mock("openai", () => {
+  class APIError extends Error {
+    status?: number;
+    constructor(status: number) {
+      super("API Error");
+      this.name = "APIError";
+      this.status = status;
+    }
+  }
+
+  return {
+    default: class OpenAI {
+      static APIError = APIError;
+      chat = { completions: { create: mocks.openaiCreate } };
+    }
+  };
+});
+
+vi.mock("groq-sdk", () => ({
+  default: class {
+    chat = { completions: { create: mocks.groqCreate } };
+  }
+}));
+
+vi.mock("@google/generative-ai", () => ({
+  GoogleGenerativeAI: class {
+    getGenerativeModel() {
+      return {
+        startChat: () => ({
+          sendMessage: mocks.geminiSend
+        })
+      };
+    }
+  }
+}));
 
 const VALID_GATE_TYPES = [
   "meeting_triage",
@@ -159,3 +202,117 @@ describe("REQ-D Response Quality Probes", () => {
     expect(tokens).toBeLessThan(500);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Multi-Provider Fallback Tests
+// ---------------------------------------------------------------------------
+
+describe("callLLMWithFallback Multi-Provider Routing", () => {
+  beforeEach(() => {
+    // Reset env
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.GROQ_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+
+    // vi.useFakeTimers(); (Removed to avoid promise resolution blocking in node environments)
+  });
+
+  afterEach(() => {
+    // vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("throws immediately if no providers are configured", async () => {
+    await expect(callLLMWithFallback("test", []))
+      .rejects.toThrowError(/No LLM provider is configured/);
+  });
+
+  it("calls OpenAI first when all keys are present", async () => {
+    process.env.OPENAI_API_KEY = "sk-test-openai";
+    process.env.GROQ_API_KEY = "gsk-test-groq";
+    process.env.GEMINI_API_KEY = "AIza-test-gemini";
+
+    mocks.openaiCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: "[GATE: meeting_triage]\nFrom OpenAI" } }]
+    });
+
+    const res = await callLLMWithFallback("hello", []);
+
+    expect(res.brief).toContain("From OpenAI");
+    expect(mocks.openaiCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.groqCreate).not.toHaveBeenCalled();
+    expect(mocks.geminiSend).not.toHaveBeenCalled();
+  });
+
+  it("falls back to Groq if OpenAI rate limits (429)", async () => {
+    process.env.OPENAI_API_KEY = "sk-test-openai";
+    process.env.GROQ_API_KEY = "gsk-test-groq";
+
+    const rateLimitError = new OpenAI.APIError(429);
+
+    mocks.openaiCreate.mockRejectedValueOnce(rateLimitError);
+    mocks.groqCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: "[GATE: priority_decision]\nFrom Groq" } }]
+    });
+
+    const res = await callLLMWithFallback("hello", []);
+
+    expect(res.brief).toContain("From Groq");
+    expect(mocks.openaiCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.groqCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries once on 500 error before falling back", async () => {
+    process.env.OPENAI_API_KEY = "sk-test-openai";
+    process.env.GROQ_API_KEY = "gsk-test-groq";
+
+    const serverError = new OpenAI.APIError(500);
+
+    vi.spyOn(global, "setTimeout").mockImplementation(((cb: () => void, ms?: number) => {
+      if (ms === 1000) {
+        cb();
+      }
+      return 0 as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout);
+
+    // OpenAI fails with 500
+    mocks.openaiCreate.mockRejectedValueOnce(serverError);
+    // OpenAI retries (1 second later) and fails again with 500
+    mocks.openaiCreate.mockRejectedValueOnce(serverError);
+
+    // Groq succeeds
+    mocks.groqCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: "[GATE: quick_briefing]\nSuccess fallthrough" } }]
+    });
+
+    const res = await callLLMWithFallback("hello", []);
+
+    expect(res.brief).toContain("Success fallthrough");
+    expect(mocks.openaiCreate).toHaveBeenCalledTimes(2); // Initial + 1 retry
+    expect(mocks.groqCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws an unknown LLMError if all configured providers fail", async () => {
+    process.env.GROQ_API_KEY = "gsk-test-groq";
+    process.env.GEMINI_API_KEY = "AIza-test-gemini";
+
+    // Simulate timeouts (AbortError) for both
+    const abortErr = new Error("Aborted");
+    abortErr.name = "AbortError";
+
+    mocks.groqCreate.mockRejectedValueOnce(abortErr);
+    mocks.geminiSend.mockRejectedValueOnce(abortErr);
+
+    try {
+      await callLLMWithFallback("hello", []);
+      expect.fail("Should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(LLMError);
+      expect((err as LLMError).reason).toBe("timeout");
+    }
+
+    expect(mocks.groqCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.geminiSend).toHaveBeenCalledTimes(1);
+  });
+});
+

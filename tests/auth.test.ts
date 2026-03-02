@@ -1,8 +1,14 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createToken, verifyToken } from "@/lib/auth";
+import { resetValidationCache } from "@/lib/secrets";
 
 beforeAll(() => {
-  process.env.JWT_SECRET = "test-secret-for-unit-tests-only";
+  resetValidationCache();
+  process.env.JWT_SECRET = "test-secret-for-unit-tests-only-x";
+});
+
+afterAll(() => {
+  resetValidationCache();
 });
 
 describe("JWT auth", () => {
