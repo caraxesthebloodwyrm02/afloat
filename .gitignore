@@ -51,6 +51,7 @@ test_run*.txt
 .cascade_context.json
 codeq.txt
 codequality.txt
+debug-*.log
 nul
 
 .vercel
