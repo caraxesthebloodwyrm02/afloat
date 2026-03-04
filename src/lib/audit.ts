@@ -12,6 +12,8 @@ export interface AuditEntry {
   outcome: "success" | "failure" | "denied";
   ip_hash: string;
   metadata: Record<string, unknown>;
+  /** Optional SHA-256 of payload for integrity; no chain in v1 */
+  payload_hash?: string;
 }
 
 export function hashIP(ip: string): string {
@@ -26,13 +28,19 @@ export function getClientIP(request: Request): string {
   return "unknown";
 }
 
-export async function writeAuditLog(entry: Omit<AuditEntry, "log_id" | "timestamp">): Promise<void> {
+function hashPayload(obj: Record<string, unknown>): string {
+  return createHash("sha256").update(JSON.stringify(obj)).digest("hex");
+}
+
+export async function writeAuditLog(entry: Omit<AuditEntry, "log_id" | "timestamp" | "payload_hash">): Promise<void> {
   const redis = getRedis();
   const fullEntry: AuditEntry = {
     log_id: uuidv4(),
     timestamp: new Date().toISOString(),
     ...entry,
   };
+  const { payload_hash: _, ...payloadForHash } = fullEntry;
+  fullEntry.payload_hash = hashPayload(payloadForHash as Record<string, unknown>);
 
   const dateKey = new Date().toISOString().split("T")[0];
   await redis.rpush(`audit:${dateKey}`, JSON.stringify(fullEntry));

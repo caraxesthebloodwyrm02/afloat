@@ -2,6 +2,8 @@
 
 Applies to: all files, with special attention to `app/api/**`, `lib/**`
 
+See **docs/SAFETY_CORE.md** for the sanitized safety model: one gate (`runSafetyPipeline`), one audit write (`writeAuditLog`), minimal access (allowlist via `isAllowedCaller`). No second TrustLayer; all enforcement in-process (tool-call free).
+
 ## Golden Rules
 
 - **Never** weaken rate limiting or authentication checks
