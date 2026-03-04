@@ -149,7 +149,10 @@ export function isAllowedCaller(identity: string): boolean {
  * Returns the current access control mode for debugging/audit purposes.
  * @returns 'permissive' | 'restricted' | 'deny-all'
  */
-export function getAccessControlMode(): "permissive" | "restricted" | "deny-all" {
+export function getAccessControlMode():
+  | "permissive"
+  | "restricted"
+  | "deny-all" {
   const allowlist = getAllowedCallers();
   if (allowlist === null) return "permissive";
   if (allowlist.length === 0) return "deny-all";

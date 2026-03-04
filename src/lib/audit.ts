@@ -7,7 +7,11 @@ export interface AuditEntry {
   timestamp: string;
   actor: string;
   action: "create" | "read" | "update" | "delete" | "export" | "consent_change";
-  resource_type: "session_log" | "consent_record" | "subscription" | "user_profile";
+  resource_type:
+    | "session_log"
+    | "consent_record"
+    | "subscription"
+    | "user_profile";
   resource_id: string;
   outcome: "success" | "failure" | "denied";
   ip_hash: string;
@@ -43,7 +47,7 @@ export interface AuditActionParams {
 export async function auditAction(
   request: Request,
   user: { user_id: string },
-  params: AuditActionParams
+  params: AuditActionParams,
 ): Promise<void> {
   await writeAuditLog({
     actor: user.user_id,
@@ -60,16 +64,19 @@ function hashPayload(obj: Record<string, unknown>): string {
   return createHash("sha256").update(JSON.stringify(obj)).digest("hex");
 }
 
-export async function writeAuditLog(entry: Omit<AuditEntry, "log_id" | "timestamp" | "payload_hash">): Promise<void> {
+export async function writeAuditLog(
+  entry: Omit<AuditEntry, "log_id" | "timestamp" | "payload_hash">,
+): Promise<void> {
   const redis = getRedis();
   const fullEntry: AuditEntry = {
     log_id: uuidv4(),
     timestamp: new Date().toISOString(),
     ...entry,
   };
-  const { payload_hash: _payloadHash, ...payloadForHash } = fullEntry;
-  void _payloadHash; // omitted so hash is computed from the rest
-  fullEntry.payload_hash = hashPayload(payloadForHash as Record<string, unknown>);
+  const { payload_hash: _, ...payloadForHash } = fullEntry;
+  fullEntry.payload_hash = hashPayload(
+    payloadForHash as Record<string, unknown>,
+  );
 
   const dateKey = new Date().toISOString().split("T")[0];
   await redis.rpush(`audit:${dateKey}`, JSON.stringify(fullEntry));
