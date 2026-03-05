@@ -45,7 +45,8 @@ vi.mock("@/lib/rate-limit", () => ({
 
 // Mock audit — no-op
 vi.mock("@/lib/audit", () => ({
-  writeAuditLog: vi.fn(async () => {}),
+  writeAuditLog: vi.fn(async () => { }),
+  auditAction: vi.fn(async () => { }),
   hashIP: vi.fn(() => "hashed-ip"),
   getClientIP: vi.fn(() => "127.0.0.1"),
 }));
@@ -74,7 +75,7 @@ vi.mock("@/lib/provenance", () => ({
     chain_hash: "test",
     sequence_number: 0,
   })),
-  storeDPR: vi.fn(async () => {}),
+  storeDPR: vi.fn(async () => { }),
   getSessionDPRs: (...args: [string]) => mockGetSessionDPRs(...args),
   verifySessionChain: (...args: [string]) => mockVerifySessionChain(...args),
 }));
@@ -217,6 +218,53 @@ describe("POST /api/v1/session/start", () => {
 
     const body = await response.json();
     expect(body.error).toBe("forbidden");
+  });
+
+  it("returns 403 when ALLOWED_CALLERS is set and identity is not in allowlist", async () => {
+    const { _resetAllowlistCache } = await import("@/lib/access");
+    const orig = process.env.ALLOWED_CALLERS;
+    try {
+      process.env.ALLOWED_CALLERS = "allowed-user-only,other-allowed";
+      _resetAllowlistCache();
+      seedUser(TEST_USER_ID, "active");
+      const { POST } = await import("@/app/api/v1/session/start/route");
+      const request = new NextRequest("http://localhost/api/v1/session/start", {
+        method: "POST",
+        headers: { authorization: await makeAuthHeader() },
+      });
+      const response = await POST(request);
+      expect(response.status).toBe(403);
+      const body = await response.json();
+      expect(body.error).toBe("forbidden");
+      expect(body.message).toBe("Caller not in allowlist.");
+    } finally {
+      if (orig !== undefined) process.env.ALLOWED_CALLERS = orig;
+      else delete process.env.ALLOWED_CALLERS;
+      _resetAllowlistCache();
+    }
+  });
+
+  it("implementation status: allowlist not enforced when ALLOWED_CALLERS unset (200 with valid JWT)", async () => {
+    const { _resetAllowlistCache } = await import("@/lib/access");
+    const orig = process.env.ALLOWED_CALLERS;
+    try {
+      delete process.env.ALLOWED_CALLERS;
+      _resetAllowlistCache();
+      seedUser(TEST_USER_ID, "active");
+      const { POST } = await import("@/app/api/v1/session/start/route");
+      const request = new NextRequest("http://localhost/api/v1/session/start", {
+        method: "POST",
+        headers: { authorization: await makeAuthHeader() },
+      });
+      const response = await POST(request);
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.session_id).toBeDefined();
+    } finally {
+      if (orig !== undefined) process.env.ALLOWED_CALLERS = orig;
+      else delete process.env.ALLOWED_CALLERS;
+      _resetAllowlistCache();
+    }
   });
 
   it("returns session_id with valid auth and active subscription", async () => {

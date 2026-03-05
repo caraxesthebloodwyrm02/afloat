@@ -179,6 +179,7 @@ Required (14 total):
 - `CRON_SECRET` — Cron job auth
 - `NEXT_PUBLIC_APP_URL` — App URL
 - `PHASE4_MESSAGE_CAPABILITY_ENABLED` — Feature flag
+- `ALLOWED_CALLERS` — Access control allowlist (optional; comma-separated user_ids)
 
 ---
 

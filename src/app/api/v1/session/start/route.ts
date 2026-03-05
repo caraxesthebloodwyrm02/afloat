@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { createSession } from "@/lib/session-controller";
 import { getUser } from "@/lib/data-layer";
 import { getSessionRateLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { auditAction } from "@/lib/audit";
 import { getTierLimits } from "@/types/session";
 import type { SessionStartResponse, ApiError } from "@/types/api";
 
 export async function POST(request: NextRequest) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
@@ -41,13 +41,11 @@ export async function POST(request: NextRequest) {
   const tier = userRecord.subscription_tier ?? "trial";
   const session = await createSession(user.user_id, tier);
 
-  await writeAuditLog({
-    actor: user.user_id,
+  await auditAction(request, user, {
     action: "create",
     resource_type: "session_log",
     resource_id: session.session_id,
     outcome: "success",
-    ip_hash: hashIP(getClientIP(request)),
     metadata: { tier },
   });
 

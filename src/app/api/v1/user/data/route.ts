@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { getDataRightsRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { markUserForDeletion, getUser } from "@/lib/data-layer";
-import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { auditAction } from "@/lib/audit";
 import type { ApiError } from "@/types/api";
 
 export async function DELETE(request: NextRequest) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
@@ -43,13 +43,11 @@ export async function DELETE(request: NextRequest) {
 
   const updatedUser = await getUser(user.user_id);
 
-  await writeAuditLog({
-    actor: user.user_id,
+  await auditAction(request, user, {
     action: "delete",
     resource_type: "user_profile",
     resource_id: user.user_id,
     outcome: "success",
-    ip_hash: hashIP(getClientIP(request)),
     metadata: {
       deletion_date: updatedUser?.pending_deletion?.deletion_date,
       grace_period_days: 7,

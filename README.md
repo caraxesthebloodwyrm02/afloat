@@ -75,6 +75,12 @@ npm run dev
 
 **Total Required Variables**: 14
 
+**Optional**
+
+| Variable | Purpose |
+|----------|---------|
+| `ALLOWED_CALLERS` | Comma-separated list of identities (e.g. `user_id`) allowed to call protected operations. If unset, all authenticated callers are allowed. See `docs/SAFETY_CORE.md`. |
+
 ## API Routes
 
 | Method | Path | Purpose | Auth |

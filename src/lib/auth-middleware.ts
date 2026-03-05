@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, type JWTPayload } from "./auth";
+import { isAllowedCaller } from "./access";
 import type { ApiError } from "@/types/api";
 
 export async function authenticateRequest(
@@ -25,6 +26,25 @@ export async function authenticateRequest(
   }
 
   return { user: payload };
+}
+
+/**
+ * Authenticate via JWT and enforce ALLOWED_CALLERS allowlist when set.
+ * Use this on all protected routes so allowlist is enforced in one place.
+ */
+export async function requireAuth(
+  request: NextRequest
+): Promise<{ user: JWTPayload } | NextResponse<ApiError>> {
+  const authResult = await authenticateRequest(request);
+  if (!isAuthenticated(authResult)) return authResult;
+  const { user } = authResult;
+  if (!isAllowedCaller(user.user_id)) {
+    return NextResponse.json(
+      { error: "forbidden" as const, message: "Caller not in allowlist." },
+      { status: 403 }
+    );
+  }
+  return { user };
 }
 
 export function isAuthenticated(

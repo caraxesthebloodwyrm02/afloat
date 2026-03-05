@@ -11,6 +11,9 @@ function setValidEnv() {
   process.env.OPENAI_API_KEY = 'sk-Xt9mW3kR7vL2nQ8sY4hB6cJ1fA5dE';
   process.env.STRIPE_SECRET_KEY = 'sk_live_5add2fd69527664455fbd6b05e1207e10b72e9f29c464bab';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_Kx7mW3kR7vL2nQ8sY4hB6cJ1fA5dE';
+  process.env.STRIPE_PUBLISHABLE_KEY = 'pk_live_5add2fd69527664455fbd6b05e1207e10b72e9f2';
+  process.env.STRIPE_PRICE_ID = 'price_1ABCdef123456789';
+  process.env.STRIPE_CONTINUOUS_PRICE_ID = 'price_1XYZcontinuous789';
   process.env.UPSTASH_REDIS_REST_URL = 'https://test.upstash.io';
   process.env.UPSTASH_REDIS_REST_TOKEN = 'XpT9mW3kR7vL2nQ8sY4hB6cJ';
 }

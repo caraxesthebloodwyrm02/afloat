@@ -1,4 +1,4 @@
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { getSessionDPRs, verifySessionChain } from "@/lib/provenance";
 import { getSession } from "@/lib/session-controller";
 import type { ApiError } from "@/types/api";
@@ -8,7 +8,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;

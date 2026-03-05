@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { getSession, deleteSession } from "@/lib/session-controller";
 import { writeSessionLog } from "@/lib/data-layer";
 import { getUser } from "@/lib/data-layer";
 import { shouldWriteTelemetry } from "@/lib/consent";
 import { getSessionEndRateLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { auditAction } from "@/lib/audit";
 import { reportUsage, isStripeConfigured } from "@/lib/stripe";
 import type { SessionEndResponse, ApiError } from "@/types/api";
 
@@ -13,7 +13,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
@@ -81,13 +81,11 @@ export async function POST(
     }
   }
 
-  await writeAuditLog({
-    actor: user.user_id,
+  await auditAction(request, user, {
     action: "update",
     resource_type: "session_log",
     resource_id: session.session_id,
     outcome: "success",
-    ip_hash: hashIP(getClientIP(request)),
     metadata: { action_detail: "session_end", telemetry_written: writeTelemetry },
   });
 

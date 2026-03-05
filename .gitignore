@@ -44,4 +44,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# workspace baseline (telemetry & scratch)
+resonance_telemetry_events.jsonl
+test_results*.txt
+test_run*.txt
+.cascade_context.json
+codeq.txt
+codequality.txt
+debug-*.log
+nul
+
 .vercel

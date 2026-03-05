@@ -37,21 +37,30 @@
           "name": "turn_limit_hard_stop",
           "description": "When llm_call_count >= max_llm_calls, reject with { 'error': 'session_complete' }",
           "status_code": 409,
-          "response_body": { "error": "session_complete", "message": "Session limit reached." }
+          "response_body": {
+            "error": "session_complete",
+            "message": "Session limit reached."
+          }
         },
         {
           "rule_id": "ER-02",
           "name": "timerExpiration_hard_stop",
           "description": "When current_time > session_deadline, reject with { 'error': 'session_timeout' }",
           "status_code": 409,
-          "response_body": { "error": "session_timeout", "message": "Session time limit reached." }
+          "response_body": {
+            "error": "session_timeout",
+            "message": "Session time limit reached."
+          }
         },
         {
           "rule_id": "ER-03",
           "name": "empty_input_rejection",
           "description": "When user message is empty or whitespace-only, reject with 400 (does not increment turn count)",
           "status_code": 400,
-          "response_body": { "error": "empty_input", "message": "Please describe what you're stuck on." }
+          "response_body": {
+            "error": "empty_input",
+            "message": "Please describe what you're stuck on."
+          }
         }
       ],
       "server_side_only": {
@@ -77,6 +86,21 @@
         "measurement": "sessions_where_user_proceeded / total_sessions",
         "enforcement": "If ratio < 0.70 for 7 consecutive days, review LLM prompt effectiveness"
       }
+    },
+    "access_control": {
+      "env_var": "ALLOWED_CALLERS",
+      "behavior": {
+        "unset": "permissive — all authenticated callers allowed",
+        "empty": "deny-all — fail-closed",
+        "populated": "restricted — timing-safe exact match after trim+NFC"
+      },
+      "identity_validation": {
+        "max_length": 256,
+        "reject_control_chars": true,
+        "reject_whitespace_only": true
+      },
+      "caching": "parsed once, frozen, requires restart to refresh",
+      "comparison": "timing-safe, no case folding"
     }
   },
   "billing": {

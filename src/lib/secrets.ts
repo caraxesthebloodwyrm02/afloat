@@ -78,6 +78,27 @@ const SECRET_SPECS: SecretSpec[] = [
     description: "Stripe webhook signing secret",
   },
   {
+    name: "STRIPE_PUBLISHABLE_KEY",
+    required: true,
+    minLength: 20,
+    category: "payment",
+    description: "Stripe publishable key",
+  },
+  {
+    name: "STRIPE_PRICE_ID",
+    required: true,
+    minLength: 5,
+    category: "payment",
+    description: "Stripe price ID for subscription plan",
+  },
+  {
+    name: "STRIPE_CONTINUOUS_PRICE_ID",
+    required: true,
+    minLength: 5,
+    category: "payment",
+    description: "Stripe metered usage price ID",
+  },
+  {
     name: "UPSTASH_REDIS_REST_TOKEN",
     required: true,
     minLength: 20,

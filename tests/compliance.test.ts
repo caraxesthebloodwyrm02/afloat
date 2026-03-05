@@ -62,6 +62,7 @@ vi.mock("@/lib/rate-limit", () => ({
 const mockWriteAuditLog = vi.fn();
 vi.mock("@/lib/audit", () => ({
   writeAuditLog: (...args: unknown[]) => mockWriteAuditLog(...args),
+  auditAction: vi.fn(async () => {}),
   hashIP: vi.fn(() => "hashed-ip"),
   getClientIP: vi.fn(() => "127.0.0.1"),
 }));
@@ -413,7 +414,7 @@ describe("TC-08: pii_leak_scan", () => {
     // Verify the log only has the expected operational fields
     const storedLog = logs[0];
     const allowedFields = [
-      "session_id", "user_id", "start_time", "end_time",
+      "session_id", "user_id", "tier", "start_time", "end_time",
       "turns", "gate_type", "user_proceeded", "session_completed",
       "latency_per_turn", "error",
     ];
