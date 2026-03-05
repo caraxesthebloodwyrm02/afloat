@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { getDataRightsRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { exportUserData } from "@/lib/data-layer";
-import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { auditAction } from "@/lib/audit";
 import type { ApiError } from "@/types/api";
 
 function jsonToCsv(data: Record<string, unknown>): string {
@@ -123,7 +123,7 @@ function crc32(buf: Buffer): number {
 }
 
 export async function GET(request: NextRequest) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
@@ -142,13 +142,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  await writeAuditLog({
-    actor: user.user_id,
+  await auditAction(request, user, {
     action: "export",
     resource_type: "user_profile",
     resource_id: user.user_id,
     outcome: "success",
-    ip_hash: hashIP(getClientIP(request)),
     metadata: {
       format: request.nextUrl.searchParams.get("format") || "json",
     },

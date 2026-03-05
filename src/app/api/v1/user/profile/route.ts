@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { getDataRightsRateLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { getUser, updateUser } from "@/lib/data-layer";
-import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { auditAction } from "@/lib/audit";
 import type { ApiError } from "@/types/api";
 
 const ALLOWED_FIELDS = ["display_name", "email_preference"];
 
 export async function PATCH(request: NextRequest) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
@@ -66,13 +66,11 @@ export async function PATCH(request: NextRequest) {
 
   await updateUser(userRecord);
 
-  await writeAuditLog({
-    actor: user.user_id,
+  await auditAction(request, user, {
     action: "update",
     resource_type: "user_profile",
     resource_id: user.user_id,
     outcome: "success",
-    ip_hash: hashIP(getClientIP(request)),
     metadata: { fields_updated: Object.keys(updates) },
   });
 

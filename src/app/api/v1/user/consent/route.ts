@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { getUser, updateUser } from "@/lib/data-layer";
 import { updateConsent } from "@/lib/consent";
-import { writeAuditLog, hashIP, getClientIP } from "@/lib/audit";
+import { auditAction } from "@/lib/audit";
 import type { ApiError } from "@/types/api";
 
 export async function POST(request: NextRequest) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
@@ -53,13 +53,11 @@ export async function POST(request: NextRequest) {
 
   await updateUser(userRecord);
 
-  await writeAuditLog({
-    actor: user.user_id,
+  await auditAction(request, user, {
     action: "consent_change",
     resource_type: "consent_record",
     resource_id: user.user_id,
     outcome: "success",
-    ip_hash: hashIP(getClientIP(request)),
     metadata: { changed_fields: changes },
   });
 

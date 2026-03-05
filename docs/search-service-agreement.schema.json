@@ -1,0 +1,559 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://afloat.dev/schemas/search-service-agreement.schema.json",
+  "title": "Enterprise-Grade Search Service Agreement",
+  "description": "Validates documents describing an enterprise search service contract, covering scope, SLAs, pricing, data privacy, IP, warranties, termination, and dispute resolution.",
+  "type": "object",
+  "$defs": {
+    "party": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "enum": ["service_provider", "client"]
+        },
+        "contact_email": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "required": ["name", "role"],
+      "additionalProperties": false
+    },
+    "metric_spec": {
+      "type": "object",
+      "description": "A single measurable metric with a numeric value and unit.",
+      "properties": {
+        "metric": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["metric", "value", "unit"],
+      "additionalProperties": false
+    },
+    "percentage_metric": {
+      "type": "object",
+      "description": "A metric expressed as a percentage (0-100).",
+      "properties": {
+        "metric": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": ["metric", "value"],
+      "additionalProperties": false
+    },
+    "compliance_ref": {
+      "type": "object",
+      "description": "Reference to a regulatory or compliance standard.",
+      "properties": {
+        "standard": {
+          "type": "string",
+          "enum": ["GDPR", "HIPAA", "SOC2", "ISO27001", "PCI_DSS", "CCPA"]
+        },
+        "details": {
+          "type": "string"
+        }
+      },
+      "required": ["standard"],
+      "additionalProperties": false
+    },
+    "fee_item": {
+      "type": "object",
+      "description": "A billable line item with amount, unit, and optional billing period.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "default": "USD",
+          "minLength": 3,
+          "maxLength": 3
+        },
+        "unit": {
+          "type": "string",
+          "description": "What the amount is measured per (e.g., 'GB', '1000 API calls')."
+        },
+        "period": {
+          "type": "string",
+          "description": "Billing period (e.g., 'month', 'year')."
+        }
+      },
+      "required": ["description", "amount", "unit"],
+      "additionalProperties": false
+    },
+    "license_term": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "restrictions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["name", "description"],
+      "additionalProperties": false
+    },
+    "named_service": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": ["name", "description"],
+      "additionalProperties": false
+    },
+    "obligation": {
+      "type": "object",
+      "properties": {
+        "party": {
+          "type": "string",
+          "minLength": 1
+        },
+        "responsibility": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["party", "responsibility"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "introduction": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parties": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/party" },
+          "minItems": 2
+        },
+        "effective_date": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO 8601 date (yyyy-mm-dd)."
+        },
+        "duration_months": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Contract duration in months."
+        },
+        "termination_conditions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      },
+      "required": ["purpose", "parties", "effective_date", "duration_months", "termination_conditions"],
+      "additionalProperties": false
+    },
+    "definitions": {
+      "type": "object",
+      "properties": {
+        "acronyms": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Map of acronym to full expansion (e.g., { \"API\": \"Application Programming Interface\" })."
+        }
+      },
+      "required": ["acronyms"],
+      "additionalProperties": false
+    },
+    "scope_of_services": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "functionalities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Core search capabilities (e.g., query processing, faceted search)."
+        },
+        "indexing_capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "geographic_coverage": {
+          "type": "string"
+        },
+        "limitations": {
+          "type": "object",
+          "properties": {
+            "query_volume": {
+              "$ref": "#/$defs/metric_spec",
+              "description": "Maximum sustained query throughput."
+            },
+            "data_retention_days": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "How long indexed data is retained, in days."
+            },
+            "data_privacy_compliance": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/compliance_ref" },
+              "minItems": 1
+            }
+          },
+          "required": ["query_volume", "data_retention_days", "data_privacy_compliance"],
+          "additionalProperties": false
+        },
+        "additional_services": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/named_service" }
+        }
+      },
+      "required": ["description", "functionalities", "indexing_capabilities", "limitations"],
+      "additionalProperties": false
+    },
+    "service_level_agreements": {
+      "type": "object",
+      "properties": {
+        "response_time": {
+          "type": "object",
+          "properties": {
+            "search_latency": {
+              "$ref": "#/$defs/metric_spec",
+              "description": "P95 or P99 search latency target."
+            },
+            "availability": {
+              "$ref": "#/$defs/percentage_metric",
+              "description": "Uptime SLA as a percentage (e.g., 99.9)."
+            }
+          },
+          "required": ["search_latency", "availability"],
+          "additionalProperties": false
+        },
+        "quality_of_results": {
+          "type": "object",
+          "properties": {
+            "precision": { "$ref": "#/$defs/percentage_metric" },
+            "relevance": { "$ref": "#/$defs/percentage_metric" },
+            "completeness": { "$ref": "#/$defs/percentage_metric" }
+          },
+          "required": ["precision", "relevance"],
+          "additionalProperties": false
+        },
+        "data_freshness": {
+          "type": "object",
+          "properties": {
+            "max_staleness": {
+              "$ref": "#/$defs/metric_spec",
+              "description": "Maximum acceptable age of indexed data."
+            },
+            "reliability": {
+              "$ref": "#/$defs/percentage_metric",
+              "description": "Data pipeline reliability target."
+            }
+          },
+          "required": ["max_staleness", "reliability"],
+          "additionalProperties": false
+        },
+        "security": {
+          "type": "object",
+          "properties": {
+            "encryption_algorithm": {
+              "type": "string",
+              "description": "Encryption standard (e.g., AES-256)."
+            },
+            "access_control_mechanisms": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "description": "Authentication and authorization methods."
+            },
+            "audit_frequency": {
+              "type": "string",
+              "description": "How often security audits are performed (e.g., quarterly, annually)."
+            }
+          },
+          "required": ["encryption_algorithm", "access_control_mechanisms", "audit_frequency"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["response_time", "quality_of_results", "data_freshness", "security"],
+      "additionalProperties": false
+    },
+    "pricing": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/fee_item",
+          "description": "Base pricing for the search service."
+        },
+        "additional_fees": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fee_item" }
+        },
+        "billing_terms": {
+          "type": "string",
+          "description": "Invoicing cadence (e.g., monthly, quarterly)."
+        },
+        "payment_methods": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "due_date": {
+          "type": "string",
+          "description": "Payment due date within each billing cycle."
+        }
+      },
+      "required": ["base", "billing_terms", "payment_methods", "due_date"],
+      "additionalProperties": false
+    },
+    "data_privacy": {
+      "type": "object",
+      "properties": {
+        "compliance": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compliance_ref" },
+          "minItems": 1
+        },
+        "encryption": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Encryption standards applied to data at rest."
+        },
+        "transmission_protocols": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Secure transport protocols (e.g., HTTPS, TLS 1.3)."
+        },
+        "access_controls": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "breach_notification": {
+          "type": "object",
+          "properties": {
+            "max_notification_hours": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum hours after discovery before notification is required."
+            },
+            "notification_method": {
+              "type": "string"
+            }
+          },
+          "required": ["max_notification_hours"],
+          "additionalProperties": false
+        },
+        "penalties": {
+          "type": "object",
+          "properties": {
+            "per_breach_amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string",
+              "default": "USD",
+              "minLength": 3,
+              "maxLength": 3
+            }
+          },
+          "required": ["per_breach_amount"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["compliance", "encryption", "transmission_protocols", "access_controls", "breach_notification"],
+      "additionalProperties": false
+    },
+    "intellectual_property": {
+      "type": "object",
+      "properties": {
+        "ownership": {
+          "type": "object",
+          "properties": {
+            "party": {
+              "type": "string",
+              "description": "The party that owns the IP."
+            },
+            "assets": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "description": "IP assets covered (e.g., search algorithms, indexing technology, data structures)."
+            }
+          },
+          "required": ["party", "assets"],
+          "additionalProperties": false
+        },
+        "licensing": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/license_term" }
+        },
+        "restrictions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["use", "modification", "distribution"]
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": ["type", "description"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["ownership", "restrictions"],
+      "additionalProperties": false
+    },
+    "warranties_and_liabilities": {
+      "type": "object",
+      "properties": {
+        "warranties": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "liability_cap": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string",
+              "default": "USD",
+              "minLength": 3,
+              "maxLength": 3
+            },
+            "scope": {
+              "type": "string",
+              "description": "What the cap covers (e.g., negligence, breach of warranty)."
+            }
+          },
+          "required": ["amount", "scope"],
+          "additionalProperties": false
+        },
+        "indemnification": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      },
+      "required": ["warranties", "liability_cap", "indemnification"],
+      "additionalProperties": false
+    },
+    "termination": {
+      "type": "object",
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "obligations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/obligation" },
+          "minItems": 1
+        }
+      },
+      "required": ["conditions", "obligations"],
+      "additionalProperties": false
+    },
+    "dispute_resolution": {
+      "type": "object",
+      "properties": {
+        "procedures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Ordered escalation steps (e.g., mediation, then arbitration)."
+        },
+        "governing_law": {
+          "type": "string"
+        },
+        "jurisdiction": {
+          "type": "string"
+        }
+      },
+      "required": ["procedures", "governing_law", "jurisdiction"],
+      "additionalProperties": false
+    },
+    "miscellaneous": {
+      "type": "object",
+      "properties": {
+        "force_majeure": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "assignment_provisions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notices": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "entire_agreement": {
+          "type": "string",
+          "description": "Clause specifying this contract supersedes any prior agreements."
+        }
+      },
+      "required": ["entire_agreement"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "introduction",
+    "scope_of_services",
+    "service_level_agreements",
+    "pricing",
+    "termination"
+  ],
+  "additionalProperties": false
+}

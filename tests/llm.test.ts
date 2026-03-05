@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { assessResponseQuality, estimateTokenCount, callLLMWithFallback, LLMError } from "@/lib/llm";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
+import OpenAI from "openai";
 
 const mocks = vi.hoisted(() => ({
   openaiCreate: vi.fn(),
@@ -212,12 +213,9 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.GROQ_API_KEY;
     delete process.env.GEMINI_API_KEY;
-
-    // vi.useFakeTimers(); (Removed to avoid promise resolution blocking in node environments)
   });
 
   afterEach(() => {
-    // vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -247,7 +245,7 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
     process.env.OPENAI_API_KEY = "sk-test-openai";
     process.env.GROQ_API_KEY = "gsk-test-groq";
 
-    const rateLimitError = Object.assign(new Error("rate limit"), { status: 429 });
+    const rateLimitError = new OpenAI.APIError(429);
 
     mocks.openaiCreate.mockRejectedValueOnce(rateLimitError);
     mocks.groqCreate.mockResolvedValueOnce({
@@ -265,7 +263,7 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
     process.env.OPENAI_API_KEY = "sk-test-openai";
     process.env.GROQ_API_KEY = "gsk-test-groq";
 
-    const serverError = Object.assign(new Error("server error"), { status: 500 });
+    const serverError = new OpenAI.APIError(500);
 
     vi.spyOn(global, "setTimeout").mockImplementation(((cb: () => void, ms?: number) => {
       if (ms === 1000) {

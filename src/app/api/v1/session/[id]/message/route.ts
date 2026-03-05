@@ -1,4 +1,4 @@
-import { authenticateRequest, isAuthenticated } from "@/lib/auth-middleware";
+import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
 import { LLMError } from "@/lib/llm";
 import type { SafetyVerdict } from "@/lib/provenance";
 import { createDPR, getChainRef, storeDPR } from "@/lib/provenance";
@@ -15,6 +15,7 @@ import { detectAndRedactPII } from "@/lib/safety";
 import { runSafetyPipeline } from "@/lib/safety-pipeline";
 import { recordSafetyEvent } from "@/lib/safety-telemetry";
 import { generateMessageResponse } from "@/lib/session-message-adapter";
+import { auditAction } from "@/lib/audit";
 import type { ApiError, SessionMessageResponse } from "@/types/api";
 import { getTierLimits } from "@/types/session";
 import { NextRequest, NextResponse } from "next/server";
@@ -23,7 +24,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResult = await authenticateRequest(request);
+  const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
 
   const { user } = authResult;
@@ -289,6 +290,14 @@ export async function POST(
         userMessage,
       );
       await updateSession(session);
+
+      await auditAction(request, user, {
+        action: "update",
+        resource_type: "session_log",
+        resource_id: sessionId,
+        outcome: "success",
+        metadata: { turn: session.llm_call_count, gate_type: llmResponse.gate_type },
+      });
 
       const turnsRemaining = getTierLimits(session.tier).maxLlmCalls - session.llm_call_count;
 
