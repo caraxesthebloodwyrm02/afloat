@@ -54,4 +54,9 @@ codequality.txt
 debug-*.log
 nul
 
-.vercel
+# AI and IDE
+.artifacts/
+.claude/
+.cursor/
+.windsurf/
+Vision/
