@@ -2,6 +2,8 @@
 
 > Guidelines for AI agents (Cursor, Copilot, Claude, etc.) working in this codebase.
 
+Workspace baseline for shared guardrails and repo hygiene: `E:\Seeds\ECOSYSTEM_BASELINE.md`.
+
 ## Build, Test, and Development Commands
 
 | Command | Purpose |

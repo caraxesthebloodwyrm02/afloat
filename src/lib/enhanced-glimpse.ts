@@ -3,6 +3,7 @@
  * Returns risk score, categorized risks, and mitigation plan.
  */
 
+import type { Dirent } from "fs";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
 
@@ -45,7 +46,7 @@ export async function riskAssessment(projectPath: string): Promise<RiskAssessmen
     throw new Error(`Cannot access path: ${message}`);
   }
 
-  let entries: Awaited<ReturnType<typeof readdir>>;
+  let entries: Dirent<string>[];
   try {
     entries = await readdir(normalizedPath, { withFileTypes: true });
   } catch (err) {
