@@ -49,14 +49,12 @@ resonance_telemetry_events.jsonl
 test_results*.txt
 test_run*.txt
 .cascade_context.json
-codeq.txt
-codequality.txt
-debug-*.log
-nul
 
 # AI and IDE
 .artifacts/
 .claude/
 .cursor/
+.vscode/
 .windsurf/
 Vision/
+/test-risk-assessment.mts
