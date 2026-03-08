@@ -18,6 +18,10 @@ You describe what you're stuck on. Afloat identifies the block type (meeting tri
 | Rate Limiting | @upstash/ratelimit |
 | Hosting | Vercel (free tier) |
 
+## Security guardrails
+
+API and app attack-surface guardrails (auth, rate limits, webhook signature, no debug in production) are defined in the workspace doc **E:\\docs\\API_ATTACK_SURFACE_GUARDRAILS_AND_TODOS.md**. Endpoint inventory: **E:\\Seeds\\ENDPOINT_INVENTORY.md**; debug audit: **E:\\Seeds\\DEBUG_AUDIT.md**.
+
 ## Prerequisites
 
 - **Node.js**: Version 20.x or higher
