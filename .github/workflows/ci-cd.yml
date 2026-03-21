@@ -34,7 +34,7 @@ defaults:
 
 jobs:
   quality:
-    name: Lint, test, and build
+    name: Lint, typecheck, test, and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -55,19 +55,24 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      - name: Run unit tests
-        run: npm run test
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
 
       - name: Build application
         run: npm run build
 
-      - name: Upload build metadata artifact
+      - name: Upload CI artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ci-build-metadata-${{ github.sha }}
+          name: ci-artifacts-${{ github.sha }}
           path: |
             .next/BUILD_ID
             .next/build-manifest.json
+            coverage/coverage-summary.json
+            coverage/lcov.info
           if-no-files-found: error
           retention-days: 3
 

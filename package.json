@@ -10,8 +10,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -34,6 +37,7 @@
     "@types/react-dom": "^19",
     "@types/uuid": "10.0.0",
     "@vitejs/plugin-react": "5.1.4",
+    "@vitest/coverage-v8": "4.0.18",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",

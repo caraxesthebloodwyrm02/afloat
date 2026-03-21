@@ -46,6 +46,23 @@ cp .env.example .env.local
 npm run dev
 ```
 
+## Quality Gates
+
+- `npm run lint` - ESLint across the repo
+- `npm run typecheck` - strict TypeScript validation
+- `npm run test` - Vitest suite
+- `npm run test:coverage` - Vitest with enforced coverage thresholds
+- `npm run build` - production build verification
+- `npm run check` - full local PR gate (`lint`, `typecheck`, `test:coverage`, `build`)
+
+## CI/CD And Governance
+
+- Pull requests to `main` run lint, typecheck, coverage-backed tests, and build in `.github/workflows/ci-cd.yml`
+- Security automation runs TruffleHog, `npm audit --omit=dev --audit-level=high`, and CodeQL in `.github/workflows/security.yml`
+- Dependency updates are managed through `.github/dependabot.yml`
+- Reviews can be required through `.github/CODEOWNERS`
+- PRs should follow `.github/pull_request_template.md`
+
 ### Environment Setup Notes
 
 - **JWT_SECRET**: Use a cryptographically secure random string (32+ chars)

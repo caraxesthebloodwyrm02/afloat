@@ -245,7 +245,7 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
     process.env.OPENAI_API_KEY = "sk-test-openai";
     process.env.GROQ_API_KEY = "gsk-test-groq";
 
-    const rateLimitError = new OpenAI.APIError(429);
+    const rateLimitError = new OpenAI.APIError(429, {} as Record<string, never>, "API Error", {} as Headers);
 
     mocks.openaiCreate.mockRejectedValueOnce(rateLimitError);
     mocks.groqCreate.mockResolvedValueOnce({
@@ -263,7 +263,7 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
     process.env.OPENAI_API_KEY = "sk-test-openai";
     process.env.GROQ_API_KEY = "gsk-test-groq";
 
-    const serverError = new OpenAI.APIError(500);
+    const serverError = new OpenAI.APIError(500, {} as Record<string, never>, "API Error", {} as Headers);
 
     vi.spyOn(global, "setTimeout").mockImplementation(((cb: () => void, ms?: number) => {
       if (ms === 1000) {
@@ -312,4 +312,3 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
     expect(mocks.geminiSend).toHaveBeenCalledTimes(1);
   });
 });
-
