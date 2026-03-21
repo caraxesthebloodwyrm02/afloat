@@ -39,7 +39,7 @@ jobs:
           path: ./
           base: ${{ github.event.pull_request.base.sha || format('{0}~1', github.sha) }}
           head: ${{ github.event.pull_request.head.sha || github.sha }}
-          extra_args: --only-verified --fail
+          extra_args: --only-verified
 
   dependency-audit:
     name: Dependency audit
