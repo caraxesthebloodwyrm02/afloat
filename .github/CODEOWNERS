@@ -1,5 +1,8 @@
+# CODEOWNERS — afloat
 * @caraxesthebloodwyrm02
 
+/.github/ @caraxesthebloodwyrm02
 /src/app/api/ @caraxesthebloodwyrm02
 /src/lib/ @caraxesthebloodwyrm02
+/scripts/ @caraxesthebloodwyrm02
 /docs/ @caraxesthebloodwyrm02
