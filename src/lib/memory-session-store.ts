@@ -23,7 +23,7 @@ export function createSession(userId: string, tier: string = "trial"): SessionSt
     session_id: uuidv4(),
     user_id: userId,
     tier,
-    start_time: new Date().toISOString(),
+    start_time: new Date(now).toISOString(),
     llm_call_count: 0,
     gate_type: null,
     latency_per_turn: [],
