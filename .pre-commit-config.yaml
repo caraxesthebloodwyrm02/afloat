@@ -1,0 +1,68 @@
+# ============================================================================
+# Afloat Pre-Commit Configuration
+# ============================================================================
+# Install: pre-commit install
+# Run manually: pre-commit run --all-files
+# ============================================================================
+
+repos:
+  # General file quality checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-toml
+        name: Check TOML syntax
+      - id: check-json
+        name: Check JSON syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: no-commit-to-branch
+        name: Protect main branch
+        args: ["--branch", "main"]
+      - id: detect-private-key
+        name: Detect private keys
+      - id: detect-aws-credentials
+        name: Detect AWS credentials
+        args: ["--allow-missing-credentials"]
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        args: [--fix=lf]
+
+  # Detect-secrets: enterprise-grade secret scanner
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect hardcoded secrets
+        args:
+          - "--exclude-files"
+          - ".*test.*|.*fixture.*|.*mock.*"
+          - "--base64-limit"
+          - "4.5"
+          - "--hex-limit"
+          - "3.0"
+        exclude: |
+          (?x)^(
+            .*\.lock$|
+            .*\.min\.js$|
+            .*\.min\.css$|
+            package-lock\.json$|
+            node_modules/|
+            \.next/
+          )$
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+fail_fast: false
+minimum_pre_commit_version: "3.0.0"
+default_stages: [commit, push]
