@@ -4,7 +4,7 @@
   "private": true,
   "description": "A no-fluff cognitive assistant for quick decision support (~2 min sessions)",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.0.0 <25"
   },
   "scripts": {
     "dev": "next dev",
