@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIO Control Room — Interactive</title>
+<style>
+:root {
+  --bg-deep: #0a0a12;
+  --bg-surface: #12121e;
+  --bg-card: #1a1a2e;
+  --bg-elevated: #222240;
+  --text-primary: #e8e8f0;
+  --text-secondary: #8888a8;
+  --text-muted: #555570;
+  --border-subtle: #2a2a45;
+  --border-active: #4a4a70;
+
+  --smooth-flow: #00d2d3;
+  --thermal-drift: #ff6b6b;
+  --air-drift: #48dbfb;
+  --correction-zone: #ffa502;
+
+  --phase-map: #5f27cd;
+  --phase-balance: #01a3a4;
+  --phase-tighten: #f368e0;
+  --phase-verify: #10ac84;
+
+  --warm-3600: #ff9f43;
+  --cruise-4200: #feca57;
+  --vector-5000: #54a0ff;
+  --recovery-5400: #c8d6e5;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* HEADER */
+.header {
+  padding: 2rem 2rem 1.5rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+}
+.header h1 {
+  font-size: 1.6rem;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.header h1 span { color: var(--phase-map); font-weight: 600; }
+.header .sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+  margin-top: 0.3rem;
+}
+
+/* LAYOUT */
+.container { max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+.section { margin-bottom: 2rem; }
+.section-label {
+  font-size: 0.5rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 400;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* CARDS */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1.25rem;
+  transition: border-color 0.2s;
+}
+.card:hover { border-color: var(--border-active); }
+.card-label {
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+/* SLIDERS */
+.slider-group { margin-bottom: 1rem; }
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.3rem;
+}
+.slider-name {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+}
+.slider-value {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-elevated);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 2px solid var(--bg-deep);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 2px solid var(--bg-deep);
+  cursor: pointer;
+}
+
+/* DIAL DISPLAY */
+.dial-display {
+  text-align: center;
+  padding: 1.5rem;
+  position: relative;
+}
+.dial-canvas-wrap {
+  display: inline-block;
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+#dialCanvas { width: 180px; height: 180px; }
+.dial-center-label {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+.dial-category {
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+.dial-bands {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+}
+
+/* LIGHT OUTPUT */
+.light-output {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.light-stat {
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  padding: 0.75rem;
+  text-align: center;
+}
+.light-stat .ls-label {
+  font-size: 0.45rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.light-stat .ls-value {
+  font-size: 1.1rem;
+  font-weight: 300;
+  margin-top: 0.2rem;
+  transition: color 0.3s;
+}
+.light-bar {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 4px;
+  transition: background 0.5s;
+}
+
+/* TRANSPORT GRAPH */
+.transport-canvas-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow: hidden;
+  position: relative;
+}
+#transportCanvas { width: 100%; height: 200px; display: block; }
+.transport-legend {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+  font-size: 0.55rem;
+  color: var(--text-muted);
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+/* EPISODE RUNNER */
+.episode-timeline {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 1rem;
+}
+.ep-part-btn {
+  flex: 1;
+  padding: 0.6rem 0.4rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+}
+.ep-part-btn:hover { border-color: var(--border-active); color: var(--text-primary); }
+.ep-part-btn.active {
+  border-color: var(--phase-map);
+  background: rgba(95,39,205,0.1);
+  color: var(--text-primary);
+}
+.ep-part-btn .ep-num {
+  font-size: 0.5rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ep-part-btn .ep-title {
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-top: 0.15rem;
+}
+.ep-part-btn .ep-stage {
+  font-size: 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.ep-detail {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1.25rem;
+  min-height: 160px;
+  transition: border-color 0.3s;
+}
+.ep-detail-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+.ep-phases { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.ep-phase-card {
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+.ep-phase-card .epc-label {
+  font-size: 0.5rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ep-phase-card .epc-name {
+  font-size: 0.65rem;
+  color: var(--text-primary);
+  margin-top: 0.2rem;
+}
+.ep-phase-card .epc-focus {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  margin-top: 0.3rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+.ep-phase-card .epc-meta {
+  font-size: 0.5rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+.ep-context-bar {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 1.5rem;
+}
+.ep-context-bar span { white-space: nowrap; }
+
+/* GATE PASS STEPPER */
+.gate-stepper {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 0.75rem;
+}
+.gate-step {
+  flex: 1;
+  padding: 0.5rem 0.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.gate-step:hover { border-color: var(--border-active); }
+.gate-step.completed { background: rgba(1,163,164,0.08); border-color: rgba(1,163,164,0.3); }
+.gate-step.current { background: rgba(95,39,205,0.12); border-color: var(--phase-map); }
+.gate-step.modular.current { background: rgba(255,165,2,0.12); border-color: var(--correction-zone); }
+.gate-step .gs-num { font-size: 0.9rem; font-weight: 300; }
+.gate-step .gs-mode {
+  font-size: 0.45rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+.gate-step .gs-beat {
+  font-size: 0.5rem;
+  margin-top: 0.2rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.gate-output {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.6rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+.gate-output code {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.55rem;
+}
+
+/* CALENDAR */
+.cal-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.cal-controls button {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.6rem;
+  transition: all 0.15s;
+}
+.cal-controls button:hover { border-color: var(--border-active); color: var(--text-primary); }
+.cal-month-label { font-size: 0.8rem; font-weight: 400; min-width: 140px; text-align: center; }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cal-hdr {
+  text-align: center;
+  font-size: 0.45rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.3rem 0;
+}
+.cal-cell {
+  text-align: center;
+  padding: 0.4rem 0.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.cal-cell:hover { background: var(--bg-elevated); }
+.cal-cell.selected { outline: 1px solid var(--text-secondary); outline-offset: -1px; }
+.cal-cell .cd-num { font-size: 0.65rem; font-weight: 500; }
+.cal-cell .cd-phase {
+  font-size: 0.38rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.1rem;
+}
+.cal-cell.empty { cursor: default; }
+.cal-cell.p-map { background: rgba(95,39,205,0.06); }
+.cal-cell.p-map .cd-phase { color: var(--phase-map); }
+.cal-cell.p-balance { background: rgba(1,163,164,0.06); }
+.cal-cell.p-balance .cd-phase { color: var(--phase-balance); }
+.cal-cell.p-tighten { background: rgba(243,104,224,0.06); }
+.cal-cell.p-tighten .cd-phase { color: var(--phase-tighten); }
+.cal-cell.p-verify { background: rgba(16,172,132,0.06); }
+.cal-cell.p-verify .cd-phase { color: var(--phase-verify); }
+
+.cal-detail {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  min-height: 48px;
+  transition: all 0.2s;
+}
+
+/* BUTTONS */
+.btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+}
+.btn:hover { border-color: var(--border-active); color: var(--text-primary); }
+.btn.active { border-color: var(--phase-map); color: var(--phase-map); }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .ep-phases { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1><span>DIO</span> Control Room</h1>
+  <div class="sub">Interactive System Reference</div>
+</header>
+
+<div class="container">
+
+  <!-- ═══ AIRFLOW + LIGHT CONTROL ═══ -->
+  <div class="section">
+    <div class="section-label">Airflow &rarr; Light Coordination</div>
+    <div class="section-title">Interactive Dial</div>
+    <div class="grid-2">
+      <!-- LEFT: sliders + dial -->
+      <div>
+        <div class="card">
+          <div class="card-label">Airflow Input</div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-name">Fan Speed (RPM)</span>
+              <span class="slider-value" id="fanVal">900</span>
+            </div>
+            <input type="range" id="fanSlider" min="840" max="960" value="900" step="1">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-name">Temperature (&deg;C)</span>
+              <span class="slider-value" id="tempVal">26.0</span>
+            </div>
+            <input type="range" id="tempSlider" min="22" max="32" value="26" step="0.1">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-name">Transfer Mode</span>
+              <span class="slider-value" id="transferVal">instant</span>
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-top:0.3rem;">
+              <button class="btn active" id="btnInstant" onclick="setTransfer(true)">Instant</button>
+              <button class="btn" id="btnStaged" onclick="setTransfer(false)">Staged</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <div class="card-label">Light Output</div>
+          <div class="light-output">
+            <div class="light-stat">
+              <div class="ls-label">Phase</div>
+              <div class="ls-value" id="lightPhase">Cruise</div>
+            </div>
+            <div class="light-stat">
+              <div class="ls-label">Intensity</div>
+              <div class="ls-value" id="lightIntensity">55%</div>
+            </div>
+            <div class="light-stat">
+              <div class="ls-label">Color Temp</div>
+              <div class="ls-value" id="lightKelvin">4200K</div>
+            </div>
+            <div class="light-stat">
+              <div class="ls-label">Channel</div>
+              <div class="ls-value" id="lightChannel" style="font-size:0.7rem;">instant_transit_lane</div>
+            </div>
+            <div class="light-bar" id="lightBar" style="background:var(--cruise-4200);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: dial visualization -->
+      <div>
+        <div class="card">
+          <div class="dial-display">
+            <div class="dial-canvas-wrap">
+              <canvas id="dialCanvas" width="360" height="360"></canvas>
+              <div class="dial-center-label">
+                <div class="dial-category" id="dialCategory">Smooth Flow</div>
+                <div class="dial-bands" id="dialBands">centered + steady</div>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center; margin-top:0.75rem;">
+            <div style="font-size:0.5rem; color:var(--text-muted); letter-spacing:0.1em;">
+              FAN ANGLE: <span id="fanAngle">180.0</span>&deg; &nbsp;&middot;&nbsp; TEMP ANGLE: <span id="tempAngle">180.0</span>&deg;
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <div class="card-label">Reverse Hint (Light &rarr; Airflow)</div>
+          <div id="reverseHint" style="font-size:0.6rem; color:var(--text-secondary); line-height:1.8;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TRANSPORT GRAPH ═══ -->
+  <div class="section">
+    <div class="section-label">Realtime Interval Transport</div>
+    <div class="section-title">Animated Reference Graph</div>
+    <div class="transport-canvas-wrap">
+      <canvas id="transportCanvas" width="1200" height="200"></canvas>
+    </div>
+    <div class="transport-legend">
+      <span><span class="legend-dot" style="background:var(--phase-map);"></span>map</span>
+      <span><span class="legend-dot" style="background:var(--phase-balance);"></span>balance</span>
+      <span><span class="legend-dot" style="background:var(--phase-tighten);"></span>tighten</span>
+      <span><span class="legend-dot" style="background:var(--phase-verify);"></span>verify</span>
+      <span style="margin-left:1rem; color:var(--text-muted);">Click a node to inspect</span>
+    </div>
+    <div class="cal-detail" id="transportDetail" style="margin-top:0.75rem;">
+      Hover or click a node to see interval data.
+    </div>
+  </div>
+
+  <!-- ═══ EPISODE RUNNER ═══ -->
+  <div class="section">
+    <div class="section-label">combined_space.py</div>
+    <div class="section-title">Episode Runner</div>
+    <div class="episode-timeline" id="episodeTimeline"></div>
+    <div class="ep-detail" id="episodeDetail"></div>
+  </div>
+
+  <!-- ═══ GATE PASS STEPPER ═══ -->
+  <div class="section">
+    <div class="section-label">Orchestration</div>
+    <div class="section-title">Gate-Pass Stepper</div>
+    <div class="gate-stepper" id="gateStepper"></div>
+    <div class="gate-output" id="gateOutput"></div>
+  </div>
+
+  <!-- ═══ PHASE CALENDAR ═══ -->
+  <div class="section">
+    <div class="section-label">Phase Calendar &middot; ICS Export</div>
+    <div class="section-title">Interactive Phase Map</div>
+    <div class="cal-controls">
+      <button onclick="calNav(-1)">&larr; Prev</button>
+      <div class="cal-month-label" id="calMonthLabel"></div>
+      <button onclick="calNav(1)">Next &rarr;</button>
+      <button onclick="exportICS()" style="margin-left:auto;">Export .ics</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-detail" id="calDetail">Click a day to see phase details.</div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DIO CONTROL ROOM ENGINE (replicates Python logic in JS)
+// ═══════════════════════════════════════════════════════════════════
+
+const CADENCE = ["map", "balance", "tighten", "verify"];
+const RHYTHM_PASS_COUNT = 6;
+const MODULAR_PASS_INDEX = 7;
+
+const CATEGORY_COLORS = {
+  "Smooth Flow": "#00d2d3",
+  "Thermal Drift": "#ff6b6b",
+  "Air Drift": "#48dbfb",
+  "Correction Zone": "#ffa502",
+};
+
+const BEAT_COLORS = {
+  map: "#5f27cd",
+  balance: "#01a3a4",
+  tighten: "#f368e0",
+  verify: "#10ac84",
+};
+
+const LIGHT_PROFILES = {
+  "Smooth Flow": { phase: "Cruise", intensity: 55, kelvin: 4200, color: "#feca57" },
+  "Thermal Drift": { phase: "Warm Shift", intensity: 65, kelvin: 3600, color: "#ff9f43" },
+  "Air Drift": { phase: "Vector Shift", intensity: 75, kelvin: 5000, color: "#54a0ff" },
+  "Correction Zone": { phase: "Recovery", intensity: 85, kelvin: 5400, color: "#c8d6e5" },
+};
+
+const AIRFLOW_HINTS = {
+  "Cruise": { fan: [880, 920], temp: [25, 27] },
+  "Warm Shift": { fan: [870, 930], temp: [27, 30] },
+  "Vector Shift": { fan: [920, 960], temp: [24, 27] },
+  "Recovery": { fan: [930, 980], temp: [27, 31] },
+};
+
+const STAGES = ["setup", "build", "mutation", "closure"];
+const EPISODES = [
+  { index: 1, title: "Cold Open", stage: "setup",
+    p1: { name: "Phase 1: Setup Pulse", dur: 210, focus: "Define a clear objective and one measurable win.", conc: "single-thread focus" },
+    p2: { name: "Phase 2: Hook Tightening", dur: 180, focus: "Compress scope and execute one high-impact pass.", conc: "2-stream execution" }},
+  { index: 2, title: "Pressure Build", stage: "build",
+    p1: { name: "Phase 1: Signal Expansion", dur: 210, focus: "Add a second tactic without losing narrative clarity.", conc: "single-thread focus" },
+    p2: { name: "Phase 2: Conflict Sprint", dur: 180, focus: "Run two quick micro-iterations in parallel.", conc: "high concurrency" }},
+  { index: 3, title: "Evolution Scene", stage: "mutation",
+    p1: { name: "Phase 1: Mutation Pass", dur: 210, focus: "Introduce one bold variation to shift momentum.", conc: "single-thread focus" },
+    p2: { name: "Phase 2: X-Factor Window", dur: 180, focus: "Narrow the window and orchestrate concurrent actions.", conc: "high concurrency" }},
+  { index: 4, title: "Finale", stage: "closure",
+    p1: { name: "Phase 1: Closure Arc", dur: 210, focus: "Stabilize what worked and remove loose edges.", conc: "single-thread focus" },
+    p2: { name: "Phase 2: Audience Lock", dur: 180, focus: "Deliver the sharpest version with compact timing.", conc: "high concurrency" }},
+];
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function deriveDialState(fanSpeed, temperature) {
+  const fanAngle = clamp(((fanSpeed - 850) / 100) * 360, 0, 360);
+  const tempAngle = clamp(((temperature - 24) / 4) * 360, 0, 360);
+  const flowBand = Math.abs(fanSpeed - 900) <= 50 ? "centered" : "drift";
+  const heatBand = Math.abs(temperature - 26) <= 2 ? "steady" : "swing";
+  const catMap = { "centered+steady": "Smooth Flow", "centered+swing": "Thermal Drift", "drift+steady": "Air Drift", "drift+swing": "Correction Zone" };
+  return { fanAngle, tempAngle, flowBand, heatBand, category: catMap[flowBand + "+" + heatBand] };
+}
+
+function lightFromCategory(category, instant) {
+  const p = LIGHT_PROFILES[category];
+  return {
+    phase: p.phase, intensity: p.intensity, kelvin: p.kelvin, color: p.color,
+    transferMode: instant ? "instant" : "staged",
+    channel: instant ? "instant_transit_lane" : "staged_transit_lane",
+  };
+}
+
+// ═══ STATE ═══
+let fanSpeed = 900, temperature = 26.0, instantTransfer = true;
+let activeEpisode = 0, activeGatePass = 0;
+let calYear = 2026, calMonth = 3, selectedDay = null;
+
+// ═══ AIRFLOW DIAL ═══
+const fanSlider = document.getElementById("fanSlider");
+const tempSlider = document.getElementById("tempSlider");
+
+function updateDial() {
+  fanSpeed = +fanSlider.value;
+  temperature = +parseFloat(tempSlider.value).toFixed(1);
+  document.getElementById("fanVal").textContent = fanSpeed;
+  document.getElementById("tempVal").textContent = temperature.toFixed(1);
+
+  const ds = deriveDialState(fanSpeed, temperature);
+  const lt = lightFromCategory(ds.category, instantTransfer);
+  const catColor = CATEGORY_COLORS[ds.category];
+
+  document.getElementById("dialCategory").textContent = ds.category;
+  document.getElementById("dialCategory").style.color = catColor;
+  document.getElementById("dialBands").textContent = ds.flowBand + " + " + ds.heatBand;
+  document.getElementById("fanAngle").textContent = ds.fanAngle.toFixed(1);
+  document.getElementById("tempAngle").textContent = ds.tempAngle.toFixed(1);
+
+  document.getElementById("lightPhase").textContent = lt.phase;
+  document.getElementById("lightPhase").style.color = lt.color;
+  document.getElementById("lightIntensity").textContent = lt.intensity + "%";
+  document.getElementById("lightKelvin").textContent = lt.kelvin + "K";
+  document.getElementById("lightChannel").textContent = lt.channel;
+  document.getElementById("lightBar").style.background = lt.color;
+
+  const hint = AIRFLOW_HINTS[lt.phase];
+  document.getElementById("reverseHint").innerHTML =
+    `Phase <code>${lt.phase}</code> suggests:<br>` +
+    `Fan: <code>${hint.fan[0]}-${hint.fan[1]} RPM</code><br>` +
+    `Temp: <code>${hint.temp[0]}-${hint.temp[1]} &deg;C</code>`;
+
+  drawDial(ds.fanAngle, ds.tempAngle, catColor);
+}
+
+function setTransfer(instant) {
+  instantTransfer = instant;
+  document.getElementById("btnInstant").classList.toggle("active", instant);
+  document.getElementById("btnStaged").classList.toggle("active", !instant);
+  document.getElementById("transferVal").textContent = instant ? "instant" : "staged";
+  updateDial();
+}
+
+fanSlider.addEventListener("input", updateDial);
+tempSlider.addEventListener("input", updateDial);
+
+function drawDial(fanAngle, tempAngle, catColor) {
+  const canvas = document.getElementById("dialCanvas");
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2, r = 70;
+  ctx.clearRect(0, 0, w, h);
+
+  // outer ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 16, 0, Math.PI * 2);
+  ctx.strokeStyle = "#2a2a45";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // fan arc
+  const fanRad = (fanAngle - 90) * Math.PI / 180;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 8, -Math.PI / 2, fanRad);
+  ctx.strokeStyle = "#48dbfb";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // temp arc
+  const tempRad = (tempAngle - 90) * Math.PI / 180;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI / 2, tempRad);
+  ctx.strokeStyle = "#ff6b6b";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // ticks
+  for (let i = 0; i < 4; i++) {
+    const angle = (i * 90 - 90) * Math.PI / 180;
+    const x1 = cx + Math.cos(angle) * (r + 20);
+    const y1 = cy + Math.sin(angle) * (r + 20);
+    const x2 = cx + Math.cos(angle) * (r + 26);
+    const y2 = cy + Math.sin(angle) * (r + 26);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = "#555570";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // fan needle
+  const fnx = cx + Math.cos(fanRad) * (r + 8);
+  const fny = cy + Math.sin(fanRad) * (r + 8);
+  ctx.beginPath();
+  ctx.arc(fnx, fny, 5, 0, Math.PI * 2);
+  ctx.fillStyle = "#48dbfb";
+  ctx.fill();
+
+  // temp needle
+  const tnx = cx + Math.cos(tempRad) * r;
+  const tny = cy + Math.sin(tempRad) * r;
+  ctx.beginPath();
+  ctx.arc(tnx, tny, 5, 0, Math.PI * 2);
+  ctx.fillStyle = "#ff6b6b";
+  ctx.fill();
+
+  // center glow
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r - 10);
+  grad.addColorStop(0, catColor + "18");
+  grad.addColorStop(1, "transparent");
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 10, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+// ═══ TRANSPORT GRAPH ═══
+const INTERVALS = [0, 15, 30, 45, 60];
+let transportNodes = [];
+let animPhase = 0;
+let hoveredNode = -1;
+
+function buildTransportNodes() {
+  const offsets = [-50, -25, 0, 25, 50];
+  const tempOff = [-2, -1, 0, 1, 2];
+  transportNodes = INTERVALS.map((wait, i) => {
+    const bucket = Math.min(Math.max(Math.floor(wait / 15), 0), 4);
+    const fs = 900 + offsets[bucket];
+    const tmp = 26 + tempOff[bucket];
+    const ds = deriveDialState(fs, tmp);
+    const passCount = (i % MODULAR_PASS_INDEX) + 1;
+    const beat = CADENCE[(passCount - 1) % 4];
+    const mode = passCount === MODULAR_PASS_INDEX ? "Modular" : "Rhythm";
+    return { id: "t" + i, wait, bucket, fanSpeed: fs, temperature: tmp, category: ds.category, mode, passCount, beat };
+  });
+}
+
+function drawTransport() {
+  const canvas = document.getElementById("transportCanvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = 80, nodeR = 24;
+  const spacing = (W - pad * 2) / (transportNodes.length - 1);
+
+  // edges
+  for (let i = 0; i < transportNodes.length - 1; i++) {
+    const x1 = pad + i * spacing, x2 = pad + (i + 1) * spacing, y = H / 2;
+    // animated pulse
+    const pulseX = x1 + ((animPhase + i * 0.25) % 1) * (x2 - x1);
+    ctx.beginPath();
+    ctx.moveTo(x1 + nodeR, y);
+    ctx.lineTo(x2 - nodeR, y);
+    ctx.strokeStyle = "#2a2a45";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // pulse dot
+    ctx.beginPath();
+    ctx.arc(pulseX, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = BEAT_COLORS[transportNodes[i].beat] + "88";
+    ctx.fill();
+
+    // label
+    ctx.fillStyle = "#555570";
+    ctx.font = "9px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("15s", (x1 + x2) / 2, y - 12);
+  }
+
+  // nodes
+  transportNodes.forEach((node, i) => {
+    const x = pad + i * spacing, y = H / 2;
+    const isHovered = i === hoveredNode;
+    const beatColor = BEAT_COLORS[node.beat];
+    const catColor = CATEGORY_COLORS[node.category];
+
+    // glow
+    if (isHovered) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, nodeR + 20);
+      g.addColorStop(0, beatColor + "30");
+      g.addColorStop(1, "transparent");
+      ctx.beginPath();
+      ctx.arc(x, y, nodeR + 20, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+    }
+
+    // circle
+    ctx.beginPath();
+    ctx.arc(x, y, nodeR, 0, Math.PI * 2);
+    ctx.fillStyle = isHovered ? beatColor + "25" : "#1a1a2e";
+    ctx.fill();
+    ctx.strokeStyle = isHovered ? beatColor : "#2a2a45";
+    ctx.lineWidth = isHovered ? 2 : 1;
+    ctx.stroke();
+
+    // id
+    ctx.fillStyle = isHovered ? "#e8e8f0" : "#8888a8";
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(node.id, x, y - 4);
+
+    // beat tag
+    ctx.fillStyle = beatColor;
+    ctx.font = "8px monospace";
+    ctx.fillText(node.beat, x, y + 8);
+
+    // rpm below
+    ctx.fillStyle = "#555570";
+    ctx.font = "8px monospace";
+    ctx.fillText(node.fanSpeed + " RPM", x, y + nodeR + 14);
+    ctx.fillText(node.temperature.toFixed(1) + "°C", x, y + nodeR + 26);
+
+    // category color dot
+    ctx.beginPath();
+    ctx.arc(x, y - nodeR - 10, 4, 0, Math.PI * 2);
+    ctx.fillStyle = catColor;
+    ctx.fill();
+  });
+}
+
+function transportMouseMove(e) {
+  const canvas = document.getElementById("transportCanvas");
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const pad = 80, spacing = (canvas.width - pad * 2) / (transportNodes.length - 1);
+  const cy = canvas.height / 2;
+
+  hoveredNode = -1;
+  transportNodes.forEach((n, i) => {
+    const nx = pad + i * spacing;
+    if (Math.hypot(mx - nx, my - cy) < 30) hoveredNode = i;
+  });
+  canvas.style.cursor = hoveredNode >= 0 ? "pointer" : "default";
+
+  if (hoveredNode >= 0) {
+    const n = transportNodes[hoveredNode];
+    document.getElementById("transportDetail").innerHTML =
+      `<strong>${n.id}</strong> @ ${n.wait}s &middot; ` +
+      `${n.category} &middot; ${n.fanSpeed} RPM &middot; ${n.temperature.toFixed(1)}&deg;C &middot; ` +
+      `Beat: <strong>${n.beat}</strong> &middot; Mode: ${n.mode} &middot; Pass: ${n.passCount}`;
+  }
+  drawTransport();
+}
+
+document.getElementById("transportCanvas").addEventListener("mousemove", transportMouseMove);
+
+// animate
+function animateTransport() {
+  animPhase = (animPhase + 0.005) % 1;
+  drawTransport();
+  requestAnimationFrame(animateTransport);
+}
+
+// ═══ EPISODE RUNNER ═══
+function renderEpisodes() {
+  const tl = document.getElementById("episodeTimeline");
+  tl.innerHTML = "";
+  EPISODES.forEach((ep, i) => {
+    const btn = document.createElement("div");
+    btn.className = "ep-part-btn" + (i === activeEpisode ? " active" : "");
+    btn.innerHTML = `<div class="ep-num">Part ${ep.index}</div><div class="ep-title">${ep.title}</div><div class="ep-stage">${ep.stage}</div>`;
+    btn.onclick = () => { activeEpisode = i; renderEpisodes(); };
+    tl.appendChild(btn);
+
+    if (i === 1) {
+      const brk = document.createElement("div");
+      brk.style.cssText = "flex-shrink:0; width:2px; background:repeating-linear-gradient(180deg,var(--border-subtle) 0,var(--border-subtle) 4px,transparent 4px,transparent 8px); border-radius:1px;";
+      brk.title = "Isolation Break (240s)";
+      tl.appendChild(brk);
+    }
+  });
+
+  const ep = EPISODES[activeEpisode];
+  const wait = activeEpisode * 15;
+  const offsets = [-50, -25, 0, 25, 50];
+  const tempOff = [-2, -1, 0, 1, 2];
+  const bucket = Math.min(Math.max(Math.floor(wait / 15), 0), 4);
+  const fs = 900 + offsets[bucket], tmp = 26 + tempOff[bucket];
+  const ds = deriveDialState(fs, tmp);
+  const lt = lightFromCategory(ds.category, instantTransfer);
+
+  const stageColors = { setup: "var(--phase-map)", build: "var(--phase-balance)", mutation: "var(--phase-tighten)", closure: "var(--phase-verify)" };
+  const det = document.getElementById("episodeDetail");
+  det.style.borderColor = stageColors[ep.stage] || "var(--border-subtle)";
+  det.innerHTML = `
+    <div class="ep-detail-title" style="color:${stageColors[ep.stage]}">Part ${ep.index}: ${ep.title} <span style="font-size:0.6rem;color:var(--text-muted);">[${ep.stage}]</span></div>
+    <div class="ep-phases">
+      <div class="ep-phase-card">
+        <div class="epc-label">Phase 1 &middot; ${ep.p1.dur}s</div>
+        <div class="epc-name">${ep.p1.name}</div>
+        <div class="epc-focus">"${ep.p1.focus}"</div>
+        <div class="epc-meta">${ep.p1.conc}</div>
+      </div>
+      <div class="ep-phase-card">
+        <div class="epc-label">Phase 2 &middot; ${ep.p2.dur}s</div>
+        <div class="epc-name">${ep.p2.name}</div>
+        <div class="epc-focus">"${ep.p2.focus}"</div>
+        <div class="epc-meta">${ep.p2.conc}</div>
+      </div>
+    </div>
+    <div class="ep-context-bar">
+      <span>Airflow: <strong>${ds.category}</strong></span>
+      <span>Light: <strong>${lt.phase}</strong></span>
+      <span>Beat: <strong>${CADENCE[activeEpisode % 4]}</strong></span>
+      <span>Fan: ${fs} RPM</span>
+      <span>Temp: ${tmp.toFixed(1)}&deg;C</span>
+    </div>
+  `;
+}
+
+// ═══ GATE PASS STEPPER ═══
+function renderGateStepper() {
+  const container = document.getElementById("gateStepper");
+  container.innerHTML = "";
+
+  for (let i = 1; i <= MODULAR_PASS_INDEX; i++) {
+    const mode = i <= RHYTHM_PASS_COUNT ? "Rhythm" : "Modular";
+    const beat = CADENCE[(i - 1) % 4];
+    const isModular = i > RHYTHM_PASS_COUNT;
+    let cls = "gate-step";
+    if (isModular) cls += " modular";
+    if (i < activeGatePass) cls += " completed";
+    if (i === activeGatePass) cls += " current";
+
+    const step = document.createElement("div");
+    step.className = cls;
+    step.innerHTML = `<div class="gs-num">${i}</div><div class="gs-mode">${mode}</div><div class="gs-beat" style="background:${BEAT_COLORS[beat]}22;color:${BEAT_COLORS[beat]}">${beat}</div>`;
+    step.onclick = () => { activeGatePass = i; renderGateStepper(); };
+    container.appendChild(step);
+  }
+
+  const out = document.getElementById("gateOutput");
+  if (activeGatePass === 0) {
+    out.innerHTML = "Click a pass to step through the gate-pass cadence.";
+    return;
+  }
+
+  const mode = activeGatePass <= RHYTHM_PASS_COUNT ? "Rhythm" : "Modular";
+  const beat = CADENCE[(activeGatePass - 1) % 4];
+
+  let html = `Pass <code>${activeGatePass}</code> &middot; Mode: <code>${mode}</code> &middot; Beat: <code>${beat}</code><br>`;
+  html += `Cadence position: ${CADENCE.map((c, i) => i === (activeGatePass - 1) % 4 ? `<strong style="color:${BEAT_COLORS[c]}">${c}</strong>` : `<span style="color:var(--text-muted)">${c}</span>`).join(" &rarr; ")}<br>`;
+
+  if (mode === "Modular") {
+    const board = {
+      entry_lane: "user_confirmed_part_start",
+      phase_lane: "phase_start_input_received",
+      countdown_lane: "countdown_tick_active",
+      break_lane: "part_index_equals_2",
+      promotion_lane: `completed_passes_reached_${RHYTHM_PASS_COUNT}`,
+      exit_lane: "phase_completion_confirmed",
+    };
+    const route = Object.entries(board).map(([k, v]) => `${k}:${v}`).join(" &rarr; ");
+    html += `<br>Trigger Board:<br>`;
+    Object.entries(board).forEach(([k, v]) => { html += `&ensp;<code>${k}</code>: ${v}<br>`; });
+    html += `<br>Auxiliary BUS Route:<br><code style="font-size:0.5rem;word-break:break-all;">${route}</code>`;
+  }
+
+  out.innerHTML = html;
+}
+
+// ═══ PHASE CALENDAR ═══
+function buildCalendar() {
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+
+  const headers = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  headers.forEach(h => {
+    const el = document.createElement("div");
+    el.className = "cal-hdr";
+    el.textContent = h;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(calYear, calMonth - 1, 1);
+  let startDow = firstDay.getDay(); // 0=Sun
+  startDow = startDow === 0 ? 6 : startDow - 1; // convert to Mon=0
+
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+  const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  document.getElementById("calMonthLabel").textContent = `${monthNames[calMonth]} ${calYear}`;
+
+  // empty cells before first day
+  for (let i = 0; i < startDow; i++) {
+    const el = document.createElement("div");
+    el.className = "cal-cell empty";
+    grid.appendChild(el);
+  }
+
+  // day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const phase = CADENCE[(d - 1) % 4];
+    const el = document.createElement("div");
+    el.className = `cal-cell p-${phase}` + (d === selectedDay ? " selected" : "");
+    el.innerHTML = `<div class="cd-num">${d}</div><div class="cd-phase">${phase}</div>`;
+    el.onclick = () => {
+      selectedDay = d;
+      buildCalendar();
+      const dow = new Date(calYear, calMonth - 1, d).toLocaleDateString("en-US", { weekday: "long" });
+      document.getElementById("calDetail").innerHTML =
+        `<strong>${dow}, ${monthNames[calMonth]} ${d}, ${calYear}</strong><br>` +
+        `Phase: <strong style="color:${BEAT_COLORS[phase]}">${phase}</strong> &middot; ` +
+        `Cadence position: ${CADENCE.map((c, i) => c === phase ? `<strong style="color:${BEAT_COLORS[c]}">${c}</strong>` : c).join(" &rarr; ")}<br>` +
+        `ICS UID: <code>${calYear}${String(calMonth).padStart(2,"0")}${String(d).padStart(2,"0")}-${phase}@controlroom.local</code>`;
+    };
+    grid.appendChild(el);
+  }
+}
+
+function calNav(delta) {
+  calMonth += delta;
+  if (calMonth > 12) { calMonth = 1; calYear++; }
+  if (calMonth < 1) { calMonth = 12; calYear--; }
+  selectedDay = null;
+  document.getElementById("calDetail").textContent = "Click a day to see phase details.";
+  buildCalendar();
+}
+
+function exportICS() {
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+  let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//ControlRoom//LightControl//EN\nCALSCALE:GREGORIAN\nX-WR-CALNAME:ControlRoom Phases\n";
+  for (let d = 1; d <= daysInMonth; d++) {
+    const phase = CADENCE[(d - 1) % 4];
+    const ds = `${calYear}${String(calMonth).padStart(2,"0")}${String(d).padStart(2,"0")}`;
+    const nextDay = new Date(calYear, calMonth - 1, d + 1);
+    const de = `${nextDay.getFullYear()}${String(nextDay.getMonth()+1).padStart(2,"0")}${String(nextDay.getDate()).padStart(2,"0")}`;
+    const dow = new Date(calYear, calMonth - 1, d).toLocaleDateString("en-US", { weekday: "long" });
+    ics += `BEGIN:VEVENT\nUID:${ds}-${phase}@controlroom.local\nDTSTAMP:${ds}T000000Z\nDTSTART;VALUE=DATE:${ds}\nDTEND;VALUE=DATE:${de}\nSUMMARY:ControlRoom Phase: ${phase}\nDESCRIPTION:Phase ${phase} on ${dow}\\, ${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")} for airflow-light coordination.\nEND:VEVENT\n`;
+  }
+  ics += "END:VCALENDAR\n";
+  const blob = new Blob([ics], { type: "text/calendar" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `controlroom-phases-${calYear}-${String(calMonth).padStart(2,"0")}.ics`;
+  a.click();
+}
+
+// ═══ INIT ═══
+buildTransportNodes();
+updateDial();
+renderEpisodes();
+renderGateStepper();
+buildCalendar();
+animateTransport();
+</script>
+</body>
+</html>
