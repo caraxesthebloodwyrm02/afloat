@@ -2,6 +2,8 @@
 
 > Guidelines for AI agents (Cursor, Copilot, Claude, etc.) working in this codebase.
 
+Workspace baseline for shared guardrails and repo hygiene: `E:\Seeds\ECOSYSTEM_BASELINE.md`.
+
 ## Build, Test, and Development Commands
 
 | Command | Purpose |
@@ -27,6 +29,47 @@ npx vitest run tests/session.test.ts
 # With coverage
 npm run test -- --coverage
 ```
+
+---
+
+## Routine Execution
+
+Follow this sequence so work is consistent and verifiable. Baseline pattern: [GRID-main `.cursor/commands/workspace.md`](../../GRID-main/.cursor/commands/workspace.md).
+
+### Session start
+
+From Afloat repo root, with dependencies installed (`npm install`), run before writing new code:
+
+```bash
+npm run test && npm run lint
+```
+
+### Session kickoff (example)
+
+```md
+- Repo/Path: E:\Seeds\afloat
+- Branch/Worktree: main
+- Task: One-sentence objective
+- Done When: Completion criteria
+- Constraints: Risk notes
+- Verify With: npm run test && npm run lint
+```
+
+### One-shot verify / Before push
+
+From repo root: `npm run test && npm run lint`. Run after changes and again before pushing.
+
+### Routines and directory structure
+
+| Area | When to run | Notes |
+|------|-------------|--------|
+| `src/app/api/` | Full verify (test + lint) | API tests in `tests/` or colocated |
+| `src/lib/` | Tests covering affected modules + lint | See "Running Tests by Pattern" above |
+| `src/app/` (UI), `src/components/` | Test + lint | Prefer colocated `*.test.ts(x)` |
+
+Use the same commands for single-file or pattern runs (e.g. `npx vitest run -k "session"`, `npx vitest run tests/session.test.ts`) as in the Build, Test, and Development Commands section.
+
+**Example — adding a new API route:** (1) Session start, (2) Implement in `src/app/api/`, (3) Add or update test in `tests/` or next to route, (4) Verify with `npm run test && npm run lint`.
 
 ---
 

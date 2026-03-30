@@ -7,15 +7,21 @@
     "node": ">=22.0.0 <25"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node start-dev.js",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:risk": "npx tsx scripts/test-risk-assessment.mts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
-    "test:watch": "vitest"
+    "pre-commit": "npm run lint && npm run typecheck && npm run test",
+    "clean": "rm -rf .next out coverage"
   },
   "dependencies": {
     "@google/generative-ai": "0.24.1",
@@ -41,8 +47,22 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "prettier": "^3.0.0",
     "tailwindcss": "^4",
     "typescript": "^6",
     "vitest": "4.1.2"
+  },
+  "eslintConfig": {
+    "extends": [
+      "next/core-web-vitals"
+    ]
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 80,
+    "tabWidth": 2,
+    "useTabs": false
   }
 }

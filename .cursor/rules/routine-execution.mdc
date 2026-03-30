@@ -1,0 +1,13 @@
+---
+description: Apply Afloat routine execution (session start, verify before push)
+alwaysApply: true
+---
+
+# Routine Execution
+
+Follow the **Routine execution** section in [AGENTS.md](../../AGENTS.md):
+
+- **Session start:** From repo root, run `npm run test && npm run lint` before writing new code (after `npm install` if needed).
+- **Before push:** Run `npm run test && npm run lint` again from repo root.
+
+Use the Session kickoff template and the directory-structure mapping in AGENTS.md when scoping tasks and verification.

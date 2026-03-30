@@ -44,3 +44,4 @@ This document defines the minimal, in-process safety model. All enforcement is *
 ## Config
 
 - One env var for access: `ALLOWED_CALLERS` (optional, comma-separated; entries are trimmed and NFC-normalized; comparison is exact/timing-safe). No full users/roles config for v1.
+
