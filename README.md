@@ -409,3 +409,4 @@ The design spec lives in a separate contract repo (`e:\assistive-tool-contract`)
 | Context gate pass rate | >= 70% |
 | Avg session duration | <= 2.0 minutes |
 | Net revenue (90 days) | >= $22.00 USD |
+# CI verified with secrets
