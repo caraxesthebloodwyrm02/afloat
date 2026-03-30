@@ -27,7 +27,6 @@ describe("In-Memory Session Store - Core Enforcement Logic", () => {
         expect(result.errorCode).toBe("session_complete");
         expect(result.errorMessage).toBe("Session limit reached.");
 
-        console.log("✓ CORE TEST PASSED: System correctly returns 'session_complete' when turn limit (2 LLM calls) reached");
       });
     });
   });
@@ -52,7 +51,6 @@ describe("In-Memory Session Store - Core Enforcement Logic", () => {
         expect(result.errorCode).toBe("session_timeout");
         expect(result.errorMessage).toBe("Session time limit reached.");
 
-        console.log("✓ TIMER TEST PASSED: System correctly returns 'session_timeout' when 120s deadline passed");
       });
 
       it("enforces 120000ms (120s) deadline for trial tier", async () => {
@@ -73,7 +71,6 @@ describe("In-Memory Session Store - Core Enforcement Logic", () => {
 
         expect(deadline).toBe(expectedDeadline);
 
-        console.log("✓ TIER TEST PASSED: Trial tier enforces 120s max duration and 2 max LLM calls");
       });
     });
   });

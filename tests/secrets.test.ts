@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { validateSecrets, hasLowEntropy, resetValidationCache } from '../src/lib/secrets';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  validateSecrets,
+  hasLowEntropy,
+  resetValidationCache,
+  getValidatedSecret,
+  getSecretStatus,
+  enforceSecretGovernance,
+  createRedactedEnv,
+  scrubSecrets,
+} from '../src/lib/secrets';
 
 const originalEnv = { ...process.env };
 
@@ -177,5 +186,117 @@ describe('Secret Generation Utilities', () => {
       expect(jwtSecret.length).toBeGreaterThanOrEqual(32);
       expect(cronSecret.length).toBeGreaterThanOrEqual(16);
     });
+  });
+});
+
+describe('Secret Governance Branches', () => {
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    resetValidationCache();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    resetValidationCache();
+  });
+
+  it('getValidatedSecret throws when secret has critical validation error', () => {
+    setValidEnv();
+    process.env.JWT_SECRET = 'short';
+    resetValidationCache();
+
+    expect(() => getValidatedSecret('JWT_SECRET')).toThrow(/Secret validation failed/);
+  });
+
+  it('getValidatedSecret returns value when secret is valid', () => {
+    setValidEnv();
+    resetValidationCache();
+
+    expect(getValidatedSecret('JWT_SECRET')).toBe(process.env.JWT_SECRET);
+  });
+
+  it('getSecretStatus reports presence and validity', () => {
+    setValidEnv();
+    process.env.CRON_SECRET = 'tiny';
+    resetValidationCache();
+
+    const status = getSecretStatus();
+    expect(status.JWT_SECRET.present).toBe(true);
+    expect(status.JWT_SECRET.valid).toBe(true);
+    expect(status.CRON_SECRET.valid).toBe(false);
+  });
+
+  it('warns when OpenAI lifeguard is enabled without OPENAI_API_KEY', () => {
+    setValidEnv();
+    delete process.env.OPENAI_API_KEY;
+    process.env.OPENAI_LIFEGUARD_ENABLED = 'true';
+    resetValidationCache();
+
+    const result = validateSecrets();
+    const warning = result.warnings.find((w) =>
+      w.reason.includes('OPENAI_LIFEGUARD_ENABLED=true'),
+    );
+    expect(warning).toBeDefined();
+  });
+
+  it('warns when production uses Stripe test key', () => {
+    setValidEnv();
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.STRIPE_SECRET_KEY = 'sk_test_12345678901234567890';
+    resetValidationCache();
+
+    const result = validateSecrets();
+    const warning = result.warnings.find((w) =>
+      w.reason.includes('Using test key in production'),
+    );
+    expect(warning).toBeDefined();
+  });
+
+  it('enforceSecretGovernance throws on critical errors', () => {
+    setValidEnv();
+    delete process.env.JWT_SECRET;
+    resetValidationCache();
+
+    expect(() => enforceSecretGovernance()).toThrow(/Secret governance validation failed/);
+  });
+
+  it('enforceSecretGovernance emits warnings and pass log when only warnings exist', () => {
+    setValidEnv();
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.STRIPE_SECRET_KEY = 'sk_test_12345678901234567890';
+    resetValidationCache();
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      expect(() => enforceSecretGovernance()).not.toThrow();
+      expect(warnSpy).toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it('createRedactedEnv redacts sensitive keys and preserves non-sensitive keys', () => {
+    process.env.PLAIN_FLAG = 'enabled';
+    process.env.SERVICE_API_KEY = 'secret-value';
+    process.env.JWT_SECRET = 'another-secret';
+
+    const redacted = createRedactedEnv();
+    expect(redacted.PLAIN_FLAG).toBe('enabled');
+    expect(redacted.SERVICE_API_KEY).toBe('[REDACTED]');
+    expect(redacted.JWT_SECRET).toBe('[REDACTED]');
+  });
+
+  it('scrubSecrets clears cache and allows re-validation after env changes', () => {
+    setValidEnv();
+    const first = validateSecrets();
+    expect(first.valid).toBe(true);
+
+    scrubSecrets();
+    process.env.JWT_SECRET = 'short';
+    const second = validateSecrets();
+    expect(second.valid).toBe(false);
   });
 });
