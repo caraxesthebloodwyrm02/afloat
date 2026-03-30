@@ -19,12 +19,10 @@ export default defineConfig({
       include: ["src/lib/**/*.ts", "src/app/api/**/*.ts"],
       exclude: ["tests/**", "**/*.test.ts", "**/*.spec.ts"],
       thresholds: {
-        // TODO: Remove temporary line threshold reduction when coverage improves
-        // Currently at 59.91%, target 60%
-        lines: 59,
-        functions: 55,
-        branches: 50,
-        statements: 58,
+        lines: 68,
+        functions: 68,
+        branches: 59,
+        statements: 67,
       },
     },
   },

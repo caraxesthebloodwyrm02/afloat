@@ -8,7 +8,7 @@ let memoryStore: MemoryRedis | null = null;
  * Supports the subset of commands used by data-layer and session-controller.
  * Does NOT persist across restarts.
  */
-class MemoryRedis {
+export class MemoryRedis {
   private store = new Map<string, { value: unknown; expiresAt: number | null }>();
   private lists = new Map<string, string[]>();
 
@@ -101,4 +101,9 @@ export function getRedis(): Redis | MemoryRedis {
     memoryStore = new MemoryRedis();
   }
   return memoryStore;
+}
+
+export function _resetRedisForTesting(): void {
+  redis = null;
+  memoryStore = null;
 }

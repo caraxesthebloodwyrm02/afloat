@@ -8,7 +8,7 @@ import type { ApiError } from "@/types/api";
  * Simple in-memory rate limiter for when Upstash is not available.
  * Uses a sliding window with Map storage. Not shared across workers.
  */
-class MemoryRatelimit {
+export class MemoryRatelimit {
   private windows = new Map<string, number[]>();
   private maxRequests: number;
   private windowMs: number;
@@ -101,4 +101,11 @@ export async function checkRateLimit(
   }
 
   return null;
+}
+
+export function _resetRateLimitersForTesting(): void {
+  sessionLimiter = null;
+  dataRightsLimiter = null;
+  subscribeLimiter = null;
+  sessionEndLimiter = null;
 }
