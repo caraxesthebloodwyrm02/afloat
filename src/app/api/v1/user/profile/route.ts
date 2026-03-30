@@ -29,7 +29,14 @@ export async function PATCH(request: NextRequest) {
 
   let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json<ApiError>(
+        { error: "empty_input", message: "Invalid request body." },
+        { status: 400 }
+      );
+    }
+    body = parsed as Record<string, unknown>;
   } catch {
     return NextResponse.json<ApiError>(
       { error: "empty_input", message: "Invalid request body." },
@@ -61,8 +68,12 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  if (updates.display_name) userRecord.display_name = updates.display_name;
-  if (updates.email_preference) userRecord.email_preference = updates.email_preference;
+  if (Object.prototype.hasOwnProperty.call(updates, "display_name")) {
+    userRecord.display_name = updates.display_name;
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "email_preference")) {
+    userRecord.email_preference = updates.email_preference;
+  }
 
   await updateUser(userRecord);
 

@@ -22,7 +22,14 @@ export async function POST(request: NextRequest) {
 
   let body: { session_id?: string };
   try {
-    body = await request.json();
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json(
+        { error: "empty_input", message: "Invalid request." },
+        { status: 400 }
+      );
+    }
+    body = parsed as { session_id?: string };
   } catch {
     return NextResponse.json(
       { error: "empty_input", message: "Invalid request." },
@@ -31,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { session_id } = body;
-  if (!session_id) {
+  if (typeof session_id !== "string" || !session_id.trim()) {
     return NextResponse.json(
       { error: "empty_input", message: "Missing session_id." },
       { status: 400 }
