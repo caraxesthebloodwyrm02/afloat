@@ -16,6 +16,8 @@ import { runSafetyPipeline } from "@/lib/safety-pipeline";
 import { recordSafetyEvent } from "@/lib/safety-telemetry";
 import { generateMessageResponse } from "@/lib/session-message-adapter";
 import { auditAction } from "@/lib/audit";
+import { getUser } from "@/lib/data-layer";
+import { shouldWriteRoutingMemory } from "@/lib/consent";
 import type { ApiError, SessionMessageResponse } from "@/types/api";
 import { getTierLimits } from "@/types/session";
 import { NextRequest, NextResponse } from "next/server";
@@ -134,6 +136,8 @@ export async function POST(
     let body: {
       message?: string;
       history?: Array<{ role: string; content: string }>;
+      deep_read?: boolean;
+      openai_override?: "auto" | "force" | "never";
     };
     try {
       body = await request.json();
@@ -276,9 +280,23 @@ export async function POST(
         content: detectAndRedactPII(entry.content).redacted_text,
       }));
 
+      const userRecord = await getUser(user.user_id);
+      const allowRoutingMemory =
+        userRecord?.consents ? shouldWriteRoutingMemory(userRecord.consents) : false;
+      const openaiOverride =
+        body.openai_override === "force" || body.openai_override === "never"
+          ? body.openai_override
+          : "auto";
+
       const llmResponse = await generateMessageResponse(
         safeLLMInput,
         safeHistory,
+        {
+          user_id: user.user_id,
+          allow_routing_memory: allowRoutingMemory,
+          deep_read_override: body.deep_read === true,
+          openai_override: openaiOverride,
+        }
       );
 
       const latencyMs = Date.now() - startTime;
@@ -307,10 +325,16 @@ export async function POST(
           action_taken: "llm_response_delivery",
           input_context: userMessage,
           output_content: llmResponse.brief,
-          model_id: "gpt-4o-mini",
-          model_parameters: { temperature: 0.3, max_tokens: 300 },
+          model_id: llmResponse.model_id,
+          model_parameters: {
+            ...llmResponse.model_parameters,
+            provider: llmResponse.provider,
+            routing_trace: llmResponse.routing_trace,
+          },
           confidence: null,
-          reasoning_summary: `Gate: ${llmResponse.gate_type}, turns remaining: ${turnsRemaining}`,
+          reasoning_summary:
+            `Gate: ${llmResponse.gate_type}, turns remaining: ${turnsRemaining}, ` +
+            `provider: ${llmResponse.provider}, model: ${llmResponse.model_id}`,
           authority_type: "system_policy",
           actor_id: user.user_id,
           safety_verdicts: safetyVerdicts,

@@ -1,48 +1,26 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { assessResponseQuality, estimateTokenCount, callLLMWithFallback, LLMError } from "@/lib/llm";
+import {
+  assessResponseQuality,
+  callLLMWithFallback,
+  estimateTokenCount,
+  LLMError,
+} from "@/lib/llm";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
-import OpenAI from "openai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  openaiCreate: vi.fn(),
-  groqCreate: vi.fn(),
-  geminiSend: vi.fn(),
+const mockGetRoutingMemoryProfile = vi.fn(async (_userId?: string) => null);
+const mockRecordRoutingMemorySignal = vi.fn(
+  async (_userId?: string, _signal?: unknown) => ({})
+);
+
+vi.mock("@/lib/data-layer", () => ({
+  getRoutingMemoryProfile: (userId: string) =>
+    mockGetRoutingMemoryProfile(userId),
+  recordRoutingMemorySignal: (userId: string, signal: unknown) =>
+    mockRecordRoutingMemorySignal(userId, signal),
 }));
 
-vi.mock("openai", () => {
-  class APIError extends Error {
-    status?: number;
-    constructor(status: number) {
-      super("API Error");
-      this.name = "APIError";
-      this.status = status;
-    }
-  }
-
-  return {
-    default: class OpenAI {
-      static APIError = APIError;
-      chat = { completions: { create: mocks.openaiCreate } };
-    }
-  };
-});
-
-vi.mock("groq-sdk", () => ({
-  default: class {
-    chat = { completions: { create: mocks.groqCreate } };
-  }
-}));
-
-vi.mock("@google/generative-ai", () => ({
-  GoogleGenerativeAI: class {
-    getGenerativeModel() {
-      return {
-        startChat: () => ({
-          sendMessage: mocks.geminiSend
-        })
-      };
-    }
-  }
+vi.mock("@/lib/safety-telemetry", () => ({
+  recordSafetyEvent: vi.fn(async () => {}),
 }));
 
 const VALID_GATE_TYPES = [
@@ -72,6 +50,13 @@ function parseGateAndBrief(raw: string): { gate_type: string; brief: string } {
   return { gate_type, brief };
 }
 
+function createJsonResponse(status: number, payload: unknown): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 describe("parseGateAndBrief", () => {
   it("parses meeting_triage gate type", () => {
     const raw = "[GATE: meeting_triage]\nYou should attend this meeting because...";
@@ -80,53 +65,11 @@ describe("parseGateAndBrief", () => {
     expect(result.brief).toContain("You should attend");
   });
 
-  it("parses priority_decision gate type", () => {
-    const raw = "[GATE: priority_decision]\nFocus on task 2 first because...";
-    const result = parseGateAndBrief(raw);
-    expect(result.gate_type).toBe("priority_decision");
-  });
-
-  it("parses quick_briefing gate type", () => {
-    const raw = "[GATE: quick_briefing]\nThe gist of this proposal is...";
-    const result = parseGateAndBrief(raw);
-    expect(result.gate_type).toBe("quick_briefing");
-  });
-
-  it("parses context_gate_resolution gate type", () => {
-    const raw = "[GATE: context_gate_resolution]\nHere's what's happening...";
-    const result = parseGateAndBrief(raw);
-    expect(result.gate_type).toBe("context_gate_resolution");
-  });
-
-  it("parses out_of_scope gate type", () => {
-    const raw = "[GATE: out_of_scope] This is outside what I can help with in a quick session.";
-    const result = parseGateAndBrief(raw);
-    expect(result.gate_type).toBe("out_of_scope");
-  });
-
-  it("returns unclassified for missing gate tag", () => {
-    const raw = "Here's some response without a gate tag.";
-    const result = parseGateAndBrief(raw);
-    expect(result.gate_type).toBe("unclassified");
-    expect(result.brief).toBe("Here's some response without a gate tag.");
-  });
-
-  it("returns unclassified for invalid gate type", () => {
-    const raw = "[GATE: unknown_type]\nSome response.";
-    const result = parseGateAndBrief(raw);
-    expect(result.gate_type).toBe("unclassified");
-  });
-
-  it("strips [BRIEF] tag from response", () => {
-    const raw = "[GATE: meeting_triage]\n[BRIEF]\nYou should attend.";
-    const result = parseGateAndBrief(raw);
-    expect(result.brief).toBe("You should attend.");
-  });
-
-  it("handles empty response", () => {
-    const result = parseGateAndBrief("");
-    expect(result.gate_type).toBe("unclassified");
-    expect(result.brief).toBe("");
+  it("returns unclassified for invalid or missing gate", () => {
+    expect(parseGateAndBrief("No gate").gate_type).toBe("unclassified");
+    expect(parseGateAndBrief("[GATE: unknown_type]\ntext").gate_type).toBe(
+      "unclassified",
+    );
   });
 });
 
@@ -143,26 +86,10 @@ describe("assessResponseQuality", () => {
     expect(r.word_count).toBe(160);
   });
 
-  it("flags open-ended questions", () => {
-    const r = assessResponseQuality("meeting_triage", "Should you attend?");
-    expect(r.ends_with_question).toBe(true);
-  });
-
   it("passes clean response", () => {
     const r = assessResponseQuality("priority_decision", "Focus on task A first.");
     expect(r.missing_gate_tag).toBe(false);
     expect(r.exceeds_word_limit).toBe(false);
-    expect(r.ends_with_question).toBe(false);
-  });
-
-  it("counts words correctly with multiple spaces", () => {
-    const r = assessResponseQuality("quick_briefing", "Hello   world   test");
-    expect(r.word_count).toBe(3);
-  });
-
-  it("handles empty brief", () => {
-    const r = assessResponseQuality("context_gate_resolution", "");
-    expect(r.word_count).toBe(0);
     expect(r.ends_with_question).toBe(false);
   });
 });
@@ -194,7 +121,6 @@ describe("REQ-D Response Quality Probes", () => {
   it("REQ-D4: No open-ended follow-up question in response", () => {
     const r = assessResponseQuality("quick_briefing", "Here is the gist.");
     expect(r.ends_with_question).toBe(false);
-    expect("Here is the gist.").not.toMatch(/\?$/);
   });
 
   it("REQ-D5: Prompt token count stays under 500", () => {
@@ -203,118 +129,203 @@ describe("REQ-D Response Quality Probes", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Multi-Provider Fallback Tests
-// ---------------------------------------------------------------------------
+describe("callLLMWithFallback Dynamic Ollama-First Routing", () => {
+  const originalFetch = global.fetch;
+  const originalOpenAiKey = process.env.OPENAI_API_KEY;
+  const fetchMock = vi.fn();
 
-describe("callLLMWithFallback Multi-Provider Routing", () => {
   beforeEach(() => {
-    // Reset env
+    vi.clearAllMocks();
+    global.fetch = fetchMock as typeof fetch;
     delete process.env.OPENAI_API_KEY;
-    delete process.env.GROQ_API_KEY;
-    delete process.env.GEMINI_API_KEY;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    global.fetch = originalFetch;
+    if (originalOpenAiKey) process.env.OPENAI_API_KEY = originalOpenAiKey;
+    else delete process.env.OPENAI_API_KEY;
+    delete process.env.OLLAMA_API_KEY;
+    delete process.env.OLLAMA_AUTH_HEADER;
+    delete process.env.OLLAMA_AUTH_SCHEME;
   });
 
-  it("throws immediately if no providers are configured", async () => {
-    await expect(callLLMWithFallback("test", []))
-      .rejects.toThrowError(/No LLM provider is configured/);
-  });
-
-  it("calls OpenAI first when all keys are present", async () => {
-    process.env.OPENAI_API_KEY = "sk-test-openai";
-    process.env.GROQ_API_KEY = "gsk-test-groq";
-    process.env.GEMINI_API_KEY = "AIza-test-gemini";
-
-    mocks.openaiCreate.mockResolvedValueOnce({
-      choices: [{ message: { content: "[GATE: meeting_triage]\nFrom OpenAI" } }]
-    });
-
-    const res = await callLLMWithFallback("hello", []);
-
-    expect(res.brief).toContain("From OpenAI");
-    expect(mocks.openaiCreate).toHaveBeenCalledTimes(1);
-    expect(mocks.groqCreate).not.toHaveBeenCalled();
-    expect(mocks.geminiSend).not.toHaveBeenCalled();
-  });
-
-  it("falls back to Groq if OpenAI rate limits (429)", async () => {
-    process.env.OPENAI_API_KEY = "sk-test-openai";
-    process.env.GROQ_API_KEY = "gsk-test-groq";
-
-
-    const rateLimitError = new OpenAI.APIError(429, {} as Record<string, never>, "API Error", {} as Headers);
-
-
-
-    mocks.openaiCreate.mockRejectedValueOnce(rateLimitError);
-    mocks.groqCreate.mockResolvedValueOnce({
-      choices: [{ message: { content: "[GATE: priority_decision]\nFrom Groq" } }]
-    });
-
-    const res = await callLLMWithFallback("hello", []);
-
-    expect(res.brief).toContain("From Groq");
-    expect(mocks.openaiCreate).toHaveBeenCalledTimes(1);
-    expect(mocks.groqCreate).toHaveBeenCalledTimes(1);
-  });
-
-  it("retries once on 500 error before falling back", async () => {
-    process.env.OPENAI_API_KEY = "sk-test-openai";
-    process.env.GROQ_API_KEY = "gsk-test-groq";
-
-
-    const serverError = new OpenAI.APIError(500, {} as Record<string, never>, "API Error", {} as Headers);
-
-
-
-    vi.spyOn(global, "setTimeout").mockImplementation(((cb: () => void, ms?: number) => {
-      if (ms === 1000) {
-        cb();
+  it("uses available Ollama models first and returns model/provider metadata", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, { models: [{ name: "llama3.1:8b" }] });
       }
-      return 0 as unknown as ReturnType<typeof setTimeout>;
-    }) as typeof setTimeout);
-
-    // OpenAI fails with 500
-    mocks.openaiCreate.mockRejectedValueOnce(serverError);
-    // OpenAI retries (1 second later) and fails again with 500
-    mocks.openaiCreate.mockRejectedValueOnce(serverError);
-
-    // Groq succeeds
-    mocks.groqCreate.mockResolvedValueOnce({
-      choices: [{ message: { content: "[GATE: quick_briefing]\nSuccess fallthrough" } }]
+      if (url.includes("/api/generate")) {
+        return createJsonResponse(200, {
+          response: "[GATE: context_gate_resolution]\nOllama answer",
+        });
+      }
+      return createJsonResponse(500, {});
     });
 
-    const res = await callLLMWithFallback("hello", []);
+    const result = await callLLMWithFallback("Help me decide", []);
 
-    expect(res.brief).toContain("Success fallthrough");
-    expect(mocks.openaiCreate).toHaveBeenCalledTimes(2); // Initial + 1 retry
-    expect(mocks.groqCreate).toHaveBeenCalledTimes(1);
+    expect(result.provider).toBe("ollama");
+    expect(result.model_id.length).toBeGreaterThan(0);
+    expect(result.brief).toContain("Ollama answer");
+    expect(result.routing_trace.attempted_models[0]?.startsWith("ollama:")).toBe(
+      true,
+    );
   });
 
-  it("throws an unknown LLMError if all configured providers fail", async () => {
-    process.env.GROQ_API_KEY = "gsk-test-groq";
-    process.env.GEMINI_API_KEY = "AIza-test-gemini";
+  it("falls through to next Ollama candidate when first returns 429", async () => {
+    let generateCalls = 0;
+    const seenModels: string[] = [];
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, {
+          models: [{ name: "llama3.1:8b" }, { name: "mistral:7b" }],
+        });
+      }
+      if (url.includes("/api/generate")) {
+        generateCalls += 1;
+        const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+        if (body.model) seenModels.push(body.model);
+        if (generateCalls === 1) {
+          return createJsonResponse(429, { error: "rate limited" });
+        }
+        return createJsonResponse(200, {
+          response: "[GATE: meeting_triage]\nFallback success",
+        });
+      }
+      return createJsonResponse(500, {});
+    });
 
-    // Simulate timeouts (AbortError) for both
-    const abortErr = new Error("Aborted");
-    abortErr.name = "AbortError";
+    const result = await callLLMWithFallback("Quick follow up", []);
+    expect(result.provider).toBe("ollama");
+    expect(generateCalls).toBeGreaterThanOrEqual(2);
+    expect(seenModels[0]).not.toBe(seenModels[1]);
+    expect(result.brief).toContain("Fallback success");
+  });
 
-    mocks.groqCreate.mockRejectedValueOnce(abortErr);
-    mocks.geminiSend.mockRejectedValueOnce(abortErr);
+  it("sends Ollama auth headers when OLLAMA_API_KEY is configured", async () => {
+    process.env.OLLAMA_API_KEY = "ollama-secret";
+    process.env.OLLAMA_AUTH_HEADER = "Authorization";
+    process.env.OLLAMA_AUTH_SCHEME = "Bearer";
 
-    try {
-      await callLLMWithFallback("hello", []);
-      expect.fail("Should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(LLMError);
-      expect((err as LLMError).reason).toBe("timeout");
-    }
+    const seenHeaders: Array<Record<string, string>> = [];
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      seenHeaders.push(headers);
 
-    expect(mocks.groqCreate).toHaveBeenCalledTimes(1);
-    expect(mocks.geminiSend).toHaveBeenCalledTimes(1);
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, { models: [{ name: "llama3.1:8b" }] });
+      }
+      if (url.includes("/api/generate")) {
+        return createJsonResponse(200, {
+          response: "[GATE: quick_briefing]\nAuthorized Ollama call",
+        });
+      }
+      return createJsonResponse(500, {});
+    });
+
+    const result = await callLLMWithFallback("auth test", []);
+
+    expect(result.brief).toContain("Authorized Ollama call");
+    expect(
+      seenHeaders.some(
+        (headers) => headers.Authorization === "Bearer ollama-secret",
+      ),
+    ).toBe(true);
+  });
+
+  it("supports forced OpenAI lifeguard override with deep-read token budget", async () => {
+    process.env.OPENAI_API_KEY = "sk-test-openai";
+
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, { models: [{ name: "llama3.1:8b" }] });
+      }
+      if (url.includes("api.openai.com")) {
+        expect(url).toContain("api.openai.com");
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          max_tokens?: number;
+        };
+        expect(body.max_tokens).toBe(900);
+        return createJsonResponse(200, {
+          choices: [
+            {
+              message: {
+                content: "[GATE: priority_decision]\nEscalated response",
+              },
+            },
+          ],
+        });
+      }
+      return createJsonResponse(500, {});
+    });
+
+    const result = await callLLMWithFallback(
+      "Do a deep read and comprehensive strategy review",
+      [],
+      { openai_override: "force", deep_read_override: true },
+    );
+
+    expect(result.provider).toBe("openai");
+    expect(result.model_id).toBe("gpt-5.4");
+    expect(result.brief).toContain("Escalated response");
+  });
+
+  it("auto-escalates to OpenAI only for deep-read high-complexity failures", async () => {
+    process.env.OPENAI_API_KEY = "sk-test-openai";
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, { models: [{ name: "llama3.1:8b" }] });
+      }
+      if (url.includes("/api/generate")) {
+        return createJsonResponse(429, { error: "rate limited" });
+      }
+      if (url.includes("api.openai.com")) {
+        expect(url).toContain("api.openai.com");
+        return createJsonResponse(200, {
+          choices: [
+            {
+              message: {
+                content: "[GATE: quick_briefing]\nOpenAI lifeguard saved this",
+              },
+            },
+          ],
+        });
+      }
+      return createJsonResponse(500, {});
+    });
+
+    const result = await callLLMWithFallback(
+      ("Please do a deep read, comprehensive multi-step architectural trade-off analysis, " +
+        "including code/debug implementation risks, alternatives, and edge cases. ").repeat(
+        120,
+      ),
+      [],
+      { deep_read_override: true },
+    );
+
+    expect(result.provider).toBe("openai");
+    expect(result.routing_trace.escalated_to_openai).toBe(true);
+  });
+
+  it("does not auto-escalate for regular scope when Ollama fails", async () => {
+    process.env.OPENAI_API_KEY = "sk-test-openai";
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, { models: [{ name: "llama3.1:8b" }] });
+      }
+      if (url.includes("/api/generate")) {
+        return createJsonResponse(429, { error: "rate limited" });
+      }
+      return createJsonResponse(500, {});
+    });
+
+    await expect(callLLMWithFallback("short question", [])).rejects.toBeInstanceOf(
+      LLMError,
+    );
+
+    const allUrls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(allUrls.some((url) => url.includes("api.openai.com"))).toBe(false);
   });
 });

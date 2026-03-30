@@ -43,11 +43,39 @@ const SECRET_SPECS: SecretSpec[] = [
     description: "Cron job authorization secret",
   },
   {
+    name: "OLLAMA_BASE_URL",
+    required: false,
+    minLength: 10,
+    category: "provider",
+    description: "Optional Ollama base URL override (defaults to http://localhost:11434)",
+  },
+  {
+    name: "OLLAMA_API_KEY",
+    required: false,
+    minLength: 8,
+    category: "provider",
+    description: "Optional Ollama API key for authenticated Ollama endpoints",
+  },
+  {
+    name: "OLLAMA_AUTH_HEADER",
+    required: false,
+    minLength: 4,
+    category: "provider",
+    description: "Optional Ollama auth header name (defaults to Authorization)",
+  },
+  {
+    name: "OLLAMA_AUTH_SCHEME",
+    required: false,
+    minLength: 4,
+    category: "provider",
+    description: "Optional Ollama auth scheme (defaults to Bearer, use none for raw header value)",
+  },
+  {
     name: "OPENAI_API_KEY",
     required: false,
     minLength: 20,
     category: "provider",
-    description: "OpenAI API key (at least one LLM provider required)",
+    description: "Optional OpenAI lifeguard API key for rare escalation paths",
   },
   {
     name: "GROQ_API_KEY",
@@ -199,13 +227,14 @@ export function validateSecrets(): ValidationResult {
     });
   }
 
-  const llmProviders = ["OPENAI_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY"];
-  const hasLlmProvider = llmProviders.some((k) => process.env[k]);
-  if (!hasLlmProvider) {
-    errors.push({
-      secret: "LLM_PROVIDERS",
-      reason: "At least one LLM provider key required (OPENAI_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY)",
-      severity: "critical",
+  const openaiOverrideEnabled =
+    (process.env.OPENAI_LIFEGUARD_ENABLED ?? "").trim().toLowerCase() === "true";
+  if (openaiOverrideEnabled && !process.env.OPENAI_API_KEY) {
+    warnings.push({
+      secret: "OPENAI_API_KEY",
+      reason:
+        "OPENAI_LIFEGUARD_ENABLED=true but OPENAI_API_KEY is not set. Rare lifeguard escalation will be unavailable.",
+      severity: "warning",
     });
   }
 

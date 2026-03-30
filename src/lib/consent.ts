@@ -5,7 +5,8 @@ const CURRENT_POLICY_VERSION = "v1.0";
 export function createDefaultConsents(
   essentialProcessing: boolean,
   sessionTelemetry: boolean,
-  marketingCommunications: boolean
+  marketingCommunications: boolean,
+  routingMemory: boolean = false
 ): UserConsents {
   const now = new Date().toISOString();
   return {
@@ -21,6 +22,11 @@ export function createDefaultConsents(
     },
     marketing_communications: {
       granted: marketingCommunications,
+      timestamp: now,
+      policy_version: CURRENT_POLICY_VERSION,
+    },
+    routing_memory: {
+      granted: routingMemory,
       timestamp: now,
       policy_version: CURRENT_POLICY_VERSION,
     },
@@ -40,6 +46,10 @@ export function updateConsent(
 
 export function shouldWriteTelemetry(consents: UserConsents): boolean {
   return consents.session_telemetry.granted;
+}
+
+export function shouldWriteRoutingMemory(consents: UserConsents): boolean {
+  return consents.routing_memory?.granted ?? false;
 }
 
 export function getPolicyVersion(): string {

@@ -3,6 +3,7 @@ import {
   createDefaultConsents,
   updateConsent,
   shouldWriteTelemetry,
+  shouldWriteRoutingMemory,
 } from "@/lib/consent";
 
 describe("consent management", () => {
@@ -11,6 +12,7 @@ describe("consent management", () => {
     expect(consents.essential_processing.granted).toBe(true);
     expect(consents.session_telemetry.granted).toBe(false);
     expect(consents.marketing_communications.granted).toBe(false);
+    expect(consents.routing_memory.granted).toBe(false);
   });
 
   it("includes timestamps and policy version", () => {
@@ -34,5 +36,10 @@ describe("consent management", () => {
   it("shouldWriteTelemetry returns false when not consented", () => {
     const consents = createDefaultConsents(true, false, false);
     expect(shouldWriteTelemetry(consents)).toBe(false);
+  });
+
+  it("shouldWriteRoutingMemory returns true when consented", () => {
+    const consents = createDefaultConsents(true, true, false, true);
+    expect(shouldWriteRoutingMemory(consents)).toBe(true);
   });
 });

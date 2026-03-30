@@ -19,7 +19,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { session_telemetry?: boolean; marketing_communications?: boolean };
+  let body: {
+    session_telemetry?: boolean;
+    marketing_communications?: boolean;
+    routing_memory?: boolean;
+  };
   try {
     body = await request.json();
   } catch {
@@ -45,6 +49,18 @@ export async function POST(request: NextRequest) {
       body.marketing_communications
     );
     changes.push("marketing_communications");
+  }
+
+  if (typeof body.routing_memory === "boolean") {
+    userRecord.consents.routing_memory = updateConsent(
+      userRecord.consents.routing_memory ?? {
+        granted: false,
+        timestamp: new Date().toISOString(),
+        policy_version: "v1.0",
+      },
+      body.routing_memory
+    );
+    changes.push("routing_memory");
   }
 
   if (changes.length === 0) {

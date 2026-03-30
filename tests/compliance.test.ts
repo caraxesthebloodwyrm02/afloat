@@ -94,6 +94,7 @@ function seedUser(userId: string, overrides: Record<string, unknown> = {}): void
       essential_processing: { granted: true, timestamp: new Date().toISOString(), policy_version: "v1.0" },
       session_telemetry: { granted: true, timestamp: new Date().toISOString(), policy_version: "v1.0" },
       marketing_communications: { granted: false, timestamp: new Date().toISOString(), policy_version: "v1.0" },
+      routing_memory: { granted: false, timestamp: new Date().toISOString(), policy_version: "v1.0" },
     },
     ...overrides,
   };

@@ -1,4 +1,8 @@
-import { callLLMWithRetry, type LLMResponse } from "@/lib/llm";
+import {
+  callLLMWithRetry,
+  type LLMResponse,
+  type LLMRoutingContext,
+} from "@/lib/llm";
 
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
@@ -9,9 +13,14 @@ export function isPhase4MessageCapabilityEnabled(): boolean {
 
 async function callPhase4Capability(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
+  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  routingContext?: LLMRoutingContext
 ): Promise<LLMResponse> {
-  const response = await callLLMWithRetry(userMessage, conversationHistory);
+  const response = await callLLMWithRetry(
+    userMessage,
+    conversationHistory,
+    routingContext
+  );
   return {
     ...response,
     raw: response.raw ? `[phase4] ${response.raw}` : response.raw,
@@ -20,15 +29,20 @@ async function callPhase4Capability(
 
 export async function generateMessageResponse(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
+  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  routingContext?: LLMRoutingContext
 ): Promise<LLMResponse> {
   if (!isPhase4MessageCapabilityEnabled()) {
-    return callLLMWithRetry(userMessage, conversationHistory);
+    return callLLMWithRetry(userMessage, conversationHistory, routingContext);
   }
 
   try {
-    return await callPhase4Capability(userMessage, conversationHistory);
+    return await callPhase4Capability(
+      userMessage,
+      conversationHistory,
+      routingContext
+    );
   } catch {
-    return callLLMWithRetry(userMessage, conversationHistory);
+    return callLLMWithRetry(userMessage, conversationHistory, routingContext);
   }
 }

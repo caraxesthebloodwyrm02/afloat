@@ -94,6 +94,12 @@ const mockGenerateMessageResponse = vi.fn<
   (
     msg: string,
     history: Array<{ role: string; content: string }>,
+    routingContext?: {
+      user_id?: string;
+      allow_routing_memory?: boolean;
+      deep_read_override?: boolean;
+      openai_override?: "auto" | "force" | "never";
+    },
   ) => Promise<{ gate_type: string; brief: string; raw: string }>
 >(async () => ({
   gate_type: "context_gate_resolution",
@@ -103,7 +109,19 @@ const mockGenerateMessageResponse = vi.fn<
 
 vi.mock("@/lib/session-message-adapter", () => ({
   generateMessageResponse: (
-    ...args: [string, Array<{ role: string; content: string }>]
+    ...args: [
+      string,
+      Array<{ role: string; content: string }>,
+      (
+        | {
+            user_id?: string;
+            allow_routing_memory?: boolean;
+            deep_read_override?: boolean;
+            openai_override?: "auto" | "force" | "never";
+          }
+        | undefined
+      )?,
+    ]
   ) => mockGenerateMessageResponse(...args),
 }));
 
@@ -140,6 +158,11 @@ function seedUser(userId: string, status: "active" | "canceled" = "active") {
         policy_version: "1.0",
       },
       marketing_communications: {
+        granted: false,
+        timestamp: new Date().toISOString(),
+        policy_version: "1.0",
+      },
+      routing_memory: {
         granted: false,
         timestamp: new Date().toISOString(),
         policy_version: "1.0",

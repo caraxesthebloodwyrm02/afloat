@@ -1,6 +1,6 @@
 # Afloat
 
-A no-fluff cognitive assistant. Get past context gates in under 2 minutes.
+A no-fluff cognitive assistant with dynamic Ollama-first routing. Get past context gates in under 2 minutes.
 
 ## What It Does
 
@@ -11,7 +11,7 @@ You describe what you're stuck on. Afloat identifies the block type (meeting tri
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 16 (App Router, TypeScript) |
-| LLM | OpenAI gpt-4o-mini |
+| LLM | Ollama-first dynamic routing, optional OpenAI lifeguard escalation |
 | Session Store | Upstash Redis |
 | Payment | Stripe ($3/mo subscription) |
 | Auth | JWT (jose) |
@@ -27,7 +27,8 @@ API and app attack-surface guardrails (auth, rate limits, webhook signature, no 
 - **Node.js**: Version 20.x or higher
 - **Redis**: Upstash Redis account (for session storage)
 - **Stripe**: Account with webhook configuration
-- **OpenAI**: API key with gpt-4o-mini access
+- **Ollama**: Local or remote Ollama endpoint
+- **OpenAI**: Optional API key for rare deep-read lifeguard escalation
 - **Git**: For version control
 
 ## Setup
@@ -40,10 +41,10 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env.local
-# Fill in all 14 required values in .env.local
+# Fill in the required values in .env.local
 
 # 3. Verify environment variables
-# Ensure you have all variables from the table above
+# Ensure you have the required variables from the table below
 #特别注意: JWT_SECRET and PROVENANCE_SIGNING_KEY must be different
 
 # 4. Run locally
@@ -55,13 +56,14 @@ npm run dev
 - `npm run lint` - ESLint across the repo
 - `npm run typecheck` - strict TypeScript validation
 - `npm run test` - Vitest suite
+- `npm run test:smoke` - targeted route/configuration smoke coverage
 - `npm run test:coverage` - Vitest with enforced coverage thresholds
 - `npm run build` - production build verification
-- `npm run check` - full local PR gate (`lint`, `typecheck`, `test:coverage`, `build`)
+- `npm run check` - full local PR gate (`lint`, `typecheck`, `test:coverage`, `test:smoke`, `build`)
 
 ## CI/CD And Governance
 
-- Pull requests to `main` run lint, typecheck, coverage-backed tests, and build in `.github/workflows/ci-cd.yml`
+- Pull requests to `main` run lint, typecheck, coverage-backed tests, smoke tests, and build in `.github/workflows/ci-cd.yml`
 - Security automation runs TruffleHog, `npm audit --omit=dev --audit-level=high`, and CodeQL in `.github/workflows/security.yml`
 - Dependency updates are managed through `.github/dependabot.yml`
 - Reviews can be required through `.github/CODEOWNERS`
@@ -73,13 +75,15 @@ npm run dev
 - **PROVENANCE_SIGNING_KEY**: Use a different random string than JWT_SECRET
 - **CRON_SECRET**: Required for automated cleanup jobs in production
 - **PHASE4_MESSAGE_CAPABILITY_ENABLED**: Keep `false` for initial setup
+- **OLLAMA_BASE_URL**: Set to your local or remote Ollama endpoint
+- **OLLAMA_API_KEY**: Optional, only needed when Ollama sits behind auth
 - **Stripe Webhooks**: Configure endpoint `https://your-domain.com/api/v1/webhooks/stripe`
 
 ### Required Environment Variables
 
 | Variable | Purpose |
 |----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for gpt-4o-mini |
+| `OLLAMA_BASE_URL` | Ollama endpoint base URL |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis connection URL |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis auth token |
 | `JWT_SECRET` | Secret for signing JWTs |
@@ -100,6 +104,12 @@ npm run dev
 
 | Variable | Purpose |
 |----------|---------|
+| `OLLAMA_API_KEY` | Token for authenticated Ollama endpoints |
+| `OLLAMA_AUTH_HEADER` | Custom auth header name for Ollama gateways |
+| `OLLAMA_AUTH_SCHEME` | Auth scheme for Ollama gateways (`Bearer` by default, `none` for raw value) |
+| `OPENAI_API_KEY` | Optional OpenAI API key for rare lifeguard escalation |
+| `OPENAI_LIFEGUARD_ENABLED` | Warn if OpenAI lifeguard is intended but key is missing |
+| `OPENAI_LIFEGUARD_MODEL` | Override the rare lifeguard model (defaults to `gpt-5.4`) |
 | `ALLOWED_CALLERS` | Comma-separated list of identities (e.g. `user_id`) allowed to call protected operations. If unset, all authenticated callers are allowed. See `docs/SAFETY_CORE.md`. |
 
 ## API Routes
@@ -190,10 +200,12 @@ graph LR
 - **Data Isolation**: Strips conversation history before persistence
 
 #### LLM Integration (`src/lib/llm.ts`)
-- **Structured Parsing**: Extracts gate tags from LLM responses
+- **Dynamic Routing**: Selects Ollama models by task, complexity, and response scope
+- **Routing Memory**: Uses consented cross-session preferences to influence model selection
+- **Rare Lifeguard Escalation**: Escalates to OpenAI only for forced or high-complexity deep-read scenarios
+- **Structured Parsing**: Extracts gate tags from model responses
 - **Quality Assessment**: Word count, format validation
-- **Error Handling**: Timeout, rate limiting, server errors
-- **Retry Logic**: Automatic retry for transient failures
+- **Error Handling**: Timeout, rate limiting, and transient failure fallback
 
 #### Safety Pipeline (`src/lib/safety-pipeline.ts`)
 - **Unified Interface**: Single entry point for all safety checks
