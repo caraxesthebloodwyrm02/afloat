@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Afloat** is a no-fluff cognitive assistant micro-tool. Users describe what they're stuck on, get a short honest brief identifying the block type (meeting triage, priority decision, quick briefing, or context gate resolution), ask one follow-up, and the session ends. ~2 minute sessions.
 
 **Version**: 0.1.1
-**Stack**: Next.js 16 (App Router), React 19, TypeScript, OpenAI gpt-4o-mini, Upstash Redis, Stripe ($3/mo), JWT (jose), Vitest
+**Stack**: Next.js 16 (App Router), React 19, TypeScript, Ollama-first routing with rare OpenAI lifeguard escalation, Upstash Redis, Stripe ($3/mo), JWT (jose), Vitest
 **Node**: >=22.0.0
 **Package Manager**: npm (not yarn, not pnpm)
 
@@ -18,12 +18,13 @@ npm run dev          # Dev server
 npm run build        # Production build
 npm run lint         # ESLint
 npm run test         # Vitest (run once)
+npm run test:routing # Focused routing and request-contract suite
 npm run test:watch   # Vitest (watch mode)
 ```
 
 **Session start protocol** — run before writing any new code:
 ```bash
-npm run test && npm run lint
+npm run test:routing && npm run lint
 ```
 
 ## Architecture
@@ -57,6 +58,8 @@ npm run test && npm run lint
 ## Environment
 
 14 required environment variables — see `.env.example`. Key notes:
+- `OLLAMA_BASE_URL` is the default model endpoint
+- `OPENAI_API_KEY` is optional and used only for rare lifeguard escalation
 - `JWT_SECRET` and `PROVENANCE_SIGNING_KEY` must be different values
 - `PHASE4_MESSAGE_CAPABILITY_ENABLED`: keep `false` for initial setup
 - Stripe webhooks point to `/api/v1/webhooks/stripe`

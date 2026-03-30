@@ -17,8 +17,15 @@ import { recordSafetyEvent } from "@/lib/safety-telemetry";
 import { generateMessageResponse } from "@/lib/session-message-adapter";
 import { auditAction } from "@/lib/audit";
 import { getUser } from "@/lib/data-layer";
-import { shouldWriteRoutingMemory } from "@/lib/consent";
-import type { ApiError, SessionMessageResponse } from "@/types/api";
+import {
+  buildLLMRoutingContext,
+  normalizeSessionMessageRequestBody,
+} from "@/lib/session-message-request";
+import type {
+  ApiError,
+  SessionMessageRequestBody,
+  SessionMessageResponse,
+} from "@/types/api";
 import { getTierLimits } from "@/types/session";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -133,14 +140,9 @@ export async function POST(
       );
     }
 
-    let body: {
-      message?: string;
-      history?: Array<{ role: string; content: string }>;
-      deep_read?: boolean;
-      openai_override?: "auto" | "force" | "never";
-    };
+    let body: SessionMessageRequestBody | null;
     try {
-      body = await request.json();
+      body = (await request.json()) as SessionMessageRequestBody;
     } catch {
       return NextResponse.json<ApiError>(
         { error: "empty_input", message: "Invalid request body." },
@@ -148,29 +150,9 @@ export async function POST(
       );
     }
 
-    const userMessage = body.message ?? "";
-
-    // Client-echoed history: bounded window of prior turns for follow-up context.
-    // Server never persists this — it only lives for the duration of the LLM call.
-    const MAX_HISTORY_ENTRIES = 4;
-    const clientHistory: Array<{
-      role: "user" | "assistant";
-      content: string;
-    }> = [];
-    if (Array.isArray(body.history)) {
-      for (const entry of body.history.slice(-MAX_HISTORY_ENTRIES)) {
-        if (
-          entry &&
-          typeof entry.content === "string" &&
-          (entry.role === "user" || entry.role === "assistant")
-        ) {
-          clientHistory.push({
-            role: entry.role,
-            content: entry.content.slice(0, 2000),
-          });
-        }
-      }
-    }
+    const normalizedRequest = normalizeSessionMessageRequestBody(body);
+    const userMessage = normalizedRequest.message;
+    const clientHistory = normalizedRequest.history;
 
     const enforcement = enforceSessionLimits(session, userMessage);
     if (!enforcement.allowed) {
@@ -281,22 +263,11 @@ export async function POST(
       }));
 
       const userRecord = await getUser(user.user_id);
-      const allowRoutingMemory =
-        userRecord?.consents ? shouldWriteRoutingMemory(userRecord.consents) : false;
-      const openaiOverride =
-        body.openai_override === "force" || body.openai_override === "never"
-          ? body.openai_override
-          : "auto";
 
       const llmResponse = await generateMessageResponse(
         safeLLMInput,
         safeHistory,
-        {
-          user_id: user.user_id,
-          allow_routing_memory: allowRoutingMemory,
-          deep_read_override: body.deep_read === true,
-          openai_override: openaiOverride,
-        }
+        buildLLMRoutingContext(user.user_id, userRecord, normalizedRequest),
       );
 
       const latencyMs = Date.now() - startTime;

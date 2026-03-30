@@ -5,9 +5,12 @@ import {
   LLMError,
 } from "@/lib/llm";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
+import type { RoutingMemoryProfile } from "@/types/user";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockGetRoutingMemoryProfile = vi.fn(async (_userId?: string) => null);
+const mockGetRoutingMemoryProfile = vi.fn<
+  (userId?: string) => Promise<RoutingMemoryProfile | null>
+>(async (_userId?: string) => null);
 const mockRecordRoutingMemorySignal = vi.fn(
   async (_userId?: string, _signal?: unknown) => ({})
 );
@@ -233,6 +236,95 @@ describe("callLLMWithFallback Dynamic Ollama-First Routing", () => {
     ).toBe(true);
   });
 
+  it("supports raw-token Ollama auth with a custom header", async () => {
+    process.env.OLLAMA_API_KEY = "ollama-raw-token";
+    process.env.OLLAMA_AUTH_HEADER = "X-API-Key";
+    process.env.OLLAMA_AUTH_SCHEME = "none";
+
+    const seenHeaders: Array<Record<string, string>> = [];
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      seenHeaders.push(headers);
+
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, { models: [{ name: "llama3.1:8b" }] });
+      }
+      if (url.includes("/api/generate")) {
+        return createJsonResponse(200, {
+          response: "[GATE: quick_briefing]\nCustom header auth works",
+        });
+      }
+      return createJsonResponse(500, {});
+    });
+
+    const result = await callLLMWithFallback("custom auth test", []);
+
+    expect(result.brief).toContain("Custom header auth works");
+    expect(
+      seenHeaders.some(
+        (headers) =>
+          headers["X-API-Key"] === "ollama-raw-token" &&
+          !("Authorization" in headers),
+      ),
+    ).toBe(true);
+  });
+
+  it("uses consented routing memory to promote the learned model on future calls", async () => {
+    const seenModels: string[] = [];
+    mockGetRoutingMemoryProfile.mockResolvedValue({
+      user_id: "user-123",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      preferred_models: ["mistral:7b"],
+      model_performance: {
+        "mistral:7b": {
+          provider: "ollama",
+          success_count: 6,
+          failure_count: 0,
+          average_latency_ms: 900,
+          last_used_at: new Date().toISOString(),
+        },
+      },
+      task_memory: {
+        last_intent: "Need a concise analysis",
+        recent_intents: ["Need a concise analysis"],
+        last_task_type: "analysis",
+        sentiment: "neutral",
+        deep_read_preference: 0.5,
+      },
+      escalation: {
+        openai_auto_count: 0,
+        openai_forced_count: 0,
+        last_escalated_at: null,
+      },
+    });
+
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, {
+          models: [{ name: "llama3.1:8b" }, { name: "mistral:7b" }],
+        });
+      }
+      if (url.includes("/api/generate")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+        if (body.model) seenModels.push(body.model);
+        return createJsonResponse(200, {
+          response: "[GATE: context_gate_resolution]\nMemory-assisted answer",
+        });
+      }
+      return createJsonResponse(500, {});
+    });
+
+    const result = await callLLMWithFallback("Please analyze this carefully", [], {
+      user_id: "user-123",
+      allow_routing_memory: true,
+    });
+
+    expect(result.routing_trace.memory_influence_applied).toBe(true);
+    expect(result.routing_trace.selected_candidates[0]).toBe("mistral:7b");
+    expect(seenModels[0]).toBe("mistral:7b");
+  });
+
   it("supports forced OpenAI lifeguard override with deep-read token budget", async () => {
     process.env.OPENAI_API_KEY = "sk-test-openai";
 
@@ -306,6 +398,32 @@ describe("callLLMWithFallback Dynamic Ollama-First Routing", () => {
 
     expect(result.provider).toBe("openai");
     expect(result.routing_trace.escalated_to_openai).toBe(true);
+  });
+
+  it("honors openai_override=never even for deep-read high-complexity failures", async () => {
+    process.env.OPENAI_API_KEY = "sk-test-openai";
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/api/tags")) {
+        return createJsonResponse(200, { models: [{ name: "llama3.1:8b" }] });
+      }
+      if (url.includes("/api/generate")) {
+        return createJsonResponse(429, { error: "rate limited" });
+      }
+      return createJsonResponse(500, {});
+    });
+
+    await expect(
+      callLLMWithFallback(
+        ("Please do a deep read, comprehensive architecture review with trade-offs " +
+          "and implementation risks. ").repeat(120),
+        [],
+        { deep_read_override: true, openai_override: "never" },
+      ),
+    ).rejects.toBeInstanceOf(LLMError);
+
+    const allUrls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(allUrls.some((url) => url.includes("api.openai.com"))).toBe(false);
   });
 
   it("does not auto-escalate for regular scope when Ollama fails", async () => {

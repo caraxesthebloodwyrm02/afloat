@@ -130,22 +130,21 @@ Run these tests manually (or write them as automated tests — even better):
 
 ### What you're building
 
-Replace the placeholder response with a real call to OpenAI's `gpt-4o-mini`. The LLM will detect the gate type and generate the brief.
+Replace the placeholder response with the current Ollama-first router. The routing layer detects the gate type, picks a local model, and only uses OpenAI in rare lifeguard cases.
 
 ### Inputs
 - Working session controller from Step 2
-- An OpenAI API key (store as `OPENAI_API_KEY` environment variable)
+- An Ollama endpoint (`OLLAMA_BASE_URL`)
+- An optional OpenAI API key for rare escalation (`OPENAI_API_KEY`)
 
 ### What to do
 
-1. Install the OpenAI SDK: `npm install openai`
-
 2. Create a function `callLLM(userMessage, conversationHistory)` that:
    - Builds the messages array: `[system_prompt, ...conversationHistory, { role: "user", content: userMessage }]`
-   - Calls `openai.chat.completions.create()` with:
-     - `model: "gpt-4o-mini"`
-     - `max_tokens: 300`
-     - `temperature: 0.3` (low temperature = more focused, less creative)
+   - Derives a routing plan from task type, complexity, and scope
+   - Discovers and ranks Ollama candidates first
+   - Uses a compact output budget for default paths and a larger budget for `deep_read`
+   - Escalates to OpenAI only when explicitly forced or in rare rescue cases
    - Returns the response text
 
 3. Write the system prompt. Here's the exact one to start with (refine after testing):

@@ -1,7 +1,7 @@
 {
   "meta": {
     "id": "rpc-afloat-001",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "title": "Request Processing Contract",
     "anchored_to": "contract.hardened.json v1.7.0 · contract ID 7a55f0f1",
     "purpose": "Defines the structural rules, patterns, and enforcement logic governing how every request is received, evaluated, and resolved. Not a feature spec — a processing discipline.",
@@ -71,7 +71,7 @@
         { "dimension": "session_duration",  "trial": "120s",                  "continuous": "1800s" },
         { "dimension": "llm_calls",         "trial": "2",                     "continuous": "6" },
         { "dimension": "safety_checks",     "trial": "none",                  "continuous": "rapid-fire detection at avg_interval < 5000ms" },
-        { "dimension": "brief_length",      "soft_cap": "150 words via prompt", "hard_cap": "300 tokens via max_tokens" }
+        { "dimension": "brief_length",      "soft_cap": "150 words via prompt", "hard_cap": "scope-dependent output budget in the router" }
       ]
     },
 
@@ -199,13 +199,13 @@
         "step": 7,
         "gate_id": "llm_call",
         "layer": "llm",
-        "check": "provider responds within 10s with non-empty content",
+        "check": "selected provider responds within the scope-dependent timeout budget with non-empty content",
         "pass": "continue with raw response",
         "fail_closed": true,
         "parameters": {
-          "max_tokens": 300,
-          "temperature": 0.3,
-          "timeout_ms": 10000
+          "temperature": 0.25,
+          "output_budget": "scope dependent: balanced and fast remain compact; deep_read increases output budget",
+          "timeout_ms": "scope and model-size dependent"
         },
         "error_handling": {
           "timeout":      { "retry": false, "throw": "LLMError::timeout",      "message": "That took too long. Please try again." },
@@ -214,31 +214,29 @@
           "empty":        { "retry": false, "fallback_brief": "I wasn't able to generate a useful response. Please try rephrasing." }
         },
         "provider_chain": {
-          "strategy": "ordered_fallthrough",
-          "description": "Try each configured provider in rank order. Fall through on any error or rate limit. Throw LLMError only when all providers are exhausted.",
-          "structural_note": "This is the Gate Pattern applied to infrastructure. Each provider is a candidate. rate_limited is the difference. The next provider is the fallthrough.",
+          "strategy": "scenario_aware_ollama_first",
+          "description": "Build a routing plan from task type, complexity, and scope. Discover Ollama models, rank candidates, and try them first. Use OpenAI only when explicitly forced or in rare deep-read/high-complexity rescue cases.",
+          "request_controls": {
+            "deep_read": "boolean, defaults to false",
+            "openai_override": "auto | force | never, defaults to auto",
+            "allow_routing_memory": "server derived from stored consent only"
+          },
+          "structural_note": "This is the Gate Pattern applied to infrastructure. Each local model is a candidate. consented routing memory shifts the ranking, not the application logic.",
           "providers": [
             {
               "rank": 1,
-              "name": "openai",
-              "model": "gpt-4o-mini",
-              "env_key": "OPENAI_API_KEY",
-              "env_base_url": "OPENAI_BASE_URL",
-              "note": "If OPENAI_BASE_URL is set, the SDK routes to that endpoint (e.g. OpenRouter). Enables zero-code provider switching."
+              "name": "ollama",
+              "model": "dynamic from /api/tags",
+              "env_key": "OLLAMA_BASE_URL",
+              "auth_keys": ["OLLAMA_API_KEY", "OLLAMA_AUTH_HEADER", "OLLAMA_AUTH_SCHEME"],
+              "note": "Primary provider. Candidate ranking is based on task type, complexity, scope, and consented routing memory."
             },
             {
               "rank": 2,
-              "name": "groq",
-              "model": "llama-3.1-8b-instant",
-              "env_key": "GROQ_API_KEY",
-              "note": "Free tier available. Very low latency. Falls in automatically when GROQ_API_KEY is present."
-            },
-            {
-              "rank": 3,
-              "name": "gemini",
-              "model": "gemini-1.5-flash",
-              "env_key": "GEMINI_API_KEY",
-              "note": "Google free tier. Falls in automatically when GEMINI_API_KEY is present."
+              "name": "openai_lifeguard",
+              "model": "gpt-5.4",
+              "env_key": "OPENAI_API_KEY",
+              "note": "Rare rescue path. Used only for forced escalation or rare deep-read/high-complexity rescue."
             }
           ],
           "minimum_required_providers": 1,
@@ -326,7 +324,7 @@
         "threshold_seconds": 3.0,
         "measurement": "avg(latency_per_turn)",
         "window": "rolling_7_day",
-        "action_if_above": "downgrade prompt complexity or route to lighter model via provider chain"
+        "action_if_above": "downgrade prompt complexity or route to a lighter Ollama candidate"
       },
       {
         "id": "KPI-03",
@@ -369,7 +367,7 @@
       "changes": [
         "Initial contract. Synthesised from ARCHITECTURE.md, contract.hardened.json, session-controller.ts, safety.ts, safety-pipeline.ts, llm.ts, prompt.ts, and types/session.ts.",
         "Five structural patterns formalised: Gate, Proportionality, Fail-Closed, Single Responsibility, Minimum Necessary.",
-        "Provider chain defined with OpenAI (primary), Groq (rank 2), Gemini (rank 3).",
+        "Provider routing updated to scenario-aware Ollama-first selection with rare OpenAI lifeguard escalation.",
         "Ten-step pipeline grounded in actual enforcement order from POST /api/v1/session/{id}/message.",
         "Foundation axioms derived from GRID cognition/Pattern similarity calculation and chase simulation."
       ]

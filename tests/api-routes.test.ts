@@ -495,6 +495,99 @@ describe("POST /api/v1/session/[id]/message", () => {
     expect(body.turns_remaining).toBe(1);
     expect(mockGenerateMessageResponse).toHaveBeenCalledTimes(1);
   });
+
+  it("normalizes runtime args and derives routing memory from server-side consent", async () => {
+    seedUser(TEST_USER_ID);
+    seedSession("sess-routing", TEST_USER_ID);
+
+    const storedUser = JSON.parse(
+      mockRedisStore.get(`user:${TEST_USER_ID}`) ?? "{}",
+    ) as {
+      consents?: {
+        routing_memory?: { granted: boolean };
+      };
+    };
+    if (storedUser.consents?.routing_memory) {
+      storedUser.consents.routing_memory.granted = true;
+    }
+    mockRedisStore.set(`user:${TEST_USER_ID}`, JSON.stringify(storedUser));
+
+    const request = new NextRequest(
+      "http://localhost/api/v1/session/sess-routing/message",
+      {
+        method: "POST",
+        headers: {
+          authorization: await makeAuthHeader(),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "please analyze this carefully",
+          history: [
+            { role: "system", content: "drop this" },
+            { role: "assistant", content: "keep this" },
+            { role: "user", content: "x".repeat(3000) },
+          ],
+          deep_read: true,
+          openai_override: "force",
+          allow_routing_memory: false,
+        }),
+      },
+    );
+
+    const response = await sessionMessagePOST(request, {
+      params: Promise.resolve({ id: "sess-routing" }),
+    });
+    expect(response.status).toBe(200);
+
+    expect(mockGenerateMessageResponse).toHaveBeenCalledWith(
+      "please analyze this carefully",
+      [
+        { role: "assistant", content: "keep this" },
+        { role: "user", content: "x".repeat(2000) },
+      ],
+      {
+        user_id: TEST_USER_ID,
+        allow_routing_memory: true,
+        deep_read_override: true,
+        openai_override: "force",
+      },
+    );
+  });
+
+  it("defaults invalid override values to auto", async () => {
+    seedUser(TEST_USER_ID);
+    seedSession("sess-defaults", TEST_USER_ID);
+    const request = new NextRequest(
+      "http://localhost/api/v1/session/sess-defaults/message",
+      {
+        method: "POST",
+        headers: {
+          authorization: await makeAuthHeader(),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "quick pass",
+          openai_override: "sometimes",
+        }),
+      },
+    );
+
+    const response = await sessionMessagePOST(request, {
+      params: Promise.resolve({ id: "sess-defaults" }),
+    });
+    expect(response.status).toBe(200);
+
+    expect(mockGenerateMessageResponse).toHaveBeenCalledWith(
+      "quick pass",
+      [],
+      {
+        user_id: TEST_USER_ID,
+        allow_routing_memory: false,
+        deep_read_override: false,
+        openai_override: "auto",
+      },
+    );
+  });
 });
 
 describe("POST /api/v1/session/[id]/end", () => {

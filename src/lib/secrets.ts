@@ -78,20 +78,6 @@ const SECRET_SPECS: SecretSpec[] = [
     description: "Optional OpenAI lifeguard API key for rare escalation paths",
   },
   {
-    name: "GROQ_API_KEY",
-    required: false,
-    minLength: 20,
-    category: "provider",
-    description: "Groq API key",
-  },
-  {
-    name: "GEMINI_API_KEY",
-    required: false,
-    minLength: 20,
-    category: "provider",
-    description: "Google Gemini API key",
-  },
-  {
     name: "STRIPE_SECRET_KEY",
     required: true,
     minLength: 20,

@@ -56,6 +56,7 @@ npm run dev
 - `npm run lint` - ESLint across the repo
 - `npm run typecheck` - strict TypeScript validation
 - `npm run test` - Vitest suite
+- `npm run test:routing` - focused routing, adapter, and request-contract coverage
 - `npm run test:smoke` - targeted route/configuration smoke coverage
 - `npm run test:coverage` - Vitest with enforced coverage thresholds
 - `npm run build` - production build verification
@@ -132,6 +133,80 @@ npm run dev
 | `GET` | `/api/cron/cleanup` | Automated data cleanup | Bearer token |
 
 **Total API Endpoints**: 14 (13 v1 routes + 1 cron endpoint)
+
+## Runtime Routing Controls
+
+The main message route accepts two tool-facing runtime controls:
+
+| Field | Type | Default | Effect |
+|-------|------|---------|--------|
+| `deep_read` | `boolean` | `false` | Promotes deeper local-model context and token budgets |
+| `openai_override` | `"auto" \| "force" \| "never"` | `"auto"` | Controls rare OpenAI lifeguard escalation |
+
+Notes:
+- `allow_routing_memory` is never accepted from the client. The server derives it from stored consent.
+- Unknown `openai_override` values normalize to `"auto"`.
+- The memory-session placeholder route accepts the same request shape for tooling compatibility, even though it does not yet execute the full router.
+
+### Supported Scenarios
+
+- Default fast help: omit both fields and let the router choose a fast or balanced Ollama model.
+- Deep local analysis: set `deep_read: true` with `openai_override: "auto"` to prefer large Ollama models first.
+- Forced premium rescue: set `deep_read: true` and `openai_override: "force"` to jump straight to the OpenAI lifeguard.
+- Strict local-only mode: set `openai_override: "never"` to block OpenAI escalation even on complex failures.
+
+### API Example
+
+```bash
+curl -X POST "$NEXT_PUBLIC_APP_URL/api/v1/session/$SESSION_ID/message" \
+  -H "Authorization: Bearer $Afloat_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Do a deep read on the architecture trade-offs here.",
+    "history": [
+      { "role": "assistant", "content": "Prior context from the session." }
+    ],
+    "deep_read": true,
+    "openai_override": "auto"
+  }'
+```
+
+### Tooling Example
+
+```ts
+const response = await fetch(`/api/v1/session/${sessionId}/message`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    message: "Do a concise architectural read on this deployment issue.",
+    deep_read: false,
+    openai_override: "never",
+  }),
+});
+```
+
+### Authenticated Ollama Examples
+
+Standard bearer auth:
+
+```bash
+OLLAMA_BASE_URL=https://ollama.example.com
+OLLAMA_API_KEY=replace-with-token
+OLLAMA_AUTH_HEADER=Authorization
+OLLAMA_AUTH_SCHEME=Bearer
+```
+
+Custom header with raw token:
+
+```bash
+OLLAMA_BASE_URL=https://ollama.example.com
+OLLAMA_API_KEY=replace-with-token
+OLLAMA_AUTH_HEADER=X-API-Key
+OLLAMA_AUTH_SCHEME=none
+```
 
 ## Architecture Overview
 
@@ -323,7 +398,8 @@ src/
 ├── components/            # Chat window, input, timer, status
 ├── lib/                   # Server-side logic
 │   ├── session-controller.ts   # Turn + timer enforcement
-│   ├── llm.ts                  # OpenAI wrapper + gate parsing
+│   ├── llm.ts                  # Ollama-first router + rare OpenAI lifeguard
+│   ├── session-message-request.ts # Shared message request normalization
 │   ├── prompt.ts               # System prompt
 │   ├── redis.ts                # Upstash Redis client
 │   ├── auth.ts                 # JWT create/verify

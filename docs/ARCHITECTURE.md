@@ -43,8 +43,8 @@ The system has five distinct layers. Each layer has one job.
 │   Trial: 2 calls·120s / Continuous: 6·1800s     │
 ├─────────────────────────────────────────────────┤
 │                  LLM LAYER                       │
-│   OpenAI gpt-4o-mini · Max 300 tokens/response   │
-│   System prompt: gate detection + brief delivery │
+│   Ollama-first dynamic router                    │
+│   Rare OpenAI lifeguard escalation               │
 ├─────────────────────────────────────────────────┤
 │                 DATA LAYER                       │
 │   JSON session logs · Telemetry · Consent records│
@@ -62,7 +62,7 @@ The system has five distinct layers. Each layer has one job.
 |---|---|---|
 | **Frontend** | Render chat UI, send/receive messages, show session timer | Must work on free-tier Vercel deployment |
 | **Session Controller** | Orchestrate the 4-step session flow, enforce turn + time limits, log telemetry | Server-side enforcement only (client cannot override) |
-| **LLM Layer** | Detect context-gate type, generate proportional brief | ≤ 300 tokens per response, ≤ 3s latency target |
+| **LLM Layer** | Detect context-gate type, generate proportional brief, and select the least-cost capable model | Default to Ollama, keep rare OpenAI escalation available for deep-read rescue cases |
 | **Data Layer** | Store session telemetry, consent records, subscription references | Never stores user text input. Stored in Upstash Redis (sessions, users, audit logs). |
 | **Payment Layer** | Handle trial ($9/qtr) and continuous ($3/hr metered) subscriptions via Stripe Checkout | All PII stays on Stripe. We store `stripe_customer_id`, `subscription_tier`, and optionally `stripe_subscription_item_id`. |
 
@@ -99,22 +99,33 @@ The LLM reads the user's input and classifies which type of context gate is bloc
 | `context_gate_resolution` | User is broadly stuck due to lack of understanding | "I don't understand what's happening in this project" |
 
 **What happens technically:**
-- Session Controller sends user text + system prompt to OpenAI API (`DF-02`)
-- System prompt instructs the LLM to:
-  1. Classify the gate type
-  2. Generate the brief in the same response
-- LLM returns a structured response containing `gate_type` and `brief`
+- Session Controller sends user text + system prompt into the routing layer (`DF-02`)
+- The router derives:
+  1. `task_type`
+  2. `complexity_score`
+  3. `scope` (`fast`, `balanced`, `deep_read`)
+- The router discovers available Ollama models, ranks candidates, and applies consented routing-memory influence when available
+- The selected provider returns a structured response containing `gate_type` and `brief`
 - Session Controller records `gate_type` in telemetry
 - Session Controller records `latency_per_turn[0]` (time from request to response)
 
-**The LLM does steps 2 and 3 in a single API call** to minimize latency. The gate detection is embedded in the response, not a separate round-trip.
+**The LLM still does steps 2 and 3 in a single generation call** to minimize latency. Gate detection remains embedded in the response, not a separate round-trip.
+
+### Runtime routing controls
+
+The public message route accepts two request-time routing controls:
+
+- `deep_read: true` promotes larger context and output budgets on local models
+- `openai_override: "auto" | "force" | "never"` controls the rare OpenAI lifeguard path
+
+`allow_routing_memory` is intentionally server-derived from stored consent and is never accepted from the client.
 
 ### Step 3: Brief Delivery
 
 The brief is shown to the user.
 
 **Brief rules:**
-- Maximum **150 words** (enforced by system prompt instruction + max_tokens=300 as a hard backstop)
+- Maximum **150 words** (enforced by the system prompt; the router also applies scope-dependent output budgets as a hard backstop)
 - Must be **proportional** — just enough to unblock, never more
 - Must be **grounded** — no speculation, no filler
 - Must be **honest** — if the tool doesn't have enough information, it says so
@@ -532,7 +543,7 @@ The safety gradient runs in the message route (`/api/v1/session/[id]/message`) a
 |---|---|---|
 | Frontend (chat UI) | User's browser | Untrusted — all input validated server-side |
 | Session Controller + API routes | Vercel serverless functions | Trusted — server-side only |
-| LLM calls | OpenAI API (external) | Third-party — DPA required |
+| LLM calls | Ollama endpoint by default; OpenAI only for rare lifeguard escalation | Mixed — local/first-party by default, third-party only when escalated |
 | Payment | Stripe (external) | Third-party — PCI-DSS compliant, DPA required |
 | Data storage | Upstash Redis (cloud, US-Central) | Trusted — TLS enforced, encrypted at rest |
 

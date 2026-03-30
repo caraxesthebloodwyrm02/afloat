@@ -114,7 +114,7 @@
 
 | Processor | Service | Data Shared | DPA Status | Transfer Mechanism |
 |-----------|---------|-------------|------------|-------------------|
-| **OpenAI** | LLM inference (gpt-4o-mini) | User text (transient) | Auto-incorporated via API Terms | Standard Contractual Clauses |
+| **Ollama / OpenAI** | LLM inference (local-first; OpenAI only for rare lifeguard escalation) | User text (transient) | Local deployment by default; OpenAI API Terms apply only on escalation | Local processing by default; SCCs when OpenAI is used |
 | **Stripe** | Payment processing | Email, card details, billing | Auto-incorporated via Stripe Agreement | PCI-DSS Level 1 + SCCs |
 | **Vercel** | Application hosting | HTTP requests, logs | Auto-incorporated via Terms of Service | SCCs |
 | **Upstash** | Redis session/data store | All persisted data (pseudonymous) | Auto-incorporated via Terms of Service | Data stored in us-central1 |

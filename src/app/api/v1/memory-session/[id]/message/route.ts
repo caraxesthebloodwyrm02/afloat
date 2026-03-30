@@ -6,8 +6,13 @@ import {
   recordTurn,
   updateSession,
 } from "@/lib/memory-session-store";
+import { normalizeSessionMessageRequestBody } from "@/lib/session-message-request";
 import { getTierLimits } from "@/types/session";
-import type { ApiError, SessionMessageResponse } from "@/types/api";
+import type {
+  ApiError,
+  SessionMessageRequestBody,
+  SessionMessageResponse,
+} from "@/types/api";
 
 export async function POST(
   request: NextRequest,
@@ -31,9 +36,9 @@ export async function POST(
     );
   }
 
-  let body: { message?: string };
+  let body: SessionMessageRequestBody | null;
   try {
-    body = await request.json();
+    body = (await request.json()) as SessionMessageRequestBody;
   } catch {
     return NextResponse.json<ApiError>(
       { error: "empty_input", message: "Invalid request body." },
@@ -41,7 +46,8 @@ export async function POST(
     );
   }
 
-  const userMessage = body.message ?? "";
+  const normalizedRequest = normalizeSessionMessageRequestBody(body);
+  const userMessage = normalizedRequest.message;
 
   const enforcement = enforceSessionLimits(session, userMessage, deadline);
   if (!enforcement.allowed) {

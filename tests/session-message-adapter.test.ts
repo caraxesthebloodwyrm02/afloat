@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockCallLLMWithRetry = vi.fn();
+const routingContext = {
+  user_id: "adapter-user",
+  allow_routing_memory: true,
+  deep_read_override: true,
+  openai_override: "force" as const,
+};
 
 vi.mock("@/lib/llm", () => ({
   callLLMWithRetry: (...args: unknown[]) => mockCallLLMWithRetry(...args),
@@ -28,11 +34,16 @@ describe("session-message-adapter", () => {
       raw: "raw-direct",
     });
 
-    const result = await generateMessageResponse("hello", []);
+    const result = await generateMessageResponse("hello", [], routingContext);
 
     expect(result.brief).toBe("direct");
     expect(result.raw).toBe("raw-direct");
     expect(mockCallLLMWithRetry).toHaveBeenCalledTimes(1);
+    expect(mockCallLLMWithRetry).toHaveBeenCalledWith(
+      "hello",
+      [],
+      routingContext,
+    );
   });
 
   it("uses phase-4 capability branch when enabled", async () => {
@@ -43,11 +54,16 @@ describe("session-message-adapter", () => {
       raw: "raw-enabled",
     });
 
-    const result = await generateMessageResponse("hello", []);
+    const result = await generateMessageResponse("hello", [], routingContext);
 
     expect(result.brief).toBe("enabled");
     expect(result.raw).toBe("[phase4] raw-enabled");
     expect(mockCallLLMWithRetry).toHaveBeenCalledTimes(1);
+    expect(mockCallLLMWithRetry).toHaveBeenCalledWith(
+      "hello",
+      [],
+      routingContext,
+    );
   });
 
   it("falls back safely if capability branch fails", async () => {
@@ -60,10 +76,22 @@ describe("session-message-adapter", () => {
         raw: "raw-fallback",
       });
 
-    const result = await generateMessageResponse("hello", []);
+    const result = await generateMessageResponse("hello", [], routingContext);
 
     expect(result.brief).toBe("fallback");
     expect(result.raw).toBe("raw-fallback");
     expect(mockCallLLMWithRetry).toHaveBeenCalledTimes(2);
+    expect(mockCallLLMWithRetry).toHaveBeenNthCalledWith(
+      1,
+      "hello",
+      [],
+      routingContext,
+    );
+    expect(mockCallLLMWithRetry).toHaveBeenNthCalledWith(
+      2,
+      "hello",
+      [],
+      routingContext,
+    );
   });
 });

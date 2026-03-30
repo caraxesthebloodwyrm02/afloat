@@ -13,6 +13,7 @@ Workspace baseline for shared guardrails and repo hygiene: `E:\Seeds\ECOSYSTEM_B
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run full Vitest suite |
+| `npm run test:routing` | Run routing, adapter, and request-contract coverage |
 | `npm run test:watch` | Run tests in watch mode |
 | `npx vitest run src/path/to/test.test.ts` | Run single test file |
 | `npx vitest run -t "test name"` | Run single test by name |
@@ -41,7 +42,7 @@ Follow this sequence so work is consistent and verifiable. Baseline pattern: [GR
 From Afloat repo root, with dependencies installed (`npm install`), run before writing new code:
 
 ```bash
-npm run test && npm run lint
+npm run test:routing && npm run lint
 ```
 
 ### Session kickoff (example)
@@ -57,7 +58,7 @@ npm run test && npm run lint
 
 ### One-shot verify / Before push
 
-From repo root: `npm run test && npm run lint`. Run after changes and again before pushing.
+From repo root: `npm run lint && npm run typecheck && npm run test:routing && npm run test`. Run after changes and again before pushing.
 
 ### Routines and directory structure
 
@@ -154,7 +155,7 @@ src/
 │   └── subscribe/   # Stripe checkout flow
 ├── components/       # React components
 ├── lib/              # Server-side logic
-│   ├── llm.ts           # Multi-provider LLM fallback
+│   ├── llm.ts           # Ollama-first routing + rare OpenAI lifeguard
 │   ├── session-controller.ts  # Turn/timer enforcement
 │   ├── safety-pipeline.ts     # Unified safety interface
 │   ├── safety.ts        # PII detection, content filtering
@@ -169,11 +170,14 @@ src/
 
 ## Key Patterns
 
-### Multi-Provider LLM Fallback
+### Ollama-First Routing
 
-- `buildProviders()` — registers providers based on env vars (OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY)
-- `callLLMWithFallback()` — tries providers in rank order: OpenAI → Groq → Gemini
-- `classifyError()` — normalizes SDK errors into `LLMError` with reasons: `timeout`, `rate_limited`, `server_error`, `unknown`
+- `callLLMWithFallback()` — derives a routing plan from task type, complexity, and scope
+- `fetchOllamaCatalog()` — discovers local or remote Ollama models via `/api/tags`
+- `selectOllamaCandidates()` — ranks candidates using scope, task, and consented routing-memory influence
+- `buildLLMRoutingContext()` — derives `allow_routing_memory`, `deep_read_override`, and `openai_override` from the server-side request context
+- `classifyError()` — normalizes provider errors into `LLMError` with reasons: `timeout`, `rate_limited`, `server_error`, `unknown`
+- OpenAI is a rare lifeguard only: forced with `openai_override: "force"` or auto-selected only for deep-read, high-complexity failures
 
 ### Session Constraints
 
@@ -215,7 +219,7 @@ Input → Auth → Rate Limit → Session Lock → Pre-Check → PII Detection �
 ### Environment Variables
 
 Required (14 total):
-- `OPENAI_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY` — LLM providers (at least one)
+- `OLLAMA_BASE_URL` — Ollama endpoint
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Session store
 - `JWT_SECRET`, `PROVENANCE_SIGNING_KEY` — Auth (must differ)
 - `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `STRIPE_CONTINUOUS_PRICE_ID`, `STRIPE_METER_EVENT_NAME` — Payment
@@ -223,6 +227,28 @@ Required (14 total):
 - `NEXT_PUBLIC_APP_URL` — App URL
 - `PHASE4_MESSAGE_CAPABILITY_ENABLED` — Feature flag
 - `ALLOWED_CALLERS` — Access control allowlist (optional; comma-separated user_ids)
+
+---
+
+Optional routing env vars:
+- `OLLAMA_API_KEY`, `OLLAMA_AUTH_HEADER`, `OLLAMA_AUTH_SCHEME` — Authenticated Ollama gateways
+- `OPENAI_API_KEY` — Rare OpenAI lifeguard escalation
+- `OPENAI_LIFEGUARD_ENABLED`, `OPENAI_LIFEGUARD_MODEL` — Lifeguard warnings and model override
+
+Runtime message args for agents and tooling:
+- `deep_read: boolean` — Prefer deeper local-model analysis
+- `openai_override: "auto" | "force" | "never"` — Escalation policy
+- `allow_routing_memory` is never caller-controlled; it is derived from server-side consent
+
+Example:
+
+```json
+{
+  "message": "Do a deep read on the deployment trade-offs.",
+  "deep_read": true,
+  "openai_override": "auto"
+}
+```
 
 ---
 

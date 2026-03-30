@@ -14,6 +14,27 @@ export interface ApiError {
   message: string;
 }
 
+export type SessionMessageHistoryEntry = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type OpenAIOverridePolicy = "auto" | "force" | "never";
+
+export interface SessionMessageRequestBody {
+  message?: string;
+  history?: SessionMessageHistoryEntry[];
+  deep_read?: boolean;
+  openai_override?: OpenAIOverridePolicy;
+}
+
+export interface NormalizedSessionMessageRequest {
+  message: string;
+  history: SessionMessageHistoryEntry[];
+  deep_read: boolean;
+  openai_override: OpenAIOverridePolicy;
+}
+
 export interface SessionStartResponse {
   session_id: string;
   tier: string;
