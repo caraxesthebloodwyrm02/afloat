@@ -248,7 +248,6 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
 
     const rateLimitError = new OpenAI.APIError(429, {} as Record<string, never>, "API Error", {} as Headers);
 
-    const rateLimitError = new OpenAI.APIError(429);
 
 
     mocks.openaiCreate.mockRejectedValueOnce(rateLimitError);
@@ -270,7 +269,6 @@ describe("callLLMWithFallback Multi-Provider Routing", () => {
 
     const serverError = new OpenAI.APIError(500, {} as Record<string, never>, "API Error", {} as Headers);
 
-    const serverError = new OpenAI.APIError(500);
 
 
     vi.spyOn(global, "setTimeout").mockImplementation(((cb: () => void, ms?: number) => {
