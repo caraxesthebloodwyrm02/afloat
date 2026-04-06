@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-6">
@@ -26,7 +28,9 @@ export default function Home() {
             </li>
             <li className="flex gap-3">
               <span className="text-zinc-300 mt-0.5">03</span>
-              <span>You get a short, honest brief — just enough to unblock</span>
+              <span>
+                You get a short, honest brief — just enough to unblock
+              </span>
             </li>
             <li className="flex gap-3">
               <span className="text-zinc-300 mt-0.5">04</span>
@@ -47,11 +51,17 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="pt-4 border-t border-zinc-100">
+        <div className="pt-4 border-t border-zinc-100 space-y-2">
           <p className="text-xs text-zinc-400">
             Meeting triage &middot; Priority decisions &middot; Quick briefings
             &middot; Context gate resolution
           </p>
+          <Link
+            href="/case-study"
+            className="text-xs text-zinc-400 hover:text-zinc-600 underline transition-colors"
+          >
+            How it&apos;s built — engineering case study
+          </Link>
         </div>
       </div>
     </div>
