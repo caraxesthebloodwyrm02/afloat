@@ -27,12 +27,12 @@ repos:
         name: Check for merge conflicts
       - id: no-commit-to-branch
         name: Protect main branch
-        args: ["--branch", "main"]
+        args: ['--branch', 'main']
       - id: detect-private-key
         name: Detect private keys
       - id: detect-aws-credentials
         name: Detect AWS credentials
-        args: ["--allow-missing-credentials"]
+        args: ['--allow-missing-credentials']
       - id: mixed-line-ending
         name: Fix mixed line endings
         args: [--fix=lf]
@@ -44,12 +44,12 @@ repos:
       - id: detect-secrets
         name: Detect hardcoded secrets
         args:
-          - "--exclude-files"
-          - ".*test.*|.*fixture.*|.*mock.*"
-          - "--base64-limit"
-          - "4.5"
-          - "--hex-limit"
-          - "3.0"
+          - '--exclude-files'
+          - '.*test.*|.*fixture.*|.*mock.*'
+          - '--base64-limit'
+          - '4.5'
+          - '--hex-limit'
+          - '3.0'
         exclude: |
           (?x)^(
             .*\.lock$|
@@ -64,5 +64,5 @@ repos:
 # CONFIGURATION
 # ============================================================================
 fail_fast: false
-minimum_pre_commit_version: "3.0.0"
+minimum_pre_commit_version: '3.0.0'
 default_stages: [commit, push]
