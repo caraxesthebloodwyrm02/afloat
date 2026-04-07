@@ -1,13 +1,17 @@
 export type ApiErrorCode =
-  | "session_complete"
-  | "session_timeout"
-  | "empty_input"
-  | "llm_error"
-  | "rate_limit"
-  | "unauthorized"
-  | "not_found"
-  | "forbidden"
-  | "server_error";
+  | 'session_complete'
+  | 'session_timeout'
+  | 'empty_input'
+  | 'llm_error'
+  | 'rate_limit'
+  | 'unauthorized'
+  | 'not_found'
+  | 'forbidden'
+  | 'server_error'
+  | 'trial_exhausted'
+  | 'daily_limit'
+  | 'not_available'
+  | 'bad_request';
 
 export interface ApiError {
   error: ApiErrorCode;
@@ -15,11 +19,11 @@ export interface ApiError {
 }
 
 export type SessionMessageHistoryEntry = {
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
 };
 
-export type OpenAIOverridePolicy = "auto" | "force" | "never";
+export type OpenAIOverridePolicy = 'auto' | 'force' | 'never';
 
 export interface SessionMessageRequestBody {
   message?: string;
@@ -45,7 +49,7 @@ export interface SessionStartResponse {
 export interface SessionMessageResponse {
   gate_type: string;
   brief: string;
-  session_status: "active" | "complete";
+  session_status: 'active' | 'complete';
   turns_remaining: number;
 }
 
@@ -55,7 +59,7 @@ export interface SessionEndResponse {
 }
 
 export interface HealthResponse {
-  status: "ok";
+  status: 'ok';
   timestamp: string;
   version: string;
 }

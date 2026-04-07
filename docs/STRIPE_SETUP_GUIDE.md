@@ -9,6 +9,7 @@
 ## Prerequisites
 
 Before starting, you need:
+
 - A Stripe account at [dashboard.stripe.com](https://dashboard.stripe.com)
 - Access to your Vercel project's environment variable settings
 - The deployed app URL (e.g., `https://afloat.vercel.app`)
@@ -22,15 +23,15 @@ Before starting, you need:
 
 The app requires these environment variables to function at all. If any are missing, API routes will return 500 before Stripe is ever reached. Set these in Vercel **before** starting Stripe configuration.
 
-| Variable | Required by | Where to get it |
-|----------|-------------|-----------------|
-| `OPENAI_API_KEY` | LLM layer (`src/lib/llm.ts`) | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| `UPSTASH_REDIS_REST_URL` | Session store, rate limiting, audit, data layer | [console.upstash.com](https://console.upstash.com) — create a Redis database |
-| `UPSTASH_REDIS_REST_TOKEN` | Same as above | Same Upstash database credentials page |
-| `JWT_SECRET` | Auth token creation (`src/lib/auth.ts`) | Generate: `openssl rand -base64 32` |
-| `PROVENANCE_SIGNING_KEY` | Provenance chain (must differ from JWT_SECRET) | Generate: `openssl rand -base64 32` |
-| `NEXT_PUBLIC_APP_URL` | Subscribe route redirect URLs | Your deployed URL, e.g., `https://afloat.vercel.app` |
-| `CRON_SECRET` | Auto-deletion cron job auth (`src/app/api/cron/cleanup/route.ts`) | Generate: `openssl rand -base64 32` — also set in Vercel Cron config |
+| Variable                   | Required by                                                       | Where to get it                                                              |
+| -------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`           | LLM layer (`src/lib/llm.ts`)                                      | [platform.openai.com/api-keys](https://platform.openai.com/api-keys)         |
+| `UPSTASH_REDIS_REST_URL`   | Session store, rate limiting, audit, data layer                   | [console.upstash.com](https://console.upstash.com) — create a Redis database |
+| `UPSTASH_REDIS_REST_TOKEN` | Same as above                                                     | Same Upstash database credentials page                                       |
+| `JWT_SECRET`               | Auth token creation (`src/lib/auth.ts`)                           | Generate: `openssl rand -base64 32`                                          |
+| `PROVENANCE_SIGNING_KEY`   | Provenance chain (must differ from JWT_SECRET)                    | Generate: `openssl rand -base64 32`                                          |
+| `NEXT_PUBLIC_APP_URL`      | Subscribe route redirect URLs                                     | Your deployed URL, e.g., `https://afloat.vercel.app`                         |
+| `CRON_SECRET`              | Auto-deletion cron job auth (`src/app/api/cron/cleanup/route.ts`) | Generate: `openssl rand -base64 32` — also set in Vercel Cron config         |
 
 > **Security note:** If `CRON_SECRET` is not set, the cron cleanup route returns 500 (fail-closed). This is intentional — see the auth bypass fix in the cron route.
 
@@ -58,10 +59,10 @@ The app requires these environment variables to function at all. If any are miss
 
 **Record these values — you will need them in Phase 4.**
 
-| Key | Env var | Example prefix | Used by code? |
-|-----|---------|----------------|---------------|
-| Secret key | `STRIPE_SECRET_KEY` | `sk_test_` | Yes — `src/lib/stripe.ts` (all Stripe API calls) |
-| Publishable key | `STRIPE_PUBLISHABLE_KEY` | `pk_test_` | **No** — collected for completeness only. Afloat uses server-side Checkout redirects, so no client-side Stripe.js is loaded. Retained in `.env.example` for future use (e.g., Stripe Elements). |
+| Key             | Env var                  | Example prefix | Used by code?                                                                                                                                                                                   |
+| --------------- | ------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Secret key      | `STRIPE_SECRET_KEY`      | `sk_test_`     | Yes — `src/lib/stripe.ts` (all Stripe API calls)                                                                                                                                                |
+| Publishable key | `STRIPE_PUBLISHABLE_KEY` | `pk_test_`     | **No** — collected for completeness only. Afloat uses server-side Checkout redirects, so no client-side Stripe.js is loaded. Retained in `.env.example` for future use (e.g., Stripe Elements). |
 
 ---
 
@@ -90,11 +91,11 @@ The app requires these environment variables to function at all. If any are miss
 3. Click **Save price** (or **Add price**)
 4. Copy the **Price ID** (starts with `price_`)
 
-| Field | Value | Why |
-|-------|-------|-----|
-| Amount | $9.00 | $3/month effective, billed quarterly to reduce Stripe fee drag (6.2% vs 12.9%) |
-| Interval | 3 months | Per contract v1.6.0 `payment_layer.plan.trial` |
-| Usage type | Licensed (default) | Flat recurring, not metered |
+| Field      | Value              | Why                                                                            |
+| ---------- | ------------------ | ------------------------------------------------------------------------------ |
+| Amount     | $9.00              | $3/month effective, billed quarterly to reduce Stripe fee drag (6.2% vs 12.9%) |
+| Interval   | 3 months           | Per contract v1.6.0 `payment_layer.plan.trial`                                 |
+| Usage type | Licensed (default) | Flat recurring, not metered                                                    |
 
 **Record this Price ID as `STRIPE_PRICE_ID`.**
 
@@ -129,11 +130,11 @@ The app requires these environment variables to function at all. If any are miss
 4. Click **Save price**
 5. Copy the **Price ID** (starts with `price_`)
 
-| Field | Value | Why |
-|-------|-------|-----|
-| Amount per unit | $0.05/minute | $3/hour ÷ 60 = $0.05/min. Stripe meters report in integer units. |
-| Meter | afloat_session_minutes | Matches `reportUsage()` in `src/lib/stripe.ts` |
-| Billing period | Monthly | Metered usage aggregated and billed monthly |
+| Field           | Value                  | Why                                                              |
+| --------------- | ---------------------- | ---------------------------------------------------------------- |
+| Amount per unit | $0.05/minute           | $3/hour ÷ 60 = $0.05/min. Stripe meters report in integer units. |
+| Meter           | afloat_session_minutes | Matches `reportUsage()` in `src/lib/stripe.ts`                   |
+| Billing period  | Monthly                | Metered usage aggregated and billed monthly                      |
 
 > **Billing floor:** The session end route uses `Math.max(1, Math.ceil(durationMs / 60_000))` to compute usage minutes. This means a 10-second test session still reports **1 minute** ($0.05) of metered usage. This is the minimum billing unit — there is no zero-usage report. Keep this in mind during verification (Step 5.4).
 
@@ -159,12 +160,12 @@ The app requires these environment variables to function at all. If any are miss
 
 Select exactly these 4 event types:
 
-| Event | Why | Code handler |
-|-------|-----|--------------|
-| `checkout.session.completed` | Creates user account, detects tier | `webhook/stripe/route.ts:55` |
-| `invoice.paid` | Marks subscription active on renewal | `webhook/stripe/route.ts:109` |
-| `invoice.payment_failed` | Marks subscription past_due | `webhook/stripe/route.ts:120` |
-| `customer.subscription.deleted` | Marks subscription canceled | `webhook/stripe/route.ts:131` |
+| Event                           | Why                                  | Code handler                  |
+| ------------------------------- | ------------------------------------ | ----------------------------- |
+| `checkout.session.completed`    | Creates user account, detects tier   | `webhook/stripe/route.ts:55`  |
+| `invoice.paid`                  | Marks subscription active on renewal | `webhook/stripe/route.ts:109` |
+| `invoice.payment_failed`        | Marks subscription past_due          | `webhook/stripe/route.ts:120` |
+| `customer.subscription.deleted` | Marks subscription canceled          | `webhook/stripe/route.ts:131` |
 
 > **Why only these 4?** The webhook handler has a `switch` statement that only processes these events. Extra events would be received but ignored, adding unnecessary webhook traffic and potential confusion during debugging.
 
@@ -189,14 +190,14 @@ Select exactly these 4 event types:
 
 Go to your Vercel project > **Settings > Environment Variables** and add:
 
-| Variable | Value | Scope |
-|----------|-------|-------|
-| `STRIPE_SECRET_KEY` | `sk_test_...` (from Step 1.2) | Production, Preview, Development |
-| `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` (from Step 1.2) | Production, Preview, Development |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_...` (from Step 3.3) | Production only |
-| `STRIPE_PRICE_ID` | `price_...` (from Step 2.2 — trial) | Production, Preview, Development |
+| Variable                     | Value                                    | Scope                            |
+| ---------------------------- | ---------------------------------------- | -------------------------------- |
+| `STRIPE_SECRET_KEY`          | `sk_test_...` (from Step 1.2)            | Production, Preview, Development |
+| `STRIPE_PUBLISHABLE_KEY`     | `pk_test_...` (from Step 1.2)            | Production, Preview, Development |
+| `STRIPE_WEBHOOK_SECRET`      | `whsec_...` (from Step 3.3)              | Production only                  |
+| `STRIPE_PRICE_ID`            | `price_...` (from Step 2.2 — trial)      | Production, Preview, Development |
 | `STRIPE_CONTINUOUS_PRICE_ID` | `price_...` (from Step 2.4 — continuous) | Production, Preview, Development |
-| `STRIPE_METER_EVENT_NAME` | `afloat_session_minutes` | Production, Preview, Development |
+| `STRIPE_METER_EVENT_NAME`    | `afloat_session_minutes`                 | Production, Preview, Development |
 
 > **Security note:** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` should **never** appear in client-side code. They are only used in server-side API routes (`src/lib/stripe.ts`, `src/app/api/v1/webhooks/stripe/route.ts`). The code does not expose these to the client.
 
@@ -218,6 +219,7 @@ STRIPE_METER_EVENT_NAME=afloat_session_minutes
 ### Step 4.3 — Redeploy
 
 After setting all environment variables in Vercel, trigger a redeployment:
+
 - Push any commit, or
 - Go to Vercel > Deployments > click **Redeploy** on the latest deployment
 
@@ -241,6 +243,7 @@ After setting all environment variables in Vercel, trigger a redeployment:
 10. Verify in Stripe dashboard: **Customers** shows a new customer with an active $9/3mo subscription
 
 **Verify webhook delivery:**
+
 - Check **Developers > Webhooks > [your endpoint] > Recent deliveries** — should show 200 response for `checkout.session.completed`
 
 > **Note:** If you skip `/consent` and go directly to `/chat`, sessions will work but telemetry won't be written (because `session_telemetry.granted` defaults to `false`). This is correct behavior, not a bug.
@@ -272,11 +275,11 @@ If the session shows trial-tier limits (2 min, 2 turns) for a continuous subscri
 
 **Common failures:**
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| 401 "Invalid webhook signature" | Wrong `STRIPE_WEBHOOK_SECRET` | Re-copy from webhook endpoint page |
-| 500 | Missing other env vars (`UPSTASH_REDIS_*`, `JWT_SECRET`, etc.) | Set all Phase 0 env vars in Vercel |
-| Timeout | Cold start on Vercel free tier | Retry — Stripe auto-retries up to 3 times; idempotency guard prevents duplicates |
+| Symptom                         | Cause                                                          | Fix                                                                              |
+| ------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 401 "Invalid webhook signature" | Wrong `STRIPE_WEBHOOK_SECRET`                                  | Re-copy from webhook endpoint page                                               |
+| 500                             | Missing other env vars (`UPSTASH_REDIS_*`, `JWT_SECRET`, etc.) | Set all Phase 0 env vars in Vercel                                               |
+| Timeout                         | Cold start on Vercel free tier                                 | Retry — Stripe auto-retries up to 3 times; idempotency guard prevents duplicates |
 
 ### Step 5.4 — Metered usage reporting verification
 
@@ -328,12 +331,12 @@ Verify the invoice line item shows metered usage quantity and correct per-unit p
 
 Replace ALL test-mode values in Vercel with live-mode values:
 
-| Variable | Change from | Change to |
-|----------|-------------|-----------|
-| `STRIPE_SECRET_KEY` | `sk_test_...` | `sk_live_...` |
-| `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` | `pk_live_...` |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_...` (test) | `whsec_...` (live) |
-| `STRIPE_PRICE_ID` | `price_...` (test trial) | `price_...` (live trial) |
+| Variable                     | Change from                   | Change to                     |
+| ---------------------------- | ----------------------------- | ----------------------------- |
+| `STRIPE_SECRET_KEY`          | `sk_test_...`                 | `sk_live_...`                 |
+| `STRIPE_PUBLISHABLE_KEY`     | `pk_test_...`                 | `pk_live_...`                 |
+| `STRIPE_WEBHOOK_SECRET`      | `whsec_...` (test)            | `whsec_...` (live)            |
+| `STRIPE_PRICE_ID`            | `price_...` (test trial)      | `price_...` (live trial)      |
 | `STRIPE_CONTINUOUS_PRICE_ID` | `price_...` (test continuous) | `price_...` (live continuous) |
 
 > `STRIPE_METER_EVENT_NAME` stays the same (`afloat_session_minutes`).
@@ -362,7 +365,7 @@ After the first real subscription payment, update `contract.json` ledger.
   "date": "<ISO-8601 timestamp>",
   "type": "revenue",
   "category": "subscription",
-  "amount_usd": 9.00,
+  "amount_usd": 9.0,
   "description": "Trial tier subscription — quarterly billing (customer #N)",
   "running_gross_total": "<previous + 9.00>",
   "running_cost_total": "<previous + 0.561>",
@@ -410,34 +413,34 @@ Stripe fee for continuous: `$0.30 + 2.9% × <invoice amount>`. Read the actual f
 
 ## Quick Reference Card
 
-| Item | Value | Source |
-|------|-------|--------|
-| Trial price | $9.00 / 3 months | `STRIPE_PRICE_ID` |
-| Continuous price | $0.05 / minute ($3/hr) | `STRIPE_CONTINUOUS_PRICE_ID` |
-| Meter event name | `afloat_session_minutes` | `STRIPE_METER_EVENT_NAME` |
-| Webhook URL | `https://<app>/api/v1/webhooks/stripe` | `src/app/api/v1/webhooks/stripe/route.ts` |
-| Webhook events | `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted` | — |
-| Stripe fee (trial) | $0.561 per quarterly charge | $0.30 + 2.9% of $9.00 |
-| Stripe fee (continuous) | $0.30 + 2.9% of metered invoice | Variable per billing cycle |
-| Minimum metered unit | 1 minute ($0.05) | `Math.max(1, Math.ceil(durationMs / 60_000))` |
-| Test card | `4242 4242 4242 4242` | Stripe docs |
-| Total env vars needed | 13 (7 non-Stripe + 6 Stripe) | `.env.example` |
+| Item                    | Value                                                                                                   | Source                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Trial price             | $9.00 / 3 months                                                                                        | `STRIPE_PRICE_ID`                             |
+| Continuous price        | $0.05 / minute ($3/hr)                                                                                  | `STRIPE_CONTINUOUS_PRICE_ID`                  |
+| Meter event name        | `afloat_session_minutes`                                                                                | `STRIPE_METER_EVENT_NAME`                     |
+| Webhook URL             | `https://<app>/api/v1/webhooks/stripe`                                                                  | `src/app/api/v1/webhooks/stripe/route.ts`     |
+| Webhook events          | `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted` | —                                             |
+| Stripe fee (trial)      | $0.561 per quarterly charge                                                                             | $0.30 + 2.9% of $9.00                         |
+| Stripe fee (continuous) | $0.30 + 2.9% of metered invoice                                                                         | Variable per billing cycle                    |
+| Minimum metered unit    | 1 minute ($0.05)                                                                                        | `Math.max(1, Math.ceil(durationMs / 60_000))` |
+| Test card               | `4242 4242 4242 4242`                                                                                   | Stripe docs                                   |
+| Total env vars needed   | 13 (7 non-Stripe + 6 Stripe)                                                                            | `.env.example`                                |
 
 ---
 
 ## Troubleshooting
 
-| Problem | Diagnostic | Resolution |
-|---------|-----------|------------|
-| 500 on any route before Stripe | Missing Phase 0 env vars | Check `UPSTASH_REDIS_*`, `JWT_SECRET`, `NEXT_PUBLIC_APP_URL`, `PROVENANCE_SIGNING_KEY` are set |
-| "Payment not configured" on subscribe | Missing `STRIPE_PRICE_ID` or `STRIPE_CONTINUOUS_PRICE_ID` | Set env vars in Vercel, redeploy |
-| Webhook returns 401 | `STRIPE_WEBHOOK_SECRET` mismatch | Re-copy signing secret from Stripe dashboard |
-| User created but wrong tier | `STRIPE_CONTINUOUS_PRICE_ID` env var not set or mismatched | Webhook defaults to trial when it can't detect tier. Verify the env var matches the live/test continuous price ID exactly |
-| Metered usage not appearing | Meter event name mismatch | Ensure `STRIPE_METER_EVENT_NAME=afloat_session_minutes` matches Stripe meter exactly |
-| Metered test shows 1 min for short session | Expected — billing floor | `Math.max(1, ...)` ensures minimum 1-minute report |
-| Subscription shows $0 invoice | Normal for metered tier | First invoice is $0; usage is billed in arrears at end of billing cycle |
-| Webhook timeout on Vercel | Serverless cold start | Stripe auto-retries; idempotency in webhook handler prevents duplicates |
-| Cron cleanup returns 500 | `CRON_SECRET` not set | Set `CRON_SECRET` env var — route fails closed when secret is missing |
+| Problem                                    | Diagnostic                                                 | Resolution                                                                                                                |
+| ------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 500 on any route before Stripe             | Missing Phase 0 env vars                                   | Check `UPSTASH_REDIS_*`, `JWT_SECRET`, `NEXT_PUBLIC_APP_URL`, `PROVENANCE_SIGNING_KEY` are set                            |
+| "Payment not configured" on subscribe      | Missing `STRIPE_PRICE_ID` or `STRIPE_CONTINUOUS_PRICE_ID`  | Set env vars in Vercel, redeploy                                                                                          |
+| Webhook returns 401                        | `STRIPE_WEBHOOK_SECRET` mismatch                           | Re-copy signing secret from Stripe dashboard                                                                              |
+| User created but wrong tier                | `STRIPE_CONTINUOUS_PRICE_ID` env var not set or mismatched | Webhook defaults to trial when it can't detect tier. Verify the env var matches the live/test continuous price ID exactly |
+| Metered usage not appearing                | Meter event name mismatch                                  | Ensure `STRIPE_METER_EVENT_NAME=afloat_session_minutes` matches Stripe meter exactly                                      |
+| Metered test shows 1 min for short session | Expected — billing floor                                   | `Math.max(1, ...)` ensures minimum 1-minute report                                                                        |
+| Subscription shows $0 invoice              | Normal for metered tier                                    | First invoice is $0; usage is billed in arrears at end of billing cycle                                                   |
+| Webhook timeout on Vercel                  | Serverless cold start                                      | Stripe auto-retries; idempotency in webhook handler prevents duplicates                                                   |
+| Cron cleanup returns 500                   | `CRON_SECRET` not set                                      | Set `CRON_SECRET` env var — route fails closed when secret is missing                                                     |
 
 ---
 

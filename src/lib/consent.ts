@@ -1,6 +1,6 @@
-import type { UserConsents, ConsentGrant } from "@/types/user";
+import type { UserConsents, ConsentGrant } from '@/types/user';
 
-const CURRENT_POLICY_VERSION = "v1.0";
+const CURRENT_POLICY_VERSION = 'v1.0';
 
 export function createDefaultConsents(
   essentialProcessing: boolean,

@@ -11,7 +11,7 @@
 - **Milestones** are sequential. Each one depends on the previous passing its quality gate.
 - **Quality Gate** at the end of every milestone is mandatory. It is the only exit condition.
 - **Pause Triggers** are explicit. If any trigger fires, all work stops until resolved.
-- **Baseline References** (REQ-*) tie back to `baseline.txt` §6.0 Incident Anchor Matrix.
+- **Baseline References** (REQ-\*) tie back to `baseline.txt` §6.0 Incident Anchor Matrix.
 
 ---
 
@@ -19,29 +19,31 @@
 
 Work stops immediately if any of these occur. Resume only after the root cause is addressed.
 
-| # | Trigger | Resolution |
-|---|---------|------------|
-| P1 | Any existing test fails after a change | Revert or fix before continuing |
-| P2 | New code contradicts a baseline §1–§4 property | Reconcile with baseline, update baseline version if intentional |
-| P3 | Lint errors introduced | Fix before commit |
-| P4 | Build breaks | Fix before any other work |
-| P5 | Ephemeral stream property violated (history persisted to store) | Immediate revert — REQ-A5 is non-negotiable |
-| P6 | Auth bypass discovered (any route accessible without valid JWT) | Immediate fix — REQ-B1 is non-negotiable |
-| P7 | Scope creep — feature work starts without test probes written first | Stop. Write probes. Then resume. |
+| #   | Trigger                                                             | Resolution                                                      |
+| --- | ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| P1  | Any existing test fails after a change                              | Revert or fix before continuing                                 |
+| P2  | New code contradicts a baseline §1–§4 property                      | Reconcile with baseline, update baseline version if intentional |
+| P3  | Lint errors introduced                                              | Fix before commit                                               |
+| P4  | Build breaks                                                        | Fix before any other work                                       |
+| P5  | Ephemeral stream property violated (history persisted to store)     | Immediate revert — REQ-A5 is non-negotiable                     |
+| P6  | Auth bypass discovered (any route accessible without valid JWT)     | Immediate fix — REQ-B1 is non-negotiable                        |
+| P7  | Scope creep — feature work starts without test probes written first | Stop. Write probes. Then resume.                                |
 
 ---
 
 ## Milestone 1 — Technical Baseline (COMPLETE)
 
-*Established the foundation. All work below builds on this.*
+_Established the foundation. All work below builds on this._
 
 **What shipped:**
+
 - Follow-up context via client-echoed history (REQ-A1–A5)
 - Provenance authorization after session deletion (REQ-B1–B6)
 - Portable export contract (REQ-C1–C5)
 - 16 baseline probes + 20 existing API/unit tests = 107/107
 
 **Quality Gate:** PASSED
+
 - 107/107 tests | 0 lint errors | clean build
 - `baseline.txt` v1.0.0 ratified
 
@@ -49,7 +51,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ## Milestone 2 — Response Quality Foundation
 
-*The system prompt defines what Afloat does. This milestone makes that definition testable and tightens it.*
+_The system prompt defines what Afloat does. This milestone makes that definition testable and tightens it._
 
 **Goal:** Ensure every response the LLM produces is short, direct, gate-typed, and contains no filler. This is the product's core differentiator — responses that don't waste people's time.
 
@@ -74,15 +76,16 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ### 2.3 Write probes (before any code)
 
-| Probe | What it tests | Pass criteria |
-|-------|--------------|---------------|
-| REQ-D1 | Gate tag present in LLM response | Response contains `[GATE: ...]` |
-| REQ-D2 | Gate type is one of the 4 defined types or `out_of_scope` | Enum validation |
-| REQ-D3 | Response word count ≤ 150 | `split(/\s+/).length <= 150` |
-| REQ-D4 | No open-ended follow-up question in response | Does not end with `?` after the brief |
-| REQ-D5 | Prompt token count stays under 500 | Tokenizer check on SYSTEM_PROMPT |
+| Probe  | What it tests                                             | Pass criteria                         |
+| ------ | --------------------------------------------------------- | ------------------------------------- |
+| REQ-D1 | Gate tag present in LLM response                          | Response contains `[GATE: ...]`       |
+| REQ-D2 | Gate type is one of the 4 defined types or `out_of_scope` | Enum validation                       |
+| REQ-D3 | Response word count ≤ 150                                 | `split(/\s+/).length <= 150`          |
+| REQ-D4 | No open-ended follow-up question in response              | Does not end with `?` after the brief |
+| REQ-D5 | Prompt token count stays under 500                        | Tokenizer check on SYSTEM_PROMPT      |
 
 ### Quality Gate
+
 - 153 existing + new D-series probes all pass
 - 0 lint errors, clean build
 - No baseline §1–§4 properties changed
@@ -91,7 +94,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ## Milestone 3 — Session Depth & Tier System (COMPLETE)
 
-*Introduced a two-tier subscription system (trial + continuous) with configurable session limits, metered billing, and safety gradient.*
+_Introduced a two-tier subscription system (trial + continuous) with configurable session limits, metered billing, and safety gradient._
 
 **Goal:** Make session limits configurable per-tier, add continuous tier with metered billing, and implement safety guardrails proportional to capability.
 
@@ -127,21 +130,22 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ### 3.5 Probes
 
-| Probe | What it tests | Pass criteria |
-|-------|--------------|---------------|
-| REQ-T1 | Trial tier max calls | `getTierLimits("trial").maxLlmCalls === 2` |
-| REQ-T2 | Trial tier duration | `getTierLimits("trial").maxDurationMs === 120_000` |
-| REQ-T3 | Unknown tier fallback | `getTierLimits("unknown")` equals trial |
-| REQ-T4 | Continuous tier calls | `maxLlmCalls === 6` |
-| REQ-T5 | Continuous tier duration | `maxDurationMs === 1_800_000` |
-| REQ-T6 | Exhaustion 409 at trial boundary | Status 409 at `llm_call_count=2` |
-| REQ-T7 | Exhaustion 409 at continuous boundary | Status 409 at `llm_call_count=6` |
-| REQ-T8 | Ephemeral stream for continuous | History not persisted (REQ-A5) |
-| REQ-SF1 | Trial passes safety gradient | `allowed: true` |
-| REQ-SF2 | Continuous blocks rapid-fire | `allowed: false` when <5s gap |
-| REQ-SF3 | Fail-closed on error | `allowed: false` |
+| Probe   | What it tests                         | Pass criteria                                      |
+| ------- | ------------------------------------- | -------------------------------------------------- |
+| REQ-T1  | Trial tier max calls                  | `getTierLimits("trial").maxLlmCalls === 2`         |
+| REQ-T2  | Trial tier duration                   | `getTierLimits("trial").maxDurationMs === 120_000` |
+| REQ-T3  | Unknown tier fallback                 | `getTierLimits("unknown")` equals trial            |
+| REQ-T4  | Continuous tier calls                 | `maxLlmCalls === 6`                                |
+| REQ-T5  | Continuous tier duration              | `maxDurationMs === 1_800_000`                      |
+| REQ-T6  | Exhaustion 409 at trial boundary      | Status 409 at `llm_call_count=2`                   |
+| REQ-T7  | Exhaustion 409 at continuous boundary | Status 409 at `llm_call_count=6`                   |
+| REQ-T8  | Ephemeral stream for continuous       | History not persisted (REQ-A5)                     |
+| REQ-SF1 | Trial passes safety gradient          | `allowed: true`                                    |
+| REQ-SF2 | Continuous blocks rapid-fire          | `allowed: false` when <5s gap                      |
+| REQ-SF3 | Fail-closed on error                  | `allowed: false`                                   |
 
 ### Quality Gate
+
 - All existing + T-series + SF-series probes pass
 - §4.0 baseline values unchanged for trial tier
 - 0 lint errors, clean build
@@ -150,7 +154,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ## Milestone 4 — Data Retention & Cleanup
 
-*The audit identified a gap: no automated retention/deletion scheduler exists.*
+_The audit identified a gap: no automated retention/deletion scheduler exists._
 
 **Goal:** Implement session TTL enforcement and user data deletion that runs automatically.
 
@@ -171,15 +175,16 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ### 4.3 Write probes (before any code)
 
-| Probe | What it tests | Pass criteria |
-|-------|--------------|---------------|
-| REQ-F1 | Expired session key is not retrievable | `getSession` returns null after TTL |
-| REQ-F2 | DPR chain survives session deletion | Chain retrievable, actor_id present |
-| REQ-F3 | User deletion removes profile data | `getUserData` returns null |
-| REQ-F4 | User deletion preserves DPR chain integrity | Chain verification still passes |
-| REQ-F5 | Export after deletion returns empty but valid structure | ZIP valid, session_logs = [] |
+| Probe  | What it tests                                           | Pass criteria                       |
+| ------ | ------------------------------------------------------- | ----------------------------------- |
+| REQ-F1 | Expired session key is not retrievable                  | `getSession` returns null after TTL |
+| REQ-F2 | DPR chain survives session deletion                     | Chain retrievable, actor_id present |
+| REQ-F3 | User deletion removes profile data                      | `getUserData` returns null          |
+| REQ-F4 | User deletion preserves DPR chain integrity             | Chain verification still passes     |
+| REQ-F5 | Export after deletion returns empty but valid structure | ZIP valid, session_logs = []        |
 
 ### Quality Gate
+
 - All existing + F-series probes pass
 - §2.2 ownership property verified for post-deletion scenario
 - 0 lint errors, clean build
@@ -188,7 +193,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ## Milestone 5 — Observability
 
-*You can't improve what you can't measure. This milestone adds structured logging and metrics.*
+_You can't improve what you can't measure. This milestone adds structured logging and metrics._
 
 **Goal:** Know what's happening in production without guessing.
 
@@ -208,13 +213,14 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ### 5.3 Write probes (before any code)
 
-| Probe | What it tests | Pass criteria |
-|-------|--------------|---------------|
-| REQ-G1 | Log entry contains required fields | path, status, duration, gate_type present |
-| REQ-G2 | Log entry does not contain message content | No `message` or `history` field |
-| REQ-G3 | Log entry does not contain raw user_id | Only hashed form |
+| Probe  | What it tests                              | Pass criteria                             |
+| ------ | ------------------------------------------ | ----------------------------------------- |
+| REQ-G1 | Log entry contains required fields         | path, status, duration, gate_type present |
+| REQ-G2 | Log entry does not contain message content | No `message` or `history` field           |
+| REQ-G3 | Log entry does not contain raw user_id     | Only hashed form                          |
 
 ### Quality Gate
+
 - All existing + G-series probes pass
 - REQ-A5 verified: no user content in any persistent store including logs
 - 0 lint errors, clean build
@@ -223,7 +229,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ## Milestone 6 — Product Behavior Baseline (Level 2)
 
-*This is the milestone flagged in `baseline.txt` line 137 as "separate milestone." It defines what good looks like for response quality — not as code, but as a ratified contract.*
+_This is the milestone flagged in `baseline.txt` line 137 as "separate milestone." It defines what good looks like for response quality — not as code, but as a ratified contract._
 
 **Goal:** Write `baseline.txt` v2.0.0 that adds §7.0 Response Quality Contract alongside the existing §1–§6 technical sections.
 
@@ -249,6 +255,7 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 - All existing §1–§6 remain unchanged.
 
 ### Quality Gate
+
 - `baseline.txt` v2.0.0 reviewed and accepted
 - No code changes — document only
 - All 107+ tests still pass (no regression from any preparatory work)
@@ -257,17 +264,17 @@ Work stops immediately if any of these occur. Resume only after the root cause i
 
 ## Version History
 
-| Version | Milestone | Tests | Status |
-|---------|-----------|-------|--------|
-| 1.0.0 | M1 — Technical Baseline | 107/107 | **COMPLETE** |
-| — | M2 — Response Quality Foundation | TBD | **Active** |
-| 1.6.0 | M3 — Session Depth & Tier System | 153/153 | **COMPLETE** |
-| — | M4 — Data Retention & Cleanup | TBD | Planned |
-| — | M5 — Observability | TBD | Planned |
-| 2.0.0 | M6 — Product Behavior Baseline | TBD | Planned |
+| Version | Milestone                        | Tests   | Status       |
+| ------- | -------------------------------- | ------- | ------------ |
+| 1.0.0   | M1 — Technical Baseline          | 107/107 | **COMPLETE** |
+| —       | M2 — Response Quality Foundation | TBD     | **Active**   |
+| 1.6.0   | M3 — Session Depth & Tier System | 153/153 | **COMPLETE** |
+| —       | M4 — Data Retention & Cleanup    | TBD     | Planned      |
+| —       | M5 — Observability               | TBD     | Planned      |
+| 2.0.0   | M6 — Product Behavior Baseline   | TBD     | Planned      |
 
 ---
 
 **End of Roadmap**
-*Quality is the constraint, not the goal. Everything else flexes around it.*
-*If a milestone can't pass its quality gate, it doesn't ship. No exceptions.*
+_Quality is the constraint, not the goal. Everything else flexes around it._
+_If a milestone can't pass its quality gate, it doesn't ship. No exceptions._

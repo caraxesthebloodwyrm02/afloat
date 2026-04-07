@@ -1,8 +1,12 @@
 import {
-  preCheckGate, type PreCheckResult,
-  detectAndRedactPII, type PIIDetectionResult,
-  evaluateSafetyGradient, failClosedSafetyCheck, type SafetyEvaluation,
-} from "./safety";
+  preCheckGate,
+  type PreCheckResult,
+  detectAndRedactPII,
+  type PIIDetectionResult,
+  evaluateSafetyGradient,
+  failClosedSafetyCheck,
+  type SafetyEvaluation,
+} from './safety';
 
 export interface SafetyPipelineInput {
   userMessage: string;
@@ -13,7 +17,7 @@ export interface SafetyPipelineInput {
 
 export interface SafetyPipelineResult {
   allowed: boolean;
-  blocked_by: "pre_check" | "safety_gradient" | null;
+  blocked_by: 'pre_check' | 'safety_gradient' | null;
   reason: string | null;
   pre_check: PreCheckResult;
   pii: PIIDetectionResult;
@@ -21,16 +25,23 @@ export interface SafetyPipelineResult {
   sanitized_message: string;
 }
 
-export function runSafetyPipeline(input: SafetyPipelineInput): SafetyPipelineResult {
+export function runSafetyPipeline(
+  input: SafetyPipelineInput
+): SafetyPipelineResult {
   // Stage 1: Pre-Check Gate
   const preCheck = preCheckGate(input.userMessage);
   if (preCheck.blocked) {
     return {
       allowed: false,
-      blocked_by: "pre_check",
+      blocked_by: 'pre_check',
       reason: preCheck.reason_code,
       pre_check: preCheck,
-      pii: { pii_found: false, types_detected: [], type_counts: {}, redacted_text: input.userMessage },
+      pii: {
+        pii_found: false,
+        types_detected: [],
+        type_counts: {},
+        redacted_text: input.userMessage,
+      },
       safety_gradient: { allowed: true },
       sanitized_message: input.userMessage,
     };
@@ -41,12 +52,16 @@ export function runSafetyPipeline(input: SafetyPipelineInput): SafetyPipelineRes
 
   // Stage 3: Safety Gradient (existing, fail-closed)
   const gradient = failClosedSafetyCheck(() =>
-    evaluateSafetyGradient(input.tier, input.messageCount, input.sessionDurationMs)
+    evaluateSafetyGradient(
+      input.tier,
+      input.messageCount,
+      input.sessionDurationMs
+    )
   );
   if (!gradient.allowed) {
     return {
       allowed: false,
-      blocked_by: "safety_gradient",
+      blocked_by: 'safety_gradient',
       reason: gradient.reason ?? null,
       pre_check: preCheck,
       pii,

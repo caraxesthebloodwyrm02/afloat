@@ -10,9 +10,9 @@
  * - Comprehensive logging hooks for audit trails
  */
 
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual } from 'crypto';
 
-const ALLOWED_CALLERS_ENV = "ALLOWED_CALLERS";
+const ALLOWED_CALLERS_ENV = 'ALLOWED_CALLERS';
 
 // Cache the parsed allowlist to prevent TOCTOU vulnerabilities
 // and runtime environment manipulation attacks
@@ -23,7 +23,7 @@ let cachedAllowlist: string[] | null | undefined = undefined;
  * Rejects empty, whitespace-only, or suspiciously formatted identities.
  */
 function isValidIdentityFormat(identity: string): boolean {
-  if (typeof identity !== "string") return false;
+  if (typeof identity !== 'string') return false;
   if (identity.length === 0 || identity.length > 256) return false;
   // Reject identities with control characters or null bytes
   if (/[\x00-\x1f\x7f]/.test(identity)) return false;
@@ -36,7 +36,7 @@ function isValidIdentityFormat(identity: string): boolean {
  * Sanitizes an identity string by trimming and normalizing.
  */
 function sanitizeIdentity(identity: string): string {
-  return identity.trim().normalize("NFC");
+  return identity.trim().normalize('NFC');
 }
 
 /**
@@ -45,12 +45,12 @@ function sanitizeIdentity(identity: string): string {
 function timingSafeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) {
     // Perform a dummy comparison to maintain constant-ish time
-    const dummy = Buffer.alloc(32, "x");
+    const dummy = Buffer.alloc(32, 'x');
     timingSafeEqual(dummy, dummy);
     return false;
   }
-  const bufA = Buffer.from(a, "utf8");
-  const bufB = Buffer.from(b, "utf8");
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
   return timingSafeEqual(bufA, bufB);
 }
 
@@ -81,7 +81,7 @@ function getAllowedCallers(): readonly string[] | null {
 
   // Parse, sanitize, and validate each entry
   const entries = raw
-    .split(",")
+    .split(',')
     .map((s) => sanitizeIdentity(s))
     .filter((s) => isValidIdentityFormat(s));
 
@@ -95,7 +95,7 @@ function getAllowedCallers(): readonly string[] | null {
  * @internal
  */
 export function _resetAllowlistCache(): void {
-  if (process.env.NODE_ENV === "test") {
+  if (process.env.NODE_ENV === 'test') {
     cachedAllowlist = undefined;
   }
 }
@@ -149,9 +149,12 @@ export function isAllowedCaller(identity: string): boolean {
  * Returns the current access control mode for debugging/audit purposes.
  * @returns 'permissive' | 'restricted' | 'deny-all'
  */
-export function getAccessControlMode(): "permissive" | "restricted" | "deny-all" {
+export function getAccessControlMode():
+  | 'permissive'
+  | 'restricted'
+  | 'deny-all' {
   const allowlist = getAllowedCallers();
-  if (allowlist === null) return "permissive";
-  if (allowlist.length === 0) return "deny-all";
-  return "restricted";
+  if (allowlist === null) return 'permissive';
+  if (allowlist.length === 0) return 'deny-all';
+  return 'restricted';
 }

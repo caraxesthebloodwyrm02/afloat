@@ -1,24 +1,31 @@
 export type DecisionType =
-  | "classification"
-  | "generation"
-  | "refusal"
-  | "gate_verdict"
-  | "consent_change"
-  | "data_operation"
-  | "escalation"
-  | "circuit_breaker";
+  | 'classification'
+  | 'generation'
+  | 'refusal'
+  | 'gate_verdict'
+  | 'consent_change'
+  | 'data_operation'
+  | 'escalation'
+  | 'circuit_breaker';
 
 export type AuthorityType =
-  | "human_consent"
-  | "system_policy"
-  | "autonomous_threshold"
-  | "emergency_override";
+  | 'human_consent'
+  | 'system_policy'
+  | 'autonomous_threshold'
+  | 'emergency_override';
 
-export type SafetyVerdictResult = "pass" | "block" | "escalate" | "warn";
+export type SafetyVerdictResult = 'pass' | 'block' | 'escalate' | 'warn';
 
 export interface SafetyVerdict {
   gate_id: string;
-  gate_type: "boundary" | "guardrail" | "refusal" | "preparedness" | "rate_limit" | "auth" | "consent";
+  gate_type:
+    | 'boundary'
+    | 'guardrail'
+    | 'refusal'
+    | 'preparedness'
+    | 'rate_limit'
+    | 'auth'
+    | 'consent';
   verdict: SafetyVerdictResult;
   latency_ms: number;
   confidence: number;

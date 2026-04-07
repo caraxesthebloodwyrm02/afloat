@@ -1,14 +1,14 @@
-import { createHash } from "crypto";
+import { createHash } from 'crypto';
 
 export function computeHash(data: string): string {
-  return createHash("sha256").update(data).digest("hex");
+  return createHash('sha256').update(data).digest('hex');
 }
 
 export function computeChainHash(
   parentChainHash: string | null,
   serializedRecord: string
 ): string {
-  const seed = parentChainHash ?? "genesis";
+  const seed = parentChainHash ?? 'genesis';
   return computeHash(seed + serializedRecord);
 }
 

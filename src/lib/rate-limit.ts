@@ -1,8 +1,8 @@
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-import { getRedis, isUpstashConfigured } from "./redis";
-import { NextResponse } from "next/server";
-import type { ApiError } from "@/types/api";
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+import { getRedis, isUpstashConfigured } from './redis';
+import { NextResponse } from 'next/server';
+import type { ApiError } from '@/types/api';
 
 /**
  * Simple in-memory rate limiter for when Upstash is not available.
@@ -18,10 +18,14 @@ export class MemoryRatelimit {
     this.windowMs = windowMs;
   }
 
-  async limit(identifier: string): Promise<{ success: boolean; reset: number }> {
+  async limit(
+    identifier: string
+  ): Promise<{ success: boolean; reset: number }> {
     const now = Date.now();
     const windowStart = now - this.windowMs;
-    const timestamps = (this.windows.get(identifier) ?? []).filter((t) => t > windowStart);
+    const timestamps = (this.windows.get(identifier) ?? []).filter(
+      (t) => t > windowStart
+    );
 
     if (timestamps.length >= this.maxRequests) {
       const oldestInWindow = timestamps[0];
@@ -41,11 +45,18 @@ let dataRightsLimiter: RateLimiter | null = null;
 let subscribeLimiter: RateLimiter | null = null;
 let sessionEndLimiter: RateLimiter | null = null;
 
-function createLimiter(maxRequests: number, windowMs: number, prefix: string): RateLimiter {
+function createLimiter(
+  maxRequests: number,
+  windowMs: number,
+  prefix: string
+): RateLimiter {
   if (isUpstashConfigured()) {
     return new Ratelimit({
       redis: getRedis() as Redis,
-      limiter: Ratelimit.slidingWindow(maxRequests, `${windowMs / 3_600_000} h`),
+      limiter: Ratelimit.slidingWindow(
+        maxRequests,
+        `${windowMs / 3_600_000} h`
+      ),
       prefix,
     });
   }
@@ -54,28 +65,28 @@ function createLimiter(maxRequests: number, windowMs: number, prefix: string): R
 
 export function getSessionRateLimiter(): RateLimiter {
   if (!sessionLimiter) {
-    sessionLimiter = createLimiter(30, 3_600_000, "rl:session");
+    sessionLimiter = createLimiter(30, 3_600_000, 'rl:session');
   }
   return sessionLimiter;
 }
 
 export function getDataRightsRateLimiter(): RateLimiter {
   if (!dataRightsLimiter) {
-    dataRightsLimiter = createLimiter(10, 3_600_000, "rl:data_rights");
+    dataRightsLimiter = createLimiter(10, 3_600_000, 'rl:data_rights');
   }
   return dataRightsLimiter;
 }
 
 export function getSubscribeRateLimiter(): RateLimiter {
   if (!subscribeLimiter) {
-    subscribeLimiter = createLimiter(10, 3_600_000, "rl:subscribe");
+    subscribeLimiter = createLimiter(10, 3_600_000, 'rl:subscribe');
   }
   return subscribeLimiter;
 }
 
 export function getSessionEndRateLimiter(): RateLimiter {
   if (!sessionEndLimiter) {
-    sessionEndLimiter = createLimiter(30, 3_600_000, "rl:session_end");
+    sessionEndLimiter = createLimiter(30, 3_600_000, 'rl:session_end');
   }
   return sessionEndLimiter;
 }
@@ -90,12 +101,12 @@ export async function checkRateLimit(
     const retryAfter = Math.ceil((reset - Date.now()) / 1000);
     return NextResponse.json(
       {
-        error: "rate_limit" as const,
-        message: "Too many requests. Please try again later.",
+        error: 'rate_limit' as const,
+        message: 'Too many requests. Please try again later.',
       },
       {
         status: 429,
-        headers: { "Retry-After": String(retryAfter) },
+        headers: { 'Retry-After': String(retryAfter) },
       }
     );
   }

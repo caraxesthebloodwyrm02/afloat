@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import type { HealthResponse } from "@/types/api";
-import { version } from "../../../../../package.json";
+import { NextResponse } from 'next/server';
+import type { HealthResponse } from '@/types/api';
+import { version } from '../../../../../package.json';
 
 export async function GET() {
   const response: HealthResponse = {
-    status: "ok",
+    status: 'ok',
     timestamp: new Date().toISOString(),
     version,
   };

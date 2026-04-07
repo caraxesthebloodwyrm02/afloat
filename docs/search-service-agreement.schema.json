@@ -182,7 +182,13 @@
           "minItems": 1
         }
       },
-      "required": ["purpose", "parties", "effective_date", "duration_months", "termination_conditions"],
+      "required": [
+        "purpose",
+        "parties",
+        "effective_date",
+        "duration_months",
+        "termination_conditions"
+      ],
       "additionalProperties": false
     },
     "definitions": {
@@ -236,7 +242,11 @@
               "minItems": 1
             }
           },
-          "required": ["query_volume", "data_retention_days", "data_privacy_compliance"],
+          "required": [
+            "query_volume",
+            "data_retention_days",
+            "data_privacy_compliance"
+          ],
           "additionalProperties": false
         },
         "additional_services": {
@@ -244,7 +254,12 @@
           "items": { "$ref": "#/$defs/named_service" }
         }
       },
-      "required": ["description", "functionalities", "indexing_capabilities", "limitations"],
+      "required": [
+        "description",
+        "functionalities",
+        "indexing_capabilities",
+        "limitations"
+      ],
       "additionalProperties": false
     },
     "service_level_agreements": {
@@ -308,11 +323,20 @@
               "description": "How often security audits are performed (e.g., quarterly, annually)."
             }
           },
-          "required": ["encryption_algorithm", "access_control_mechanisms", "audit_frequency"],
+          "required": [
+            "encryption_algorithm",
+            "access_control_mechanisms",
+            "audit_frequency"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["response_time", "quality_of_results", "data_freshness", "security"],
+      "required": [
+        "response_time",
+        "quality_of_results",
+        "data_freshness",
+        "security"
+      ],
       "additionalProperties": false
     },
     "pricing": {
@@ -401,7 +425,13 @@
           "additionalProperties": false
         }
       },
-      "required": ["compliance", "encryption", "transmission_protocols", "access_controls", "breach_notification"],
+      "required": [
+        "compliance",
+        "encryption",
+        "transmission_protocols",
+        "access_controls",
+        "breach_notification"
+      ],
       "additionalProperties": false
     },
     "intellectual_property": {

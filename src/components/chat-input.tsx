@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent } from 'react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -19,21 +19,21 @@ export function ChatInput({
   turnsRemaining,
   placeholder = "Describe what you're stuck on...",
 }: ChatInputProps) {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = input.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
-    setInput("");
+    setInput('');
   }
 
   return (
     <div className="border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 px-4 py-3">
       {turnsRemaining != null && turnsRemaining > 0 && (
         <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">
-          {turnsRemaining} {turnsRemaining === 1 ? "turn" : "turns"} remaining
+          {turnsRemaining} {turnsRemaining === 1 ? 'turn' : 'turns'} remaining
         </p>
       )}
       <form onSubmit={handleSubmit} className="flex gap-2">

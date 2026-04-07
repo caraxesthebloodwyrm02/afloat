@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
 export default function ConsentPage() {
   const [telemetry, setTelemetry] = useState(false);
@@ -9,17 +9,17 @@ export default function ConsentPage() {
 
   async function handleSave() {
     setSaving(true);
-    const token = localStorage.getItem("afloat_token");
+    const token = localStorage.getItem('afloat_token');
     if (!token) {
-      window.location.href = "/subscribe";
+      window.location.href = '/subscribe';
       return;
     }
 
     try {
-      await fetch("/api/v1/user/consent", {
-        method: "POST",
+      await fetch('/api/v1/user/consent', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -27,7 +27,7 @@ export default function ConsentPage() {
           marketing_communications: marketing,
         }),
       });
-      window.location.href = "/chat";
+      window.location.href = '/chat';
     } catch {
       setSaving(false);
     }
@@ -41,7 +41,8 @@ export default function ConsentPage() {
             Consent Preferences
           </h1>
           <p className="mt-2 text-sm text-zinc-500">
-            Choose how your data is used. You can change these anytime in Settings.
+            Choose how your data is used. You can change these anytime in
+            Settings.
           </p>
         </div>
 
@@ -75,8 +76,8 @@ export default function ConsentPage() {
                 Session telemetry
               </p>
               <p className="text-xs text-zinc-400 mt-1">
-                Helps us improve response quality and measure performance.
-                No personal text is stored.
+                Helps us improve response quality and measure performance. No
+                personal text is stored.
               </p>
             </div>
           </label>
@@ -104,7 +105,7 @@ export default function ConsentPage() {
           disabled={saving}
           className="w-full h-12 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save and start using Afloat"}
+          {saving ? 'Saving...' : 'Save and start using Afloat'}
         </button>
       </div>
     </div>

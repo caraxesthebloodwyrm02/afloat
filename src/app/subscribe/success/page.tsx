@@ -1,46 +1,48 @@
-"use client";
+'use client';
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 function SubscribeSuccessContent() {
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
+    'loading'
+  );
 
   useEffect(() => {
     async function verify() {
-      const sessionId = searchParams.get("session_id");
+      const sessionId = searchParams.get('session_id');
       if (!sessionId) {
-        setStatus("error");
+        setStatus('error');
         return;
       }
 
       try {
-        const res = await fetch("/api/v1/subscribe/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const res = await fetch('/api/v1/subscribe/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ session_id: sessionId }),
         });
 
         if (!res.ok) {
-          setStatus("error");
+          setStatus('error');
           return;
         }
 
         const data = await res.json();
         if (data.token) {
-          localStorage.setItem("afloat_token", data.token);
+          localStorage.setItem('afloat_token', data.token);
         }
-        setStatus("success");
+        setStatus('success');
       } catch {
-        setStatus("error");
+        setStatus('error');
       }
     }
 
     verify();
   }, [searchParams]);
 
-  if (status === "loading") {
+  if (status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <p className="text-sm text-zinc-400">Verifying your subscription...</p>
@@ -48,7 +50,7 @@ function SubscribeSuccessContent() {
     );
   }
 
-  if (status === "error") {
+  if (status === 'error') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <p className="text-sm text-red-500">

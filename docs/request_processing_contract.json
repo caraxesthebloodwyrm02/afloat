@@ -52,14 +52,46 @@
       "name": "Gate Pattern",
       "statement": "Every request passes through a named threshold. Below the threshold: pass. At or above: block.",
       "instances": [
-        { "gate": "auth",            "threshold": "valid JWT",                                          "source": "src/lib/auth-middleware.ts" },
-        { "gate": "rate_limit",      "threshold": "requests < window cap",                              "source": "src/lib/rate-limit.ts" },
-        { "gate": "session_lock",    "threshold": "no concurrent request",                              "source": "src/lib/session-controller.ts" },
-        { "gate": "input_precheck",  "threshold": "no injection, no PII, length <= 2000",               "source": "src/lib/safety.ts::preCheckGate" },
-        { "gate": "session_limits",  "threshold": "llm_call_count < max AND elapsed < max_duration_ms", "source": "src/lib/session-controller.ts::enforceSessionLimits" },
-        { "gate": "safety_gradient", "threshold": "avg_interval >= 5000ms (continuous tier only)",      "source": "src/lib/safety.ts::evaluateSafetyGradient" },
-        { "gate": "llm_call",        "threshold": "provider responds within 10s",                       "source": "src/lib/llm.ts::callLLM" },
-        { "gate": "context_gate",    "threshold": "gate_type is classifiable",                          "source": "src/lib/llm.ts::parseGateAndBrief" }
+        {
+          "gate": "auth",
+          "threshold": "valid JWT",
+          "source": "src/lib/auth-middleware.ts"
+        },
+        {
+          "gate": "rate_limit",
+          "threshold": "requests < window cap",
+          "source": "src/lib/rate-limit.ts"
+        },
+        {
+          "gate": "session_lock",
+          "threshold": "no concurrent request",
+          "source": "src/lib/session-controller.ts"
+        },
+        {
+          "gate": "input_precheck",
+          "threshold": "no injection, no PII, length <= 2000",
+          "source": "src/lib/safety.ts::preCheckGate"
+        },
+        {
+          "gate": "session_limits",
+          "threshold": "llm_call_count < max AND elapsed < max_duration_ms",
+          "source": "src/lib/session-controller.ts::enforceSessionLimits"
+        },
+        {
+          "gate": "safety_gradient",
+          "threshold": "avg_interval >= 5000ms (continuous tier only)",
+          "source": "src/lib/safety.ts::evaluateSafetyGradient"
+        },
+        {
+          "gate": "llm_call",
+          "threshold": "provider responds within 10s",
+          "source": "src/lib/llm.ts::callLLM"
+        },
+        {
+          "gate": "context_gate",
+          "threshold": "gate_type is classifiable",
+          "source": "src/lib/llm.ts::parseGateAndBrief"
+        }
       ]
     },
 
@@ -68,10 +100,22 @@
       "name": "Proportionality Pattern",
       "statement": "Every limit, check, and response scales with tier and risk. Nothing is flat.",
       "instances": [
-        { "dimension": "session_duration",  "trial": "120s",                  "continuous": "1800s" },
-        { "dimension": "llm_calls",         "trial": "2",                     "continuous": "6" },
-        { "dimension": "safety_checks",     "trial": "none",                  "continuous": "rapid-fire detection at avg_interval < 5000ms" },
-        { "dimension": "brief_length",      "soft_cap": "150 words via prompt", "hard_cap": "scope-dependent output budget in the router" }
+        {
+          "dimension": "session_duration",
+          "trial": "120s",
+          "continuous": "1800s"
+        },
+        { "dimension": "llm_calls", "trial": "2", "continuous": "6" },
+        {
+          "dimension": "safety_checks",
+          "trial": "none",
+          "continuous": "rapid-fire detection at avg_interval < 5000ms"
+        },
+        {
+          "dimension": "brief_length",
+          "soft_cap": "150 words via prompt",
+          "hard_cap": "scope-dependent output budget in the router"
+        }
       ]
     },
 
@@ -82,10 +126,22 @@
       "default_bias": -0.5,
       "note": "Mirrors GRID AdvancedPatternManager DEFAULT_BIAS = -0.5 (~37% base probability). Skeptical by default.",
       "instances": [
-        { "source": "src/lib/safety.ts::failClosedSafetyCheck",         "rule": "if evaluationFn throws → { allowed: false }" },
-        { "source": "src/lib/session-controller.ts::getTierLimits",     "rule": "if tier unknown → fall back to trial (strictest limits)" },
-        { "source": "src/lib/llm.ts::parseGateAndBrief",                "rule": "if gate tag missing → gate_type = unclassified, still deliver brief, flag for review" },
-        { "source": "docs/ARCHITECTURE.md §12",                         "rule": "Never trust the client. All enforcement is server-side only." }
+        {
+          "source": "src/lib/safety.ts::failClosedSafetyCheck",
+          "rule": "if evaluationFn throws → { allowed: false }"
+        },
+        {
+          "source": "src/lib/session-controller.ts::getTierLimits",
+          "rule": "if tier unknown → fall back to trial (strictest limits)"
+        },
+        {
+          "source": "src/lib/llm.ts::parseGateAndBrief",
+          "rule": "if gate tag missing → gate_type = unclassified, still deliver brief, flag for review"
+        },
+        {
+          "source": "docs/ARCHITECTURE.md §12",
+          "rule": "Never trust the client. All enforcement is server-side only."
+        }
       ]
     },
 
@@ -94,12 +150,36 @@
       "name": "Single Responsibility Pattern",
       "statement": "Each layer owns exactly one problem. No layer handles another layer's failure.",
       "layers": [
-        { "layer": "frontend",           "owns": "render and input capture",       "does_not_own": "enforcement, auth, storage" },
-        { "layer": "session_controller", "owns": "orchestration and enforcement",  "does_not_own": "LLM logic, payment, rendering" },
-        { "layer": "llm",                "owns": "classify and generate",          "does_not_own": "session state, routing, storage" },
-        { "layer": "data",               "owns": "telemetry and consent records",  "does_not_own": "user text, raw IPs, card data" },
-        { "layer": "payment",            "owns": "billing",                        "does_not_own": "PCI data, session logic" },
-        { "layer": "infrastructure",     "owns": "provider fallback and routing",  "does_not_own": "application logic" }
+        {
+          "layer": "frontend",
+          "owns": "render and input capture",
+          "does_not_own": "enforcement, auth, storage"
+        },
+        {
+          "layer": "session_controller",
+          "owns": "orchestration and enforcement",
+          "does_not_own": "LLM logic, payment, rendering"
+        },
+        {
+          "layer": "llm",
+          "owns": "classify and generate",
+          "does_not_own": "session state, routing, storage"
+        },
+        {
+          "layer": "data",
+          "owns": "telemetry and consent records",
+          "does_not_own": "user text, raw IPs, card data"
+        },
+        {
+          "layer": "payment",
+          "owns": "billing",
+          "does_not_own": "PCI data, session logic"
+        },
+        {
+          "layer": "infrastructure",
+          "owns": "provider fallback and routing",
+          "does_not_own": "application logic"
+        }
       ]
     },
 
@@ -108,13 +188,31 @@
       "name": "Minimum Necessary Pattern",
       "statement": "Do only what is required to close the difference. Never overstep.",
       "rules": [
-        { "rule": "MN-01", "statement": "Never complete the task for the user. Unblock them." },
+        {
+          "rule": "MN-01",
+          "statement": "Never complete the task for the user. Unblock them."
+        },
         { "rule": "MN-02", "statement": "Never speculate. Never add filler." },
-        { "rule": "MN-03", "statement": "Never store user text. Process in memory, discard." },
-        { "rule": "MN-04", "statement": "Never store raw IPs. Hash with SHA-256." },
-        { "rule": "MN-05", "statement": "Never store card data. Stripe owns it." },
-        { "rule": "MN-06", "statement": "Never ask open-ended follow-up questions after the brief." },
-        { "rule": "MN-07", "statement": "Never retry a rate-limited provider against the same provider. Fall through to the next." }
+        {
+          "rule": "MN-03",
+          "statement": "Never store user text. Process in memory, discard."
+        },
+        {
+          "rule": "MN-04",
+          "statement": "Never store raw IPs. Hash with SHA-256."
+        },
+        {
+          "rule": "MN-05",
+          "statement": "Never store card data. Stripe owns it."
+        },
+        {
+          "rule": "MN-06",
+          "statement": "Never ask open-ended follow-up questions after the brief."
+        },
+        {
+          "rule": "MN-07",
+          "statement": "Never retry a rate-limited provider against the same provider. Fall through to the next."
+        }
       ]
     }
   },
@@ -138,7 +236,11 @@
         "layer": "session_controller",
         "check": "requests within sliding window cap",
         "pass": "continue",
-        "block": { "status": 429, "error": "rate_limit", "header": "Retry-After" },
+        "block": {
+          "status": 429,
+          "error": "rate_limit",
+          "header": "Retry-After"
+        },
         "fail_closed": true,
         "source": "src/lib/rate-limit.ts::checkRateLimit"
       },
@@ -148,7 +250,11 @@
         "layer": "session_controller",
         "check": "no concurrent request already in progress for this session_id",
         "pass": "continue",
-        "block": { "status": 429, "error": "rate_limit", "message": "Request already in progress for this session." },
+        "block": {
+          "status": 429,
+          "error": "rate_limit",
+          "message": "Request already in progress for this session."
+        },
         "fail_closed": true,
         "source": "src/lib/session-controller.ts::acquireSessionLock"
       },
@@ -159,8 +265,11 @@
         "check": "input length <= 2000, no control chars, no prompt injection patterns",
         "pass": "continue with sanitized_input",
         "block": {
-          "INPUT_TOO_LONG":            { "status": 400, "error": "input_too_long" },
-          "PROMPT_INJECTION_DETECTED": { "status": 400, "error": "prompt_injection" }
+          "INPUT_TOO_LONG": { "status": 400, "error": "input_too_long" },
+          "PROMPT_INJECTION_DETECTED": {
+            "status": 400,
+            "error": "prompt_injection"
+          }
         },
         "fail_closed": true,
         "source": "src/lib/safety.ts::preCheckGate",
@@ -173,9 +282,21 @@
         "check": "llm_call_count < tier.maxLlmCalls AND elapsed < tier.maxDurationMs AND input not empty",
         "pass": "continue",
         "block": {
-          "session_complete": { "status": 409, "error": "session_complete",  "message": "Session limit reached." },
-          "session_timeout":  { "status": 409, "error": "session_timeout",   "message": "Session time limit reached." },
-          "empty_input":      { "status": 400, "error": "empty_input",       "message": "Please describe what you're stuck on." }
+          "session_complete": {
+            "status": 409,
+            "error": "session_complete",
+            "message": "Session limit reached."
+          },
+          "session_timeout": {
+            "status": 409,
+            "error": "session_timeout",
+            "message": "Session time limit reached."
+          },
+          "empty_input": {
+            "status": 400,
+            "error": "empty_input",
+            "message": "Please describe what you're stuck on."
+          }
         },
         "fail_closed": true,
         "source": "src/lib/session-controller.ts::enforceSessionLimits"
@@ -190,7 +311,7 @@
         "fail_closed": true,
         "proportional": true,
         "tiers": {
-          "trial":      "always passes — low capability, low risk",
+          "trial": "always passes — low capability, low risk",
           "continuous": "blocks if avg_interval_ms < 5000 across message count"
         },
         "source": "src/lib/safety-pipeline.ts::runSafetyPipeline → safety.ts::failClosedSafetyCheck + evaluateSafetyGradient"
@@ -208,10 +329,26 @@
           "timeout_ms": "scope and model-size dependent"
         },
         "error_handling": {
-          "timeout":      { "retry": false, "throw": "LLMError::timeout",      "message": "That took too long. Please try again." },
-          "rate_limited": { "retry": false, "throw": "LLMError::rate_limited", "message": "The service is busy. Please try again.",  "action": "fall_through_to_next_provider" },
-          "server_error": { "retry": true,  "retry_after_ms": 1000,            "throw_if_retry_fails": "LLMError::server_error" },
-          "empty":        { "retry": false, "fallback_brief": "I wasn't able to generate a useful response. Please try rephrasing." }
+          "timeout": {
+            "retry": false,
+            "throw": "LLMError::timeout",
+            "message": "That took too long. Please try again."
+          },
+          "rate_limited": {
+            "retry": false,
+            "throw": "LLMError::rate_limited",
+            "message": "The service is busy. Please try again.",
+            "action": "fall_through_to_next_provider"
+          },
+          "server_error": {
+            "retry": true,
+            "retry_after_ms": 1000,
+            "throw_if_retry_fails": "LLMError::server_error"
+          },
+          "empty": {
+            "retry": false,
+            "fallback_brief": "I wasn't able to generate a useful response. Please try rephrasing."
+          }
         },
         "provider_chain": {
           "strategy": "scenario_aware_ollama_first",
@@ -228,7 +365,11 @@
               "name": "ollama",
               "model": "dynamic from /api/tags",
               "env_key": "OLLAMA_BASE_URL",
-              "auth_keys": ["OLLAMA_API_KEY", "OLLAMA_AUTH_HEADER", "OLLAMA_AUTH_SCHEME"],
+              "auth_keys": [
+                "OLLAMA_API_KEY",
+                "OLLAMA_AUTH_HEADER",
+                "OLLAMA_AUTH_SCHEME"
+              ],
               "note": "Primary provider. Candidate ranking is based on task type, complexity, scope, and consented routing memory."
             },
             {
@@ -270,7 +411,11 @@
         "pass": "deliver to user",
         "block": "non-blocking — flag in telemetry, still deliver (observation phase only)",
         "fail_closed": false,
-        "quality_flags": ["missing_gate_tag", "exceeds_word_limit", "ends_with_question"],
+        "quality_flags": [
+          "missing_gate_tag",
+          "exceeds_word_limit",
+          "ends_with_question"
+        ],
         "source": "src/lib/llm.ts::assessResponseQuality"
       },
       {
@@ -292,18 +437,26 @@
     "client_trust_level": "untrusted",
     "rationale": "Client cannot override. Server is the sole authority on turns, time, and access.",
     "tiers": {
-      "trial":      { "max_llm_calls": 2, "max_duration_ms": 120000,   "max_duration_label": "2 minutes" },
-      "continuous": { "max_llm_calls": 6, "max_duration_ms": 1800000,  "max_duration_label": "30 minutes" }
+      "trial": {
+        "max_llm_calls": 2,
+        "max_duration_ms": 120000,
+        "max_duration_label": "2 minutes"
+      },
+      "continuous": {
+        "max_llm_calls": 6,
+        "max_duration_ms": 1800000,
+        "max_duration_label": "30 minutes"
+      }
     },
     "unknown_tier_fallback": "trial",
     "error_codes": {
-      "session_complete":          { "http_status": 409 },
-      "session_timeout":           { "http_status": 409 },
-      "empty_input":               { "http_status": 400 },
-      "rate_limit":                { "http_status": 429 },
-      "unauthorized":              { "http_status": 401 },
+      "session_complete": { "http_status": 409 },
+      "session_timeout": { "http_status": 409 },
+      "empty_input": { "http_status": 400 },
+      "rate_limit": { "http_status": 429 },
+      "unauthorized": { "http_status": 401 },
       "PROMPT_INJECTION_DETECTED": { "http_status": 400 },
-      "INPUT_TOO_LONG":            { "http_status": 400 }
+      "INPUT_TOO_LONG": { "http_status": 400 }
     }
   },
 
@@ -329,7 +482,7 @@
       {
         "id": "KPI-03",
         "name": "context_gate_pass_rate",
-        "threshold": 0.70,
+        "threshold": 0.7,
         "measurement": "user_proceeded_true / total_sessions",
         "window": "daily",
         "action_if_below": "review LLM prompt effectiveness after 7 consecutive days below threshold"

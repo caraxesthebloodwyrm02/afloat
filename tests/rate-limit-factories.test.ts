@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let upstashConfigured = false;
 const mockRatelimitConstructor = vi.fn();
@@ -16,33 +16,33 @@ class MockRatelimit {
   }
 }
 
-vi.mock("@upstash/ratelimit", () => ({
+vi.mock('@upstash/ratelimit', () => ({
   Ratelimit: MockRatelimit,
 }));
 
-vi.mock("@upstash/redis", () => ({
+vi.mock('@upstash/redis', () => ({
   Redis: class MockRedis {},
 }));
 
-vi.mock("@/lib/redis", () => ({
+vi.mock('@/lib/redis', () => ({
   getRedis: () => ({}),
   isUpstashConfigured: () => upstashConfigured,
 }));
 
-describe("rate-limit factory branches", () => {
+describe('rate-limit factory branches', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     upstashConfigured = false;
   });
 
-  it("uses in-memory limiters when Upstash is not configured and caches per getter", async () => {
+  it('uses in-memory limiters when Upstash is not configured and caches per getter', async () => {
     const {
       MemoryRatelimit,
       getSessionRateLimiter,
       getDataRightsRateLimiter,
       _resetRateLimitersForTesting,
-    } = await import("@/lib/rate-limit");
+    } = await import('@/lib/rate-limit');
 
     const sessionA = getSessionRateLimiter();
     const sessionB = getSessionRateLimiter();
@@ -57,13 +57,13 @@ describe("rate-limit factory branches", () => {
     expect(sessionAfterReset).not.toBe(sessionA);
   });
 
-  it("uses Upstash Ratelimit when configured and wires expected constructor options", async () => {
+  it('uses Upstash Ratelimit when configured and wires expected constructor options', async () => {
     upstashConfigured = true;
     const {
       getSessionRateLimiter,
       getSubscribeRateLimiter,
       _resetRateLimitersForTesting,
-    } = await import("@/lib/rate-limit");
+    } = await import('@/lib/rate-limit');
 
     const sessionLimiter = getSessionRateLimiter();
     const subscribeLimiter = getSubscribeRateLimiter();

@@ -1,46 +1,43 @@
-import { NextRequest, NextResponse } from "next/server";
-import { retrieveCheckoutSession, isStripeConfigured } from "@/lib/stripe";
-import { getUserByStripeCustomerId } from "@/lib/data-layer";
-import { createToken } from "@/lib/auth";
-import { getSubscribeRateLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { hashIP, getClientIP } from "@/lib/audit";
+import { NextRequest, NextResponse } from 'next/server';
+import { retrieveCheckoutSession, isStripeConfigured } from '@/lib/stripe';
+import { getUserByStripeCustomerId } from '@/lib/data-layer';
+import { createToken } from '@/lib/auth';
+import { getSubscribeRateLimiter, checkRateLimit } from '@/lib/rate-limit';
+import { hashIP, getClientIP } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   if (!isStripeConfigured()) {
     return NextResponse.json(
-      { error: "not_available", message: "Billing is not configured." },
+      { error: 'not_available', message: 'Billing is not configured.' },
       { status: 501 }
     );
   }
   // Rate limit by IP
   const ip = hashIP(getClientIP(request));
-  const rateLimitResponse = await checkRateLimit(
-    getSubscribeRateLimiter(),
-    ip
-  );
+  const rateLimitResponse = await checkRateLimit(getSubscribeRateLimiter(), ip);
   if (rateLimitResponse) return rateLimitResponse;
 
   let body: { session_id?: string };
   try {
     const parsed = await request.json();
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return NextResponse.json(
-        { error: "empty_input", message: "Invalid request." },
+        { error: 'empty_input', message: 'Invalid request.' },
         { status: 400 }
       );
     }
     body = parsed as { session_id?: string };
   } catch {
     return NextResponse.json(
-      { error: "empty_input", message: "Invalid request." },
+      { error: 'empty_input', message: 'Invalid request.' },
       { status: 400 }
     );
   }
 
   const { session_id } = body;
-  if (typeof session_id !== "string" || !session_id.trim()) {
+  if (typeof session_id !== 'string' || !session_id.trim()) {
     return NextResponse.json(
-      { error: "empty_input", message: "Missing session_id." },
+      { error: 'empty_input', message: 'Missing session_id.' },
       { status: 400 }
     );
   }
@@ -48,13 +45,13 @@ export async function POST(request: NextRequest) {
   try {
     const checkoutSession = await retrieveCheckoutSession(session_id);
     const stripeCustomerId =
-      typeof checkoutSession.customer === "string"
+      typeof checkoutSession.customer === 'string'
         ? checkoutSession.customer
-        : checkoutSession.customer?.id ?? null;
+        : (checkoutSession.customer?.id ?? null);
 
     if (!stripeCustomerId) {
       return NextResponse.json(
-        { error: "server_error", message: "Could not identify customer." },
+        { error: 'server_error', message: 'Could not identify customer.' },
         { status: 500 }
       );
     }
@@ -62,7 +59,11 @@ export async function POST(request: NextRequest) {
     const user = await getUserByStripeCustomerId(stripeCustomerId);
     if (!user) {
       return NextResponse.json(
-        { error: "not_found", message: "User account not yet created. Please wait a moment and retry." },
+        {
+          error: 'not_found',
+          message:
+            'User account not yet created. Please wait a moment and retry.',
+        },
         { status: 404 }
       );
     }
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ token, user_id: user.user_id });
   } catch {
     return NextResponse.json(
-      { error: "server_error", message: "Verification failed." },
+      { error: 'server_error', message: 'Verification failed.' },
       { status: 500 }
     );
   }

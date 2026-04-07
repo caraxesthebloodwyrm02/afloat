@@ -3,7 +3,7 @@
 
 /**
  * Secret Validation Test Script
- * 
+ *
  * This script tests the secret validation functionality and provides
  * actionable feedback for fixing entropy issues.
  */
@@ -12,13 +12,16 @@
 const fs = require('fs');
 const envPath = require('path').join(__dirname, '..', '.env.local');
 if (fs.existsSync(envPath)) {
-  fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const idx = trimmed.indexOf('=');
-      if (idx > 0) process.env[trimmed.slice(0, idx)] = trimmed.slice(idx + 1);
-    }
-  });
+  fs.readFileSync(envPath, 'utf8')
+    .split('\n')
+    .forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const idx = trimmed.indexOf('=');
+        if (idx > 0)
+          process.env[trimmed.slice(0, idx)] = trimmed.slice(idx + 1);
+      }
+    });
 }
 
 // Import the compiled JavaScript version
@@ -59,7 +62,9 @@ function analyzeSecrets() {
     const entropy = calculateEntropy(value);
     const status = entropy.ratio < 0.3 ? '❌ LOW' : '✅ GOOD';
     console.log(`${key}: ${status}`);
-    console.log(`  Length: ${entropy.total} | Unique: ${entropy.unique} | Ratio: ${entropy.ratio.toFixed(3)}`);
+    console.log(
+      `  Length: ${entropy.total} | Unique: ${entropy.unique} | Ratio: ${entropy.ratio.toFixed(3)}`
+    );
   });
 
   console.log('\n🧪 Running validation...');
@@ -75,14 +80,14 @@ function analyzeSecrets() {
 
   if (result.errors.length > 0) {
     console.log('\n🚨 Critical Errors:');
-    result.errors.forEach(error => {
+    result.errors.forEach((error) => {
       console.log(`  ${error.secret}: ${error.reason}`);
     });
   }
 
   if (result.warnings.length > 0) {
     console.log('\n⚠️  Warnings:');
-    result.warnings.forEach(warning => {
+    result.warnings.forEach((warning) => {
       console.log(`  ${warning.secret}: ${warning.reason}`);
     });
   }
@@ -97,7 +102,8 @@ function generateStrongSecrets() {
   const crypto = require('crypto');
 
   function generateStrongSecret(byteLength) {
-    return crypto.randomBytes(byteLength)
+    return crypto
+      .randomBytes(byteLength)
       .toString('base64')
       .replace(/[+/=]/g, '')
       .substring(0, byteLength * 2);
@@ -127,18 +133,32 @@ function testEntropyFunction() {
 
   // Test cases
   const testCases = [
-    { name: 'Hex string (low entropy)', value: '6602544f7a44d48f4411c843d28e827621bcef84fc522ce1ca9616185d8b3e7b' },
-    { name: 'Base64 string (high entropy)', value: 'B9WqS5sMazj8bfDlHkktwSv7jI6r74nxYnMkA1Re4E' },
-    { name: 'Repetitive (very low)', value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
-    { name: 'Sequential (low)', value: 'abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxy' },
+    {
+      name: 'Hex string (low entropy)',
+      value: '6602544f7a44d48f4411c843d28e827621bcef84fc522ce1ca9616185d8b3e7b',
+    },
+    {
+      name: 'Base64 string (high entropy)',
+      value: 'B9WqS5sMazj8bfDlHkktwSv7jI6r74nxYnMkA1Re4E',
+    },
+    {
+      name: 'Repetitive (very low)',
+      value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    },
+    {
+      name: 'Sequential (low)',
+      value: 'abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxy',
+    },
   ];
 
-  testCases.forEach(test => {
+  testCases.forEach((test) => {
     const entropy = calculateEntropy(test.value);
     const isLow = entropy.ratio < 0.3;
     const status = isLow ? '❌ LOW' : '✅ GOOD';
     console.log(`${status} ${test.name}`);
-    console.log(`  Ratio: ${entropy.ratio.toFixed(3)} | Unique: ${entropy.unique}/${entropy.total}`);
+    console.log(
+      `  Ratio: ${entropy.ratio.toFixed(3)} | Unique: ${entropy.unique}/${entropy.total}`
+    );
   });
 }
 
@@ -167,10 +187,18 @@ function main() {
       console.log('🔧 Secret Validation Test Tool');
       console.log('');
       console.log('Usage:');
-      console.log('  node scripts/test-secrets.js analyze   - Analyze current secrets');
-      console.log('  node scripts/test-secrets.js generate  - Generate strong secrets');
-      console.log('  node scripts/test-secrets.js test      - Test entropy detection');
-      console.log('  node scripts/test-secrets.js fix       - Analyze and suggest fixes');
+      console.log(
+        '  node scripts/test-secrets.js analyze   - Analyze current secrets'
+      );
+      console.log(
+        '  node scripts/test-secrets.js generate  - Generate strong secrets'
+      );
+      console.log(
+        '  node scripts/test-secrets.js test      - Test entropy detection'
+      );
+      console.log(
+        '  node scripts/test-secrets.js fix       - Analyze and suggest fixes'
+      );
       console.log('');
       analyzeSecrets();
   }

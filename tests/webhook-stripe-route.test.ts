@@ -1,17 +1,19 @@
-import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from 'next/server';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockKv = new Map<string, string>();
-const mockWriteAuditLog = vi.fn<(entry: unknown) => Promise<void>>(async () => {});
+const mockWriteAuditLog = vi.fn<(entry: unknown) => Promise<void>>(
+  async () => {}
+);
 const mockConstructWebhookEvent = vi.fn();
 const mockIsStripeConfigured = vi.fn(() => true);
 const mockCheckoutRetrieve = vi.fn();
 
-vi.mock("@/lib/redis", () => ({
+vi.mock('@/lib/redis', () => ({
   getRedis: () => ({
     set: vi.fn(async (key: string, value: string) => {
       mockKv.set(key, value);
-      return "OK";
+      return 'OK';
     }),
     get: vi.fn(async (key: string) => mockKv.get(key) ?? null),
     del: vi.fn(async (key: string) => {
@@ -24,11 +26,11 @@ vi.mock("@/lib/redis", () => ({
   }),
 }));
 
-vi.mock("@/lib/audit", () => ({
+vi.mock('@/lib/audit', () => ({
   writeAuditLog: (entry: unknown) => mockWriteAuditLog(entry),
 }));
 
-vi.mock("@/lib/stripe", () => ({
+vi.mock('@/lib/stripe', () => ({
   isStripeConfigured: () => mockIsStripeConfigured(),
   constructWebhookEvent: (body: string, signature: string) =>
     mockConstructWebhookEvent(body, signature),
@@ -42,12 +44,15 @@ vi.mock("@/lib/stripe", () => ({
   }),
 }));
 
-import { POST as webhookPOST } from "@/app/api/v1/webhooks/stripe/route";
+import { POST as webhookPOST } from '@/app/api/v1/webhooks/stripe/route';
 
-function makeRequest(eventBody: string, withSignature: boolean = true): NextRequest {
-  return new NextRequest("http://localhost/api/v1/webhooks/stripe", {
-    method: "POST",
-    headers: withSignature ? { "stripe-signature": "sig_test" } : {},
+function makeRequest(
+  eventBody: string,
+  withSignature: boolean = true
+): NextRequest {
+  return new NextRequest('http://localhost/api/v1/webhooks/stripe', {
+    method: 'POST',
+    headers: withSignature ? { 'stripe-signature': 'sig_test' } : {},
     body: eventBody,
   });
 }
@@ -55,8 +60,8 @@ function makeRequest(eventBody: string, withSignature: boolean = true): NextRequ
 function seedUserByCustomer(
   customerId: string,
   userId: string,
-  status: "active" | "past_due" | "canceled" = "active",
-  tier: "trial" | "continuous" = "trial",
+  status: 'active' | 'past_due' | 'canceled' = 'active',
+  tier: string = 'starter'
 ): void {
   mockKv.set(`stripe_map:${customerId}`, userId);
   mockKv.set(
@@ -71,30 +76,30 @@ function seedUserByCustomer(
         essential_processing: {
           granted: true,
           timestamp: new Date().toISOString(),
-          policy_version: "v1.0",
+          policy_version: 'v1.0',
         },
         session_telemetry: {
           granted: true,
           timestamp: new Date().toISOString(),
-          policy_version: "v1.0",
+          policy_version: 'v1.0',
         },
         marketing_communications: {
           granted: false,
           timestamp: new Date().toISOString(),
-          policy_version: "v1.0",
+          policy_version: 'v1.0',
         },
         routing_memory: {
           granted: false,
           timestamp: new Date().toISOString(),
-          policy_version: "v1.0",
+          policy_version: 'v1.0',
         },
       },
       pending_deletion: null,
-    }),
+    })
   );
 }
 
-describe("POST /api/v1/webhooks/stripe", () => {
+describe('POST /api/v1/webhooks/stripe', () => {
   beforeEach(() => {
     mockKv.clear();
     vi.clearAllMocks();
@@ -105,148 +110,161 @@ describe("POST /api/v1/webhooks/stripe", () => {
     });
   });
 
-  it("returns 501 when Stripe billing is not configured", async () => {
+  it('returns 501 when Stripe billing is not configured', async () => {
     mockIsStripeConfigured.mockReturnValue(false);
-    const response = await webhookPOST(makeRequest("{}"));
+    const response = await webhookPOST(makeRequest('{}'));
     expect(response.status).toBe(501);
   });
 
-  it("returns 401 when Stripe signature is missing", async () => {
-    const response = await webhookPOST(makeRequest("{}", false));
+  it('returns 401 when Stripe signature is missing', async () => {
+    const response = await webhookPOST(makeRequest('{}', false));
     expect(response.status).toBe(401);
   });
 
-  it("returns 401 for invalid webhook signatures", async () => {
-    mockConstructWebhookEvent.mockRejectedValueOnce(new Error("bad signature"));
-    const response = await webhookPOST(makeRequest("{}"));
+  it('returns 401 for invalid webhook signatures', async () => {
+    mockConstructWebhookEvent.mockRejectedValueOnce(new Error('bad signature'));
+    const response = await webhookPOST(makeRequest('{}'));
     expect(response.status).toBe(401);
   });
 
-  it("deduplicates already-processed events", async () => {
-    mockKv.set("stripe_event:evt_dup", "1");
+  it('deduplicates already-processed events', async () => {
+    mockKv.set('stripe_event:evt_dup', '1');
     mockConstructWebhookEvent.mockResolvedValueOnce({
-      id: "evt_dup",
-      type: "invoice.paid",
-      data: { object: { customer: "cus_x" } },
+      id: 'evt_dup',
+      type: 'invoice.paid',
+      data: { object: { customer: 'cus_x' } },
     });
 
-    const response = await webhookPOST(makeRequest("{}"));
+    const response = await webhookPOST(makeRequest('{}'));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ received: true, deduplicated: true });
+    expect(await response.json()).toEqual({
+      received: true,
+      deduplicated: true,
+    });
   });
 
-  it("creates a new user on checkout completion and marks event as processed", async () => {
-    vi.stubEnv("STRIPE_CONTINUOUS_PRICE_ID", "price_continuous");
+  it('creates a new user on checkout completion and marks event as processed', async () => {
     mockConstructWebhookEvent.mockResolvedValueOnce({
-      id: "evt_checkout_new",
-      type: "checkout.session.completed",
-      data: { object: { id: "cs_new", customer: "cus_new" } },
-    });
-    mockCheckoutRetrieve.mockResolvedValueOnce({
-      line_items: {
-        data: [{ price: { id: "price_continuous" } }],
+      id: 'evt_checkout_new',
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_new',
+          customer: 'cus_new',
+          metadata: { afloat_tier: 'pro', afloat_billing: 'quarterly' },
+        },
       },
     });
 
-    const response = await webhookPOST(makeRequest("{}"));
+    const response = await webhookPOST(makeRequest('{}'));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ received: true });
 
-    const mappedUserId = mockKv.get("stripe_map:cus_new");
+    const mappedUserId = mockKv.get('stripe_map:cus_new');
     expect(mappedUserId).toBeTruthy();
 
     const userJson = mockKv.get(`user:${mappedUserId}`);
     expect(userJson).toBeTruthy();
-    const user = JSON.parse(userJson ?? "{}") as {
+    const user = JSON.parse(userJson ?? '{}') as {
       stripe_customer_id: string;
       subscription_status: string;
       subscription_tier: string;
     };
-    expect(user.stripe_customer_id).toBe("cus_new");
-    expect(user.subscription_status).toBe("active");
-    expect(user.subscription_tier).toBe("continuous");
+    expect(user.stripe_customer_id).toBe('cus_new');
+    expect(user.subscription_status).toBe('active');
+    expect(user.subscription_tier).toBe('pro');
     expect(mockWriteAuditLog).toHaveBeenCalledTimes(1);
-    expect(mockKv.get("stripe_event:evt_checkout_new")).toBe("1");
+    expect(mockKv.get('stripe_event:evt_checkout_new')).toBe('1');
   });
 
-  it("updates an existing user tier on checkout completion", async () => {
-    vi.stubEnv("STRIPE_CONTINUOUS_PRICE_ID", "price_continuous");
-    seedUserByCustomer("cus_existing", "user_existing", "active", "trial");
+  it('updates an existing user tier on checkout completion', async () => {
+    seedUserByCustomer('cus_existing', 'user_existing', 'active', 'starter');
     mockConstructWebhookEvent.mockResolvedValueOnce({
-      id: "evt_checkout_existing",
-      type: "checkout.session.completed",
-      data: { object: { id: "cs_existing", customer: "cus_existing" } },
-    });
-    mockCheckoutRetrieve.mockResolvedValueOnce({
-      line_items: {
-        data: [{ price: { id: "price_continuous" } }],
+      id: 'evt_checkout_existing',
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_existing',
+          customer: 'cus_existing',
+          metadata: { afloat_tier: 'pro', afloat_billing: 'quarterly' },
+        },
       },
     });
 
-    const response = await webhookPOST(makeRequest("{}"));
+    const response = await webhookPOST(makeRequest('{}'));
     expect(response.status).toBe(200);
 
     const updatedUser = JSON.parse(
-      mockKv.get("user:user_existing") ?? "{}",
+      mockKv.get('user:user_existing') ?? '{}'
     ) as { subscription_tier: string };
-    expect(updatedUser.subscription_tier).toBe("continuous");
+    expect(updatedUser.subscription_tier).toBe('pro');
   });
 
-  it("falls back to trial tier when line item lookup fails", async () => {
-    seedUserByCustomer("cus_fallback", "user_fallback", "active", "continuous");
+  it('falls back to starter tier when metadata is missing', async () => {
+    seedUserByCustomer('cus_fallback', 'user_fallback', 'active', 'pro');
     mockConstructWebhookEvent.mockResolvedValueOnce({
-      id: "evt_checkout_fallback",
-      type: "checkout.session.completed",
-      data: { object: { id: "cs_fallback", customer: "cus_fallback" } },
+      id: 'evt_checkout_fallback',
+      type: 'checkout.session.completed',
+      data: {
+        object: { id: 'cs_fallback', customer: 'cus_fallback', metadata: {} },
+      },
     });
-    mockCheckoutRetrieve.mockRejectedValueOnce(new Error("stripe unavailable"));
 
-    const response = await webhookPOST(makeRequest("{}"));
+    const response = await webhookPOST(makeRequest('{}'));
     expect(response.status).toBe(200);
 
     const updatedUser = JSON.parse(
-      mockKv.get("user:user_fallback") ?? "{}",
+      mockKv.get('user:user_fallback') ?? '{}'
     ) as { subscription_tier: string };
-    expect(updatedUser.subscription_tier).toBe("trial");
+    expect(updatedUser.subscription_tier).toBe('starter');
   });
 
-  it("updates subscription status on invoice and subscription lifecycle events", async () => {
-    seedUserByCustomer("cus_lifecycle", "user_lifecycle", "active", "trial");
+  it('updates subscription status on invoice and subscription lifecycle events', async () => {
+    seedUserByCustomer('cus_lifecycle', 'user_lifecycle', 'active', 'starter');
 
     mockConstructWebhookEvent.mockResolvedValueOnce({
-      id: "evt_paid",
-      type: "invoice.paid",
-      data: { object: { customer: "cus_lifecycle" } },
+      id: 'evt_paid',
+      type: 'invoice.paid',
+      data: { object: { customer: 'cus_lifecycle' } },
     });
-    const paid = await webhookPOST(makeRequest("{}"));
+    const paid = await webhookPOST(makeRequest('{}'));
     expect(paid.status).toBe(200);
     expect(
-      (JSON.parse(mockKv.get("user:user_lifecycle") ?? "{}") as { subscription_status: string })
-        .subscription_status,
-    ).toBe("active");
+      (
+        JSON.parse(mockKv.get('user:user_lifecycle') ?? '{}') as {
+          subscription_status: string;
+        }
+      ).subscription_status
+    ).toBe('active');
 
     mockConstructWebhookEvent.mockResolvedValueOnce({
-      id: "evt_failed",
-      type: "invoice.payment_failed",
-      data: { object: { customer: "cus_lifecycle" } },
+      id: 'evt_failed',
+      type: 'invoice.payment_failed',
+      data: { object: { customer: 'cus_lifecycle' } },
     });
-    const failed = await webhookPOST(makeRequest("{}"));
+    const failed = await webhookPOST(makeRequest('{}'));
     expect(failed.status).toBe(200);
     expect(
-      (JSON.parse(mockKv.get("user:user_lifecycle") ?? "{}") as { subscription_status: string })
-        .subscription_status,
-    ).toBe("past_due");
+      (
+        JSON.parse(mockKv.get('user:user_lifecycle') ?? '{}') as {
+          subscription_status: string;
+        }
+      ).subscription_status
+    ).toBe('past_due');
 
     mockConstructWebhookEvent.mockResolvedValueOnce({
-      id: "evt_deleted",
-      type: "customer.subscription.deleted",
-      data: { object: { customer: "cus_lifecycle" } },
+      id: 'evt_deleted',
+      type: 'customer.subscription.deleted',
+      data: { object: { customer: 'cus_lifecycle' } },
     });
-    const deleted = await webhookPOST(makeRequest("{}"));
+    const deleted = await webhookPOST(makeRequest('{}'));
     expect(deleted.status).toBe(200);
     expect(
-      (JSON.parse(mockKv.get("user:user_lifecycle") ?? "{}") as { subscription_status: string })
-        .subscription_status,
-    ).toBe("canceled");
+      (
+        JSON.parse(mockKv.get('user:user_lifecycle') ?? '{}') as {
+          subscription_status: string;
+        }
+      ).subscription_status
+    ).toBe('canceled');
   });
 });

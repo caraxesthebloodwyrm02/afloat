@@ -1,37 +1,37 @@
-import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
-import { LLMError } from "@/lib/llm";
-import type { SafetyVerdict } from "@/lib/provenance";
-import { createDPR, getChainRef, storeDPR } from "@/lib/provenance";
-import { checkRateLimit, getSessionRateLimiter } from "@/lib/rate-limit";
+import { requireAuth, isAuthenticated } from '@/lib/auth-middleware';
+import { LLMError } from '@/lib/llm';
+import type { SafetyVerdict } from '@/lib/provenance';
+import { createDPR, getChainRef, storeDPR } from '@/lib/provenance';
+import { checkRateLimit, getSessionRateLimiter } from '@/lib/rate-limit';
 import {
-    acquireSessionLock,
-    enforceSessionLimits,
-    getSession,
-    recordTurn,
-    releaseSessionLock,
-    updateSession,
-} from "@/lib/session-controller";
-import { detectAndRedactPII } from "@/lib/safety";
-import { runSafetyPipeline } from "@/lib/safety-pipeline";
-import { recordSafetyEvent } from "@/lib/safety-telemetry";
-import { generateMessageResponse } from "@/lib/session-message-adapter";
-import { auditAction } from "@/lib/audit";
-import { getUser } from "@/lib/data-layer";
+  acquireSessionLock,
+  enforceSessionLimits,
+  getSession,
+  recordTurn,
+  releaseSessionLock,
+  updateSession,
+} from '@/lib/session-controller';
+import { detectAndRedactPII } from '@/lib/safety';
+import { runSafetyPipeline } from '@/lib/safety-pipeline';
+import { recordSafetyEvent } from '@/lib/safety-telemetry';
+import { generateMessageResponse } from '@/lib/session-message-adapter';
+import { auditAction } from '@/lib/audit';
+import { getUser } from '@/lib/data-layer';
 import {
   buildLLMRoutingContext,
   normalizeSessionMessageRequestBody,
-} from "@/lib/session-message-request";
+} from '@/lib/session-message-request';
 import type {
   ApiError,
   SessionMessageRequestBody,
   SessionMessageResponse,
-} from "@/types/api";
-import { getTierLimits } from "@/types/session";
-import { NextRequest, NextResponse } from "next/server";
+} from '@/types/api';
+import { getTierLimits } from '@/types/session';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
@@ -46,28 +46,28 @@ export async function POST(
 
   const authDPR = createDPR(
     {
-      decision_type: "gate_verdict",
-      action_taken: "authentication_check",
-      reasoning_summary: "JWT bearer token validated",
-      authority_type: "system_policy",
+      decision_type: 'gate_verdict',
+      action_taken: 'authentication_check',
+      reasoning_summary: 'JWT bearer token validated',
+      authority_type: 'system_policy',
       actor_id: user.user_id,
       safety_verdicts: [
         {
-          gate_id: "jwt_auth",
-          gate_type: "auth",
-          verdict: "pass",
+          gate_id: 'jwt_auth',
+          gate_type: 'auth',
+          verdict: 'pass',
           latency_ms: 0,
           confidence: 1.0,
         },
       ],
     },
-    null,
+    null
   );
   parentRef = getChainRef(authDPR);
   safetyVerdicts.push({
-    gate_id: "jwt_auth",
-    gate_type: "auth",
-    verdict: "pass",
+    gate_id: 'jwt_auth',
+    gate_type: 'auth',
+    verdict: 'pass',
     latency_ms: 0,
     confidence: 1.0,
   });
@@ -75,35 +75,35 @@ export async function POST(
   const rateLimitStart = Date.now();
   const rateLimitResponse = await checkRateLimit(
     getSessionRateLimiter(),
-    user.user_id,
+    user.user_id
   );
   const rateLimitMs = Date.now() - rateLimitStart;
   if (rateLimitResponse) {
     safetyVerdicts.push({
-      gate_id: "session_rate_limit",
-      gate_type: "rate_limit",
-      verdict: "block",
+      gate_id: 'session_rate_limit',
+      gate_type: 'rate_limit',
+      verdict: 'block',
       latency_ms: rateLimitMs,
       confidence: 1.0,
     });
     const rlDPR = createDPR(
       {
-        decision_type: "gate_verdict",
-        action_taken: "rate_limit_enforcement",
-        reasoning_summary: "Session rate limit exceeded",
-        authority_type: "system_policy",
+        decision_type: 'gate_verdict',
+        action_taken: 'rate_limit_enforcement',
+        reasoning_summary: 'Session rate limit exceeded',
+        authority_type: 'system_policy',
         actor_id: user.user_id,
         safety_verdicts: safetyVerdicts,
       },
-      parentRef,
+      parentRef
     );
     storeDPR(rlDPR).catch(() => {});
     return rateLimitResponse;
   }
   safetyVerdicts.push({
-    gate_id: "session_rate_limit",
-    gate_type: "rate_limit",
-    verdict: "pass",
+    gate_id: 'session_rate_limit',
+    gate_type: 'rate_limit',
+    verdict: 'pass',
     latency_ms: rateLimitMs,
     confidence: 1.0,
   });
@@ -115,10 +115,10 @@ export async function POST(
   if (!lockAcquired) {
     return NextResponse.json<ApiError>(
       {
-        error: "rate_limit",
-        message: "Request already in progress for this session.",
+        error: 'rate_limit',
+        message: 'Request already in progress for this session.',
       },
-      { status: 429 },
+      { status: 429 }
     );
   }
 
@@ -128,15 +128,15 @@ export async function POST(
 
     if (!session) {
       return NextResponse.json<ApiError>(
-        { error: "not_found", message: "Session not found." },
-        { status: 404 },
+        { error: 'not_found', message: 'Session not found.' },
+        { status: 404 }
       );
     }
 
     if (session.user_id !== user.user_id) {
       return NextResponse.json<ApiError>(
-        { error: "forbidden", message: "Access denied." },
-        { status: 403 },
+        { error: 'forbidden', message: 'Access denied.' },
+        { status: 403 }
       );
     }
 
@@ -145,8 +145,8 @@ export async function POST(
       body = (await request.json()) as SessionMessageRequestBody;
     } catch {
       return NextResponse.json<ApiError>(
-        { error: "empty_input", message: "Invalid request body." },
-        { status: 400 },
+        { error: 'empty_input', message: 'Invalid request body.' },
+        { status: 400 }
       );
     }
 
@@ -157,40 +157,41 @@ export async function POST(
     const enforcement = enforceSessionLimits(session, userMessage);
     if (!enforcement.allowed) {
       safetyVerdicts.push({
-        gate_id: "session_enforce",
-        gate_type: "boundary",
-        verdict: "block",
+        gate_id: 'session_enforce',
+        gate_type: 'boundary',
+        verdict: 'block',
         latency_ms: 0,
         confidence: 1.0,
       });
       const enforceDPR = createDPR(
         {
-          decision_type: "gate_verdict",
-          action_taken: "session_limit_enforcement",
+          decision_type: 'gate_verdict',
+          action_taken: 'session_limit_enforcement',
           input_context: userMessage,
           reasoning_summary: `Session enforcement: ${enforcement.errorCode}`,
-          authority_type: "system_policy",
+          authority_type: 'system_policy',
           actor_id: user.user_id,
           safety_verdicts: safetyVerdicts,
         },
-        parentRef,
+        parentRef
       );
       storeDPR(enforceDPR, sessionId).catch(() => {});
       return NextResponse.json<ApiError>(
         { error: enforcement.errorCode!, message: enforcement.errorMessage! },
-        { status: enforcement.errorCode === "empty_input" ? 400 : 409 },
+        { status: enforcement.errorCode === 'empty_input' ? 400 : 409 }
       );
     }
     safetyVerdicts.push({
-      gate_id: "session_enforce",
-      gate_type: "boundary",
-      verdict: "pass",
+      gate_id: 'session_enforce',
+      gate_type: 'boundary',
+      verdict: 'pass',
       latency_ms: 0,
       confidence: 1.0,
     });
 
     // Unified Safety Pipeline
-    const sessionElapsedMs = Date.now() - new Date(session.start_time).getTime();
+    const sessionElapsedMs =
+      Date.now() - new Date(session.start_time).getTime();
     const pipeline = runSafetyPipeline({
       userMessage,
       tier: session.tier,
@@ -200,7 +201,7 @@ export async function POST(
 
     // Fire-and-forget telemetry
     recordSafetyEvent({
-      event_type: "pipeline_result",
+      event_type: 'pipeline_result',
       pre_check_flags: pipeline.pre_check.flags,
       pii_found: pipeline.pii.pii_found,
       pii_types: pipeline.pii.type_counts,
@@ -209,46 +210,52 @@ export async function POST(
 
     // Add safety verdicts to DPR chain
     safetyVerdicts.push({
-      gate_id: "pre_check",
-      gate_type: "guardrail",
-      verdict: pipeline.pre_check.blocked ? "block" : "pass",
+      gate_id: 'pre_check',
+      gate_type: 'guardrail',
+      verdict: pipeline.pre_check.blocked ? 'block' : 'pass',
       latency_ms: 0,
       confidence: 1.0,
     });
     if (pipeline.pii.pii_found) {
       safetyVerdicts.push({
-        gate_id: "pii_shield",
-        gate_type: "guardrail",
-        verdict: "warn",
+        gate_id: 'pii_shield',
+        gate_type: 'guardrail',
+        verdict: 'warn',
         latency_ms: 0,
         confidence: 1.0,
       });
     }
 
     if (!pipeline.allowed) {
-      if (pipeline.blocked_by === "pre_check") {
+      if (pipeline.blocked_by === 'pre_check') {
         return NextResponse.json<ApiError>(
-          { error: "empty_input", message: pipeline.reason ?? "Input validation failed" },
-          { status: 400 },
+          {
+            error: 'empty_input',
+            message: pipeline.reason ?? 'Input validation failed',
+          },
+          { status: 400 }
         );
       }
       return NextResponse.json<ApiError>(
-        { error: "rate_limit", message: pipeline.reason ?? "Rate limit exceeded" },
-        { status: 429 },
+        {
+          error: 'rate_limit',
+          message: pipeline.reason ?? 'Rate limit exceeded',
+        },
+        { status: 429 }
       );
     }
 
     const enforceDPR = createDPR(
       {
-        decision_type: "gate_verdict",
-        action_taken: "session_limit_check",
+        decision_type: 'gate_verdict',
+        action_taken: 'session_limit_check',
         input_context: userMessage,
-        reasoning_summary: "Session limits within bounds",
-        authority_type: "system_policy",
+        reasoning_summary: 'Session limits within bounds',
+        authority_type: 'system_policy',
         actor_id: user.user_id,
         safety_verdicts: safetyVerdicts,
       },
-      parentRef,
+      parentRef
     );
     parentRef = getChainRef(enforceDPR);
 
@@ -257,7 +264,7 @@ export async function POST(
     try {
       // Use sanitized message from safety pipeline
       const safeLLMInput = pipeline.sanitized_message;
-      const safeHistory = clientHistory.map(entry => ({
+      const safeHistory = clientHistory.map((entry) => ({
         role: entry.role,
         content: detectAndRedactPII(entry.content).redacted_text,
       }));
@@ -267,7 +274,7 @@ export async function POST(
       const llmResponse = await generateMessageResponse(
         safeLLMInput,
         safeHistory,
-        buildLLMRoutingContext(user.user_id, userRecord, normalizedRequest),
+        buildLLMRoutingContext(user.user_id, userRecord, normalizedRequest)
       );
 
       const latencyMs = Date.now() - startTime;
@@ -276,24 +283,28 @@ export async function POST(
         latencyMs,
         llmResponse.gate_type,
         llmResponse.brief,
-        userMessage,
+        userMessage
       );
       await updateSession(session);
 
       await auditAction(request, user, {
-        action: "update",
-        resource_type: "session_log",
+        action: 'update',
+        resource_type: 'session_log',
         resource_id: sessionId,
-        outcome: "success",
-        metadata: { turn: session.llm_call_count, gate_type: llmResponse.gate_type },
+        outcome: 'success',
+        metadata: {
+          turn: session.llm_call_count,
+          gate_type: llmResponse.gate_type,
+        },
       });
 
-      const turnsRemaining = getTierLimits(session.tier).maxLlmCalls - session.llm_call_count;
+      const turnsRemaining =
+        getTierLimits(session.tier).maxLlmCalls - session.llm_call_count;
 
       const generationDPR = createDPR(
         {
-          decision_type: "generation",
-          action_taken: "llm_response_delivery",
+          decision_type: 'generation',
+          action_taken: 'llm_response_delivery',
           input_context: userMessage,
           output_content: llmResponse.brief,
           model_id: llmResponse.model_id,
@@ -306,11 +317,11 @@ export async function POST(
           reasoning_summary:
             `Gate: ${llmResponse.gate_type}, turns remaining: ${turnsRemaining}, ` +
             `provider: ${llmResponse.provider}, model: ${llmResponse.model_id}`,
-          authority_type: "system_policy",
+          authority_type: 'system_policy',
           actor_id: user.user_id,
           safety_verdicts: safetyVerdicts,
         },
-        parentRef,
+        parentRef
       );
 
       Promise.all([
@@ -318,20 +329,20 @@ export async function POST(
         storeDPR(enforceDPR, sessionId),
         storeDPR(generationDPR, sessionId),
       ]).catch((err) => {
-        console.error("[provenance] Failed to store DPR chain:", err);
+        console.error('[provenance] Failed to store DPR chain:', err);
       });
 
       return NextResponse.json<SessionMessageResponse>({
         gate_type: llmResponse.gate_type,
         brief: llmResponse.brief,
-        session_status: turnsRemaining > 0 ? "active" : "complete",
+        session_status: turnsRemaining > 0 ? 'active' : 'complete',
         turns_remaining: turnsRemaining,
       });
     } catch (error) {
       const latencyMs = Date.now() - startTime;
       session.llm_call_count += 1;
       session.latency_per_turn.push(latencyMs / 1000);
-      session.error = error instanceof LLMError ? error.reason : "unknown";
+      session.error = error instanceof LLMError ? error.reason : 'unknown';
       await updateSession(session);
 
       const message =
@@ -341,27 +352,27 @@ export async function POST(
 
       const errorDPR = createDPR(
         {
-          decision_type: "generation",
-          action_taken: "llm_error_occurred",
+          decision_type: 'generation',
+          action_taken: 'llm_error_occurred',
           input_context: userMessage,
-          reasoning_summary: `LLM error: ${error instanceof LLMError ? error.reason : "unknown"}`,
-          authority_type: "system_policy",
+          reasoning_summary: `LLM error: ${error instanceof LLMError ? error.reason : 'unknown'}`,
+          authority_type: 'system_policy',
           actor_id: user.user_id,
           safety_verdicts: safetyVerdicts,
         },
-        parentRef,
+        parentRef
       );
       Promise.all([
         storeDPR(authDPR, sessionId),
         storeDPR(enforceDPR, sessionId),
         storeDPR(errorDPR, sessionId),
       ]).catch((err) => {
-        console.error("[provenance] Failed to store DPR chain:", err);
+        console.error('[provenance] Failed to store DPR chain:', err);
       });
 
       return NextResponse.json<ApiError>(
-        { error: "llm_error", message },
-        { status: 502 },
+        { error: 'llm_error', message },
+        { status: 502 }
       );
     }
   } finally {

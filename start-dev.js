@@ -7,9 +7,13 @@ void (async () => {
     if (arr[i - 1] === '--dir') return false;
     return true;
   });
-  const child = spawn('node', ['node_modules/next/dist/bin/next', 'dev', ...args], {
-    stdio: 'inherit',
-    cwd: __dirname,
-  });
+  const child = spawn(
+    'node',
+    ['node_modules/next/dist/bin/next', 'dev', ...args],
+    {
+      stdio: 'inherit',
+      cwd: __dirname,
+    }
+  );
   child.on('exit', (code) => process.exit(code ?? 0));
 })();

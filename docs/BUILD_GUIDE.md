@@ -13,6 +13,7 @@ This guide tells you **what to build, in what order, and how to know it's workin
 Each section is one **buildable unit**. They're ordered so that each one builds on the last. Don't skip ahead — later sections depend on earlier ones being done.
 
 Each section has:
+
 - **What you're building** — the plain description
 - **Inputs** — what you need before starting
 - **Outputs** — what exists when you're done
@@ -28,6 +29,7 @@ Each section has:
 An empty web project that deploys to Vercel's free tier. Nothing functional yet — just a page that loads and an API route that responds.
 
 ### Inputs
+
 - A Vercel account (free)
 - A GitHub repo (this one, or a new one for the app code)
 - Node.js installed locally
@@ -40,14 +42,17 @@ An empty web project that deploys to Vercel's free tier. Nothing functional yet 
 4. Deploy to Vercel. Confirm the page loads and the health endpoint responds.
 
 ### Outputs
+
 - A live URL on Vercel (e.g., `your-app.vercel.app`)
 - A `/api/v1/health` endpoint returning 200
 
 ### How to test it
+
 - Open the URL in a browser. You see the page.
 - Hit `/api/v1/health` in the browser. You see `{"status":"ok"}`.
 
 ### Watch out for
+
 - Don't install a bunch of libraries yet. Keep it minimal.
 - Make sure environment variables work on Vercel (test with a dummy `TEST_VAR`).
 
@@ -60,11 +65,13 @@ An empty web project that deploys to Vercel's free tier. Nothing functional yet 
 The heart of the tool: a server-side component that manages sessions. It creates sessions, counts turns, enforces the timer, and decides when a session is over.
 
 ### Inputs
+
 - Working project from Step 1
 
 ### What to do
 
 1. Create a session store — for now, an in-memory JavaScript `Map` keyed by `session_id`. Each entry holds:
+
    ```
    {
      session_id: "uuid",
@@ -101,6 +108,7 @@ The heart of the tool: a server-side component that manages sessions. It creates
    ```
 
 ### Outputs
+
 - Three working API routes
 - Session state managed in memory
 - Turn limit and timer enforced server-side
@@ -109,17 +117,18 @@ The heart of the tool: a server-side component that manages sessions. It creates
 
 Run these tests manually (or write them as automated tests — even better):
 
-| Test | Expected result |
-|---|---|
-| Start a session | Get back a session_id |
-| Send a message | Get back placeholder response, turns_remaining = 1 |
-| Send a second message | Get back placeholder response, turns_remaining = 0 |
-| Send a third message | Get rejected: "Session limit reached." |
-| Start a session, wait 121 seconds, send a message | Get rejected: "Session time limit reached." |
-| Send an empty message | Get rejected, turn count unchanged |
-| End a session | Session marked complete |
+| Test                                              | Expected result                                    |
+| ------------------------------------------------- | -------------------------------------------------- |
+| Start a session                                   | Get back a session_id                              |
+| Send a message                                    | Get back placeholder response, turns_remaining = 1 |
+| Send a second message                             | Get back placeholder response, turns_remaining = 0 |
+| Send a third message                              | Get rejected: "Session limit reached."             |
+| Start a session, wait 121 seconds, send a message | Get rejected: "Session time limit reached."        |
+| Send an empty message                             | Get rejected, turn count unchanged                 |
+| End a session                                     | Session marked complete                            |
 
 ### Watch out for
+
 - The session store is in-memory, which means it resets on every deploy. That's fine for now. Persistence comes later.
 - Make sure the timer uses **server time**, not anything from the client.
 - Vercel serverless functions are stateless — the in-memory Map won't survive across function invocations in production. For Phase 2 testing, this is acceptable. For production, you'll need a lightweight external store (e.g., Vercel KV, Upstash Redis, or a simple JSON file). Plan for this but don't build it yet.
@@ -133,6 +142,7 @@ Run these tests manually (or write them as automated tests — even better):
 Replace the placeholder response with the current Ollama-first router. The routing layer detects the gate type, picks a local model, and only uses OpenAI in rare lifeguard cases.
 
 ### Inputs
+
 - Working session controller from Step 2
 - An Ollama endpoint (`OLLAMA_BASE_URL`)
 - An optional OpenAI API key for rare escalation (`OPENAI_API_KEY`)
@@ -190,23 +200,25 @@ Replace the placeholder response with the current Ollama-first router. The routi
    - LLM returns empty → return fallback message
 
 ### Outputs
+
 - The `/message` endpoint now returns real LLM-generated briefs
 - Gate types are detected and logged
 - Latency is measured per turn
 
 ### How to test it
 
-| Test | Expected result |
-|---|---|
-| "Should I attend this meeting? The agenda is about Q3 planning." | Response contains `[GATE: meeting_triage]` and a brief < 150 words |
-| "I have 5 things to do, what should I tackle first?" | Response contains `[GATE: priority_decision]` |
-| "What's the gist of the new company policy?" | Response contains `[GATE: quick_briefing]` |
-| "I'm stuck, I don't understand what's going on with this project" | Response contains `[GATE: context_gate_resolution]` |
-| "Write me a 2000-word essay on climate change" | Response contains `[GATE: out_of_scope]` |
-| Send same message twice in one session (follow-up) | Second response uses conversation context |
-| Measure response time | Should be under 3 seconds |
+| Test                                                              | Expected result                                                    |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| "Should I attend this meeting? The agenda is about Q3 planning."  | Response contains `[GATE: meeting_triage]` and a brief < 150 words |
+| "I have 5 things to do, what should I tackle first?"              | Response contains `[GATE: priority_decision]`                      |
+| "What's the gist of the new company policy?"                      | Response contains `[GATE: quick_briefing]`                         |
+| "I'm stuck, I don't understand what's going on with this project" | Response contains `[GATE: context_gate_resolution]`                |
+| "Write me a 2000-word essay on climate change"                    | Response contains `[GATE: out_of_scope]`                           |
+| Send same message twice in one session (follow-up)                | Second response uses conversation context                          |
+| Measure response time                                             | Should be under 3 seconds                                          |
 
 ### Watch out for
+
 - **Never log the user's text input to disk.** Keep it in memory only.
 - **Never log the LLM's response to disk.** Only log the gate_type and latency.
 - Set `temperature: 0.3`, not the default `1.0`. You want consistent, grounded responses.
@@ -222,6 +234,7 @@ Replace the placeholder response with the current Ollama-first router. The routi
 A simple file-based storage system that writes session telemetry, user accounts, and audit logs to JSON files.
 
 ### Inputs
+
 - Working session controller + LLM from Steps 2–3
 
 ### What to do
@@ -239,20 +252,22 @@ A simple file-based storage system that writes session telemetry, user accounts,
 6. **Respect consent:** Before writing session telemetry, check the user's `session_telemetry` consent. If `granted: false`, skip the telemetry write (but still track session_completed for the success rate — that's covered under `essential_processing`).
 
 ### Outputs
+
 - Session telemetry written to daily JSON files after each session
 - Audit log entries for every data operation
 - User files created on subscription
 
 ### How to test it
 
-| Test | Expected result |
-|---|---|
-| Complete a session | Check `data/sessions/` — a new entry appears with correct fields |
-| Verify no user text in session file | The session log contains session_id, times, turns, gate_type, latency — no message content |
-| Check audit log | Every session write has a corresponding audit entry |
-| Opt out of telemetry, complete a session | No session telemetry written (but session still works) |
+| Test                                     | Expected result                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Complete a session                       | Check `data/sessions/` — a new entry appears with correct fields                           |
+| Verify no user text in session file      | The session log contains session_id, times, turns, gate_type, latency — no message content |
+| Check audit log                          | Every session write has a corresponding audit entry                                        |
+| Opt out of telemetry, complete a session | No session telemetry written (but session still works)                                     |
 
 ### Watch out for
+
 - **File locking:** If two sessions end at the same time, they might both try to write to the same day's file. Use an append strategy or a write queue.
 - **Don't store user text.** Check this three times. Grep your code for any place where the user's message or the LLM's response might accidentally end up on disk.
 - On Vercel serverless, you can't write to the local filesystem in production. You'll need an alternative: Vercel KV, an external JSON store, or a lightweight database. For local development and testing, the file approach works.
@@ -266,6 +281,7 @@ A simple file-based storage system that writes session telemetry, user accounts,
 A minimal chat page. One text input, one send button, one "Done" button, a timer display, and a message area.
 
 ### Inputs
+
 - Working API routes from Steps 2–4
 
 ### What to do
@@ -291,23 +307,25 @@ A minimal chat page. One text input, one send button, one "Done" button, a timer
 5. **Styling:** Keep it clean and minimal. Use system fonts. Light background, readable text. Mobile-friendly. No animations, no fancy effects. The tool is about **getting out of the way** and letting the user focus on their decision.
 
 ### Outputs
+
 - A working chat UI that communicates with the Session Controller
 - Timer display
 - Proper state management (input enables/disables at the right times)
 
 ### How to test it
 
-| Test | Expected result |
-|---|---|
-| Load the page | Session starts, timer counting down |
-| Type a question and send | Brief appears in < 3 seconds |
-| Send a follow-up | Response appears, input disables |
-| Click "Done" after first brief | Session ends cleanly |
-| Wait 2+ minutes without interacting | Timeout message appears |
-| Send something while loading | Send button is disabled during loading |
-| Refresh the page | New session starts (old one is gone) |
+| Test                                | Expected result                        |
+| ----------------------------------- | -------------------------------------- |
+| Load the page                       | Session starts, timer counting down    |
+| Type a question and send            | Brief appears in < 3 seconds           |
+| Send a follow-up                    | Response appears, input disables       |
+| Click "Done" after first brief      | Session ends cleanly                   |
+| Wait 2+ minutes without interacting | Timeout message appears                |
+| Send something while loading        | Send button is disabled during loading |
+| Refresh the page                    | New session starts (old one is gone)   |
 
 ### Watch out for
+
 - **Don't store messages in localStorage or cookies.** Each session is ephemeral.
 - **Don't send the session_id in the URL** where it could end up in browser history or analytics. Send it in request headers or body.
 - The loading state is important — without it, users will double-send messages.
@@ -321,6 +339,7 @@ A minimal chat page. One text input, one send button, one "Done" button, a timer
 A subscription flow where users pay $3/month to access the tool. Stripe handles all the money and PII.
 
 ### Inputs
+
 - A Stripe account (free to create, test mode available)
 - Working app from Steps 1–5
 
@@ -352,6 +371,7 @@ A subscription flow where users pay $3/month to access the tool. Stripe handles 
 5. **Test in Stripe's test mode first.** Stripe provides test card numbers (e.g., `4242 4242 4242 4242`). Never use real card data during development.
 
 ### Outputs
+
 - Users can subscribe via Stripe Checkout
 - Subscription status is tracked
 - Session endpoints are gated behind active subscription
@@ -359,14 +379,15 @@ A subscription flow where users pay $3/month to access the tool. Stripe handles 
 
 ### How to test it
 
-| Test | Expected result |
-|---|---|
-| Click subscribe, use test card | Redirected to Stripe, payment succeeds, redirected back, session access granted |
-| Try to start a session without subscribing | 403 error, message to subscribe |
-| Simulate `invoice.payment_failed` webhook | User status changes to "past_due" |
-| Simulate `customer.subscription.deleted` webhook | User status changes to "canceled", session access revoked |
+| Test                                             | Expected result                                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Click subscribe, use test card                   | Redirected to Stripe, payment succeeds, redirected back, session access granted |
+| Try to start a session without subscribing       | 403 error, message to subscribe                                                 |
+| Simulate `invoice.payment_failed` webhook        | User status changes to "past_due"                                               |
+| Simulate `customer.subscription.deleted` webhook | User status changes to "canceled", session access revoked                       |
 
 ### Watch out for
+
 - **Webhook signature verification is not optional.** Without it, anyone could fake webhook events.
 - **Use Stripe's test mode** for all development. Switch to live mode only at launch.
 - **Don't store any payment data** on your server. Stripe handles it all.
@@ -381,6 +402,7 @@ A subscription flow where users pay $3/month to access the tool. Stripe handles 
 The consent forms (opt-in at signup, settings page for opt-out) and the data rights API endpoints (export, delete, portability, rectification).
 
 ### Inputs
+
 - Working user accounts from Step 6
 - Data layer from Step 4
 
@@ -411,14 +433,17 @@ The consent forms (opt-in at signup, settings page for opt-out) and the data rig
    - After 7 days, the auto-deletion job removes everything
 
 ### Outputs
+
 - Consent collected at signup, modifiable in settings
 - All four data rights endpoints working
 - Audit log captures all consent changes and data operations
 
 ### How to test it
+
 - These map to test cases TC-01 through TC-08 in the contract. Run all of them.
 
 ### Watch out for
+
 - The export endpoint must return **only the requesting user's data** — never another user's.
 - Deletion must cascade to session logs, consent records, and subscription references. Request Stripe customer deletion via their API too.
 - Log every data rights action in the audit log.
@@ -432,6 +457,7 @@ The consent forms (opt-in at signup, settings page for opt-out) and the data rig
 Automated test scripts that simulate real users to verify the tool meets its KPI baselines.
 
 ### Inputs
+
 - Fully working tool from Steps 1–7
 
 ### What to do
@@ -468,15 +494,18 @@ Automated test scripts that simulate real users to verify the tool meets its KPI
    - Verify no user text appears in any data files
 
 ### Outputs
+
 - Automated test suite covering happy path, edge cases, and security
 - KPI baseline report from 100-session run
 - Any failures documented and triaged
 
 ### How to test it
+
 - Run the test suite. It's self-testing.
 - The KPI report should show all metrics meeting or exceeding their thresholds.
 
 ### Watch out for
+
 - Don't hardcode the OpenAI API key in test scripts. Use environment variables.
 - The 100-session run will cost real money (API calls). Estimate: ~$0.10–0.30 in API costs. Budget this under the $6.00 LLM cost estimate.
 - If latency tests fail, check if it's the LLM or your server code. Log both separately.
@@ -517,18 +546,18 @@ The final preparations before letting real users in.
 
 ## Summary: Build Order at a Glance
 
-| Step | What | Depends on | Estimated effort |
-|---|---|---|---|
-| 1 | Project skeleton + deploy | Nothing | 1–2 hours |
-| 2 | Session controller | Step 1 | 3–4 hours |
-| 3 | Connect LLM | Step 2 | 2–3 hours |
-| 4 | Data layer | Step 2 | 2–3 hours |
-| 5 | Frontend chat UI | Steps 2–3 | 3–4 hours |
-| 6 | Stripe payment | Steps 1, 4 | 3–4 hours |
-| 7 | Consent + data rights | Steps 4, 6 | 3–4 hours |
-| 8 | Reliability testing | Steps 1–7 | 2–3 hours |
-| 9 | Soft launch prep | Steps 1–8 | 1–2 hours |
-| **Total** | | | **~20–27 hours** |
+| Step      | What                      | Depends on | Estimated effort |
+| --------- | ------------------------- | ---------- | ---------------- |
+| 1         | Project skeleton + deploy | Nothing    | 1–2 hours        |
+| 2         | Session controller        | Step 1     | 3–4 hours        |
+| 3         | Connect LLM               | Step 2     | 2–3 hours        |
+| 4         | Data layer                | Step 2     | 2–3 hours        |
+| 5         | Frontend chat UI          | Steps 2–3  | 3–4 hours        |
+| 6         | Stripe payment            | Steps 1, 4 | 3–4 hours        |
+| 7         | Consent + data rights     | Steps 4, 6 | 3–4 hours        |
+| 8         | Reliability testing       | Steps 1–7  | 2–3 hours        |
+| 9         | Soft launch prep          | Steps 1–8  | 1–2 hours        |
+| **Total** |                           |            | **~20–27 hours** |
 
 This fits within the 30-day Phase 2 window even at a few hours per day.
 
@@ -538,4 +567,4 @@ This fits within the 30-day Phase 2 window even at a few hours per day.
 
 Every decision in this guide traces back to `contract.json`. If something here conflicts with the contract, **the contract wins**. If you need to deviate from this guide during the build, update the contract (new version + changelog entry) before or immediately after the change.
 
-The whole point of this tool is *transparency*. That starts with how we build it.
+The whole point of this tool is _transparency_. That starts with how we build it.

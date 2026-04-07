@@ -1,15 +1,12 @@
-import { v4 as uuidv4 } from "uuid";
-import { computeHash, computeChainHash } from "./chain";
-import { signRecord } from "./signer";
-import type {
-  DecisionProvenanceRecord,
-  DPRCreateInput,
-} from "./types";
+import { v4 as uuidv4 } from 'uuid';
+import { computeHash, computeChainHash } from './chain';
+import { signRecord } from './signer';
+import type { DecisionProvenanceRecord, DPRCreateInput } from './types';
 
-const PROVENANCE_VERSION = "1.0.0";
+const PROVENANCE_VERSION = '1.0.0';
 
 export function serializeDPRForHashing(
-  dpr: Omit<DecisionProvenanceRecord, "chain_hash" | "signature">
+  dpr: Omit<DecisionProvenanceRecord, 'chain_hash' | 'signature'>
 ): string {
   const ordered = JSON.stringify(dpr, Object.keys(dpr).sort());
   return ordered;
@@ -17,7 +14,11 @@ export function serializeDPRForHashing(
 
 export function createDPR(
   input: DPRCreateInput,
-  parentDPR: { dpr_id: string; chain_hash: string; sequence_number: number } | null
+  parentDPR: {
+    dpr_id: string;
+    chain_hash: string;
+    sequence_number: number;
+  } | null
 ): DecisionProvenanceRecord {
   const dpr_id = uuidv4();
   const timestamp = new Date().toISOString();
@@ -25,13 +26,13 @@ export function createDPR(
 
   const output_hash = input.output_content
     ? computeHash(input.output_content)
-    : computeHash("");
+    : computeHash('');
 
   const input_context_hash = input.input_context
     ? computeHash(input.input_context)
-    : computeHash("");
+    : computeHash('');
 
-  const partial: Omit<DecisionProvenanceRecord, "chain_hash" | "signature"> = {
+  const partial: Omit<DecisionProvenanceRecord, 'chain_hash' | 'signature'> = {
     dpr_id,
     parent_dpr_id: parentDPR?.dpr_id ?? null,
     timestamp,
@@ -60,15 +61,20 @@ export function createDPR(
   );
 
   const withChain = { ...partial, chain_hash };
-  const fullSerialized = JSON.stringify(withChain, Object.keys(withChain).sort());
+  const fullSerialized = JSON.stringify(
+    withChain,
+    Object.keys(withChain).sort()
+  );
   const signature = signRecord(fullSerialized);
 
   return { ...withChain, signature };
 }
 
-export function getChainRef(
-  dpr: DecisionProvenanceRecord
-): { dpr_id: string; chain_hash: string; sequence_number: number } {
+export function getChainRef(dpr: DecisionProvenanceRecord): {
+  dpr_id: string;
+  chain_hash: string;
+  sequence_number: number;
+} {
   return {
     dpr_id: dpr.dpr_id,
     chain_hash: dpr.chain_hash,

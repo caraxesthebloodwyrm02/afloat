@@ -1,17 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { constructWebhookEvent, getStripe, isStripeConfigured } from "@/lib/stripe";
-import type { SubscriptionTier } from "@/types/user";
+import { writeAuditLog } from '@/lib/audit';
+import { createDefaultConsents } from '@/lib/consent';
 import {
   createUser,
   getUserByStripeCustomerId,
   setStripeCustomerMapping,
   updateUser,
-} from "@/lib/data-layer";
-import { createDefaultConsents } from "@/lib/consent";
-import { writeAuditLog } from "@/lib/audit";
-import { getRedis } from "@/lib/redis";
-import { v4 as uuidv4 } from "uuid";
-import type Stripe from "stripe";
+} from '@/lib/data-layer';
+import { emitEvent } from '@/lib/events';
+import { getRedis } from '@/lib/redis';
+import { constructWebhookEvent, isStripeConfigured } from '@/lib/stripe';
+import type { SubscriptionTier } from '@/types/user';
+import { NextRequest, NextResponse } from 'next/server';
+import type Stripe from 'stripe';
+import { v4 as uuidv4 } from 'uuid';
 
 // Idempotency: track processed event IDs to handle Stripe retries
 async function isEventProcessed(eventId: string): Promise<boolean> {
@@ -23,21 +24,21 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
 async function markEventProcessed(eventId: string): Promise<void> {
   const redis = getRedis();
   // Store for 24 hours — Stripe retries within this window
-  await redis.set(`stripe_event:${eventId}`, "1", { ex: 86400 });
+  await redis.set(`stripe_event:${eventId}`, '1', { ex: 86400 });
 }
 
 export async function POST(request: NextRequest) {
   if (!isStripeConfigured()) {
     return NextResponse.json(
-      { error: "not_available", message: "Billing is not configured." },
+      { error: 'not_available', message: 'Billing is not configured.' },
       { status: 501 }
     );
   }
 
-  const signature = request.headers.get("stripe-signature");
+  const signature = request.headers.get('stripe-signature');
   if (!signature) {
     return NextResponse.json(
-      { error: "unauthorized", message: "Missing Stripe signature." },
+      { error: 'unauthorized', message: 'Missing Stripe signature.' },
       { status: 401 }
     );
   }
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     event = await constructWebhookEvent(body, signature);
   } catch {
     return NextResponse.json(
-      { error: "unauthorized", message: "Invalid webhook signature." },
+      { error: 'unauthorized', message: 'Invalid webhook signature.' },
       { status: 401 }
     );
   }
@@ -59,25 +60,18 @@ export async function POST(request: NextRequest) {
   }
 
   switch (event.type) {
-    case "checkout.session.completed": {
+    case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const stripeCustomerId = session.customer as string;
 
-      // Detect tier from price ID
-      let subscriptionTier: SubscriptionTier = "trial";
-      try {
-        const stripe = getStripe();
-        const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-          expand: ["line_items"],
-        });
-        const continuousPriceId = process.env.STRIPE_CONTINUOUS_PRICE_ID;
-        if (continuousPriceId && fullSession.line_items?.data?.some(
-          (item) => item.price?.id === continuousPriceId
-        )) {
-          subscriptionTier = "continuous";
-        }
-      } catch {
-        // Default to trial if detection fails
+      const metaTier = session.metadata?.afloat_tier;
+      let subscriptionTier: SubscriptionTier = 'starter';
+      if (
+        metaTier === 'pro' ||
+        metaTier === 'starter' ||
+        metaTier === 'free_trial'
+      ) {
+        subscriptionTier = metaTier;
       }
 
       const existing = await getUserByStripeCustomerId(stripeCustomerId);
@@ -86,7 +80,7 @@ export async function POST(request: NextRequest) {
         const user = {
           user_id: userId,
           stripe_customer_id: stripeCustomerId,
-          subscription_status: "active" as const,
+          subscription_status: 'active' as const,
           subscription_tier: subscriptionTier,
           billing_cycle_anchor: new Date().toISOString(),
           consents: createDefaultConsents(true, false, false),
@@ -97,51 +91,84 @@ export async function POST(request: NextRequest) {
         await setStripeCustomerMapping(stripeCustomerId, userId);
 
         await writeAuditLog({
-          actor: "system",
-          action: "create",
-          resource_type: "subscription",
+          actor: 'system',
+          action: 'create',
+          resource_type: 'subscription',
           resource_id: userId,
-          outcome: "success",
-          ip_hash: "webhook",
-          metadata: { event_type: event.type, stripe_customer_id: stripeCustomerId, tier: subscriptionTier },
+          outcome: 'success',
+          ip_hash: 'webhook',
+          metadata: {
+            event_type: event.type,
+            stripe_customer_id: stripeCustomerId,
+            tier: subscriptionTier,
+          },
+        });
+
+        await emitEvent({
+          event_id: uuidv4(),
+          event_type: 'subscription_started',
+          user_id: userId,
+          timestamp: new Date().toISOString(),
+          tier: subscriptionTier,
+          metadata: { stripe_customer_id: stripeCustomerId },
         });
       } else {
-        // Update existing user's tier if they upgrade
+        const previousTier = existing.subscription_tier;
         existing.subscription_tier = subscriptionTier;
         await updateUser(existing);
+
+        if (previousTier !== subscriptionTier) {
+          await emitEvent({
+            event_id: uuidv4(),
+            event_type: 'subscription_upgraded',
+            user_id: existing.user_id,
+            timestamp: new Date().toISOString(),
+            tier: subscriptionTier,
+            metadata: { from_tier: previousTier, to_tier: subscriptionTier },
+          });
+        }
       }
       break;
     }
 
-    case "invoice.paid": {
+    case 'invoice.paid': {
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = invoice.customer as string;
       const user = await getUserByStripeCustomerId(customerId);
       if (user) {
-        user.subscription_status = "active";
+        user.subscription_status = 'active';
         await updateUser(user);
       }
       break;
     }
 
-    case "invoice.payment_failed": {
+    case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = invoice.customer as string;
       const user = await getUserByStripeCustomerId(customerId);
       if (user) {
-        user.subscription_status = "past_due";
+        user.subscription_status = 'past_due';
         await updateUser(user);
       }
       break;
     }
 
-    case "customer.subscription.deleted": {
+    case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
       const user = await getUserByStripeCustomerId(customerId);
       if (user) {
-        user.subscription_status = "canceled";
+        user.subscription_status = 'canceled';
         await updateUser(user);
+
+        await emitEvent({
+          event_id: uuidv4(),
+          event_type: 'subscription_canceled',
+          user_id: user.user_id,
+          timestamp: new Date().toISOString(),
+          tier: user.subscription_tier,
+          metadata: { stripe_customer_id: customerId },
+        });
       }
       break;
     }

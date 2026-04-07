@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+import { Redis } from '@upstash/redis';
 
 let redis: Redis | null = null;
 let memoryStore: MemoryRedis | null = null;
@@ -9,7 +9,10 @@ let memoryStore: MemoryRedis | null = null;
  * Does NOT persist across restarts.
  */
 export class MemoryRedis {
-  private store = new Map<string, { value: unknown; expiresAt: number | null }>();
+  private store = new Map<
+    string,
+    { value: unknown; expiresAt: number | null }
+  >();
   private lists = new Map<string, string[]>();
 
   private isExpired(key: string): boolean {
@@ -31,13 +34,13 @@ export class MemoryRedis {
     key: string,
     value: unknown,
     opts?: { ex?: number; nx?: boolean }
-  ): Promise<"OK" | null> {
+  ): Promise<'OK' | null> {
     if (opts?.nx && this.store.has(key) && !this.isExpired(key)) {
       return null;
     }
     const expiresAt = opts?.ex ? Date.now() + opts.ex * 1000 : null;
     this.store.set(key, { value, expiresAt });
-    return "OK";
+    return 'OK';
   }
 
   async del(...keys: string[]): Promise<number> {
@@ -62,6 +65,23 @@ export class MemoryRedis {
     return list.slice(start, end);
   }
 
+  async incr(key: string): Promise<number> {
+    const current = this.store.get(key);
+    const val =
+      current && !this.isExpired(key) ? Number(current.value) || 0 : 0;
+    const next = val + 1;
+    const expiresAt = current?.expiresAt ?? null;
+    this.store.set(key, { value: next, expiresAt });
+    return next;
+  }
+
+  async expire(key: string, seconds: number): Promise<number> {
+    const entry = this.store.get(key);
+    if (!entry || this.isExpired(key)) return 0;
+    entry.expiresAt = Date.now() + seconds * 1000;
+    return 1;
+  }
+
   async scan(
     cursor: number,
     opts?: { match?: string; count?: number }
@@ -70,7 +90,7 @@ export class MemoryRedis {
     const unique = [...new Set(allKeys)];
 
     if (opts?.match) {
-      const regex = new RegExp("^" + opts.match.replace(/\*/g, ".*") + "$");
+      const regex = new RegExp('^' + opts.match.replace(/\*/g, '.*') + '$');
       const matched = unique.filter((k) => regex.test(k));
       return [0, matched];
     }
@@ -80,7 +100,9 @@ export class MemoryRedis {
 }
 
 export function isUpstashConfigured(): boolean {
-  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return !!(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
 }
 
 export function getRedis(): Redis | MemoryRedis {
@@ -96,7 +118,7 @@ export function getRedis(): Redis | MemoryRedis {
 
   if (!memoryStore) {
     console.warn(
-      "[afloat] No Redis configured — using in-memory store. Data will not persist across restarts."
+      '[afloat] No Redis configured — using in-memory store. Data will not persist across restarts.'
     );
     memoryStore = new MemoryRedis();
   }

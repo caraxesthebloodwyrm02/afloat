@@ -59,11 +59,11 @@
 
 ### Consequences by category
 
-| Consent | If withdrawn | System action |
-|---------|-------------|---------------|
-| `essential_processing` | Cannot be withdrawn (required) | UI prevents unchecking |
-| `session_telemetry` | Session telemetry not written for this user | `data-layer.ts` checks consent before writing |
-| `marketing_communications` | No marketing messages sent | Checked before any outreach |
+| Consent                    | If withdrawn                                | System action                                 |
+| -------------------------- | ------------------------------------------- | --------------------------------------------- |
+| `essential_processing`     | Cannot be withdrawn (required)              | UI prevents unchecking                        |
+| `session_telemetry`        | Session telemetry not written for this user | `data-layer.ts` checks consent before writing |
+| `marketing_communications` | No marketing messages sent                  | Checked before any outreach                   |
 
 ### Post-withdrawal verification
 
@@ -155,12 +155,12 @@ curl -H "Authorization: Bearer <CRON_SECRET>" https://afloat-six.vercel.app/api/
 
 ### Troubleshooting
 
-| Issue | Check |
-|-------|-------|
-| Cron didn't run | Vercel → Cron Jobs → check execution history and errors |
-| `401` response | `CRON_SECRET` mismatch — verify env var matches request header |
-| `500` response | Check Vercel function logs for Redis connection or runtime errors |
-| Users not deleted | Check if `deletion_date` has passed (7-day grace period) |
+| Issue             | Check                                                             |
+| ----------------- | ----------------------------------------------------------------- |
+| Cron didn't run   | Vercel → Cron Jobs → check execution history and errors           |
+| `401` response    | `CRON_SECRET` mismatch — verify env var matches request header    |
+| `500` response    | Check Vercel function logs for Redis connection or runtime errors |
+| Users not deleted | Check if `deletion_date` has passed (7-day grace period)          |
 
 ---
 
@@ -176,12 +176,12 @@ LRANGE audit:2026-03-01 0 -1
 
 ### Alert thresholds (from contract)
 
-| Trigger | Threshold | Action |
-|---------|-----------|--------|
-| Bulk deletion | > 3 deletion requests in 24 hours | Investigate for abuse or compromised account |
-| Unauthorised access | Any 403 on session/provenance endpoints | Check if foreign session claim or hijack attempt |
-| Consent revocation spike | > 5 revocations in 24 hours | Review recent changes for trust-breaking events |
-| Rate limit blocks | > 20 blocks in 1 hour | Check for bot traffic or misconfigured client |
+| Trigger                  | Threshold                               | Action                                           |
+| ------------------------ | --------------------------------------- | ------------------------------------------------ |
+| Bulk deletion            | > 3 deletion requests in 24 hours       | Investigate for abuse or compromised account     |
+| Unauthorised access      | Any 403 on session/provenance endpoints | Check if foreign session claim or hijack attempt |
+| Consent revocation spike | > 5 revocations in 24 hours             | Review recent changes for trust-breaking events  |
+| Rate limit blocks        | > 20 blocks in 1 hour                   | Check for bot traffic or misconfigured client    |
 
 ### Weekly review process
 
@@ -213,10 +213,10 @@ LRANGE audit:2026-03-01 0 -1
   "type": "revenue",
   "category": "subscription",
   "description": "March subscriptions",
-  "amount_usd": 0.00,
-  "running_total_revenue": 0.00,
-  "running_total_cost": 0.00,
-  "running_total_net": 0.00
+  "amount_usd": 0.0,
+  "running_total_revenue": 0.0,
+  "running_total_cost": 0.0,
+  "running_total_net": 0.0
 }
 ```
 
@@ -246,4 +246,4 @@ LRANGE audit:2026-03-01 0 -1
 
 ---
 
-*Prepared by: Irfan Kabir — 2026-03-01*
+_Prepared by: Irfan Kabir — 2026-03-01_

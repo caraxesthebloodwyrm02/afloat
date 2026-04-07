@@ -1,97 +1,97 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockCallLLMWithRetry = vi.fn();
 const routingContext = {
-  user_id: "adapter-user",
+  user_id: 'adapter-user',
   allow_routing_memory: true,
   deep_read_override: true,
-  openai_override: "force" as const,
+  openai_override: 'force' as const,
 };
 
-vi.mock("@/lib/llm", () => ({
+vi.mock('@/lib/llm', () => ({
   callLLMWithRetry: (...args: unknown[]) => mockCallLLMWithRetry(...args),
 }));
 
 import {
   generateMessageResponse,
   isPhase4MessageCapabilityEnabled,
-} from "@/lib/session-message-adapter";
+} from '@/lib/session-message-adapter';
 
-describe("session-message-adapter", () => {
+describe('session-message-adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.PHASE4_MESSAGE_CAPABILITY_ENABLED;
   });
 
-  it("is disabled by default", () => {
+  it('is disabled by default', () => {
     expect(isPhase4MessageCapabilityEnabled()).toBe(false);
   });
 
-  it("delegates directly when phase-4 flag is disabled", async () => {
+  it('delegates directly when phase-4 flag is disabled', async () => {
     mockCallLLMWithRetry.mockResolvedValue({
-      gate_type: "context_gate_resolution",
-      brief: "direct",
-      raw: "raw-direct",
+      gate_type: 'context_gate_resolution',
+      brief: 'direct',
+      raw: 'raw-direct',
     });
 
-    const result = await generateMessageResponse("hello", [], routingContext);
+    const result = await generateMessageResponse('hello', [], routingContext);
 
-    expect(result.brief).toBe("direct");
-    expect(result.raw).toBe("raw-direct");
+    expect(result.brief).toBe('direct');
+    expect(result.raw).toBe('raw-direct');
     expect(mockCallLLMWithRetry).toHaveBeenCalledTimes(1);
     expect(mockCallLLMWithRetry).toHaveBeenCalledWith(
-      "hello",
+      'hello',
       [],
-      routingContext,
+      routingContext
     );
   });
 
-  it("uses phase-4 capability branch when enabled", async () => {
-    process.env.PHASE4_MESSAGE_CAPABILITY_ENABLED = "true";
+  it('uses phase-4 capability branch when enabled', async () => {
+    process.env.PHASE4_MESSAGE_CAPABILITY_ENABLED = 'true';
     mockCallLLMWithRetry.mockResolvedValue({
-      gate_type: "context_gate_resolution",
-      brief: "enabled",
-      raw: "raw-enabled",
+      gate_type: 'context_gate_resolution',
+      brief: 'enabled',
+      raw: 'raw-enabled',
     });
 
-    const result = await generateMessageResponse("hello", [], routingContext);
+    const result = await generateMessageResponse('hello', [], routingContext);
 
-    expect(result.brief).toBe("enabled");
-    expect(result.raw).toBe("[phase4] raw-enabled");
+    expect(result.brief).toBe('enabled');
+    expect(result.raw).toBe('[phase4] raw-enabled');
     expect(mockCallLLMWithRetry).toHaveBeenCalledTimes(1);
     expect(mockCallLLMWithRetry).toHaveBeenCalledWith(
-      "hello",
+      'hello',
       [],
-      routingContext,
+      routingContext
     );
   });
 
-  it("falls back safely if capability branch fails", async () => {
-    process.env.PHASE4_MESSAGE_CAPABILITY_ENABLED = "1";
+  it('falls back safely if capability branch fails', async () => {
+    process.env.PHASE4_MESSAGE_CAPABILITY_ENABLED = '1';
     mockCallLLMWithRetry
-      .mockRejectedValueOnce(new Error("phase4-branch-failure"))
+      .mockRejectedValueOnce(new Error('phase4-branch-failure'))
       .mockResolvedValueOnce({
-        gate_type: "context_gate_resolution",
-        brief: "fallback",
-        raw: "raw-fallback",
+        gate_type: 'context_gate_resolution',
+        brief: 'fallback',
+        raw: 'raw-fallback',
       });
 
-    const result = await generateMessageResponse("hello", [], routingContext);
+    const result = await generateMessageResponse('hello', [], routingContext);
 
-    expect(result.brief).toBe("fallback");
-    expect(result.raw).toBe("raw-fallback");
+    expect(result.brief).toBe('fallback');
+    expect(result.raw).toBe('raw-fallback');
     expect(mockCallLLMWithRetry).toHaveBeenCalledTimes(2);
     expect(mockCallLLMWithRetry).toHaveBeenNthCalledWith(
       1,
-      "hello",
+      'hello',
       [],
-      routingContext,
+      routingContext
     );
     expect(mockCallLLMWithRetry).toHaveBeenNthCalledWith(
       2,
-      "hello",
+      'hello',
       [],
-      routingContext,
+      routingContext
     );
   });
 });

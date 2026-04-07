@@ -1,21 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
-import { getDataRightsRateLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { exportUserData } from "@/lib/data-layer";
-import { auditAction } from "@/lib/audit";
-import type { ApiError } from "@/types/api";
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, isAuthenticated } from '@/lib/auth-middleware';
+import { getDataRightsRateLimiter, checkRateLimit } from '@/lib/rate-limit';
+import { exportUserData } from '@/lib/data-layer';
+import { auditAction } from '@/lib/audit';
+import type { ApiError } from '@/types/api';
 
 function jsonToCsv(data: Record<string, unknown>): string {
   const rows: string[][] = [];
-  const flattenObj = (obj: unknown, prefix = ""): Record<string, string> => {
+  const flattenObj = (obj: unknown, prefix = ''): Record<string, string> => {
     const result: Record<string, string> = {};
-    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
-      for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      for (const [key, value] of Object.entries(
+        obj as Record<string, unknown>
+      )) {
         const fullKey = prefix ? `${prefix}.${key}` : key;
-        if (value && typeof value === "object" && !Array.isArray(value)) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
           Object.assign(result, flattenObj(value, fullKey));
         } else {
-          result[fullKey] = String(value ?? "");
+          result[fullKey] = String(value ?? '');
         }
       }
     }
@@ -23,25 +25,29 @@ function jsonToCsv(data: Record<string, unknown>): string {
   };
 
   // Flatten user_profile and subscription_reference into a single row
-  const profileFlat = flattenObj(data.user_profile, "user_profile");
-  const subFlat = flattenObj(data.subscription_reference, "subscription");
+  const profileFlat = flattenObj(data.user_profile, 'user_profile');
+  const subFlat = flattenObj(data.subscription_reference, 'subscription');
   const merged = { ...profileFlat, ...subFlat };
   const headers = Object.keys(merged);
   rows.push(headers);
   rows.push(headers.map((h) => merged[h]));
 
-  return rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+  return rows
+    .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(','))
+    .join('\n');
 }
 
-async function buildZipBuffer(jsonData: Record<string, unknown>): Promise<Buffer> {
+async function buildZipBuffer(
+  jsonData: Record<string, unknown>
+): Promise<Buffer> {
   // Minimal ZIP file construction without external dependencies
   // Contains two files: data.json and data.csv
-  const jsonBytes = Buffer.from(JSON.stringify(jsonData, null, 2), "utf-8");
-  const csvBytes = Buffer.from(jsonToCsv(jsonData), "utf-8");
+  const jsonBytes = Buffer.from(JSON.stringify(jsonData, null, 2), 'utf-8');
+  const csvBytes = Buffer.from(jsonToCsv(jsonData), 'utf-8');
 
   const files = [
-    { name: "data.json", data: jsonBytes },
-    { name: "data.csv", data: csvBytes },
+    { name: 'data.json', data: jsonBytes },
+    { name: 'data.csv', data: csvBytes },
   ];
 
   const parts: Buffer[] = [];
@@ -49,7 +55,7 @@ async function buildZipBuffer(jsonData: Record<string, unknown>): Promise<Buffer
   let offset = 0;
 
   for (const file of files) {
-    const nameBytes = Buffer.from(file.name, "utf-8");
+    const nameBytes = Buffer.from(file.name, 'utf-8');
     const crc = crc32(file.data);
 
     // Local file header
@@ -137,29 +143,29 @@ export async function GET(request: NextRequest) {
   const data = await exportUserData(user.user_id);
   if (!data) {
     return NextResponse.json<ApiError>(
-      { error: "not_found", message: "User not found." },
+      { error: 'not_found', message: 'User not found.' },
       { status: 404 }
     );
   }
 
   await auditAction(request, user, {
-    action: "export",
-    resource_type: "user_profile",
+    action: 'export',
+    resource_type: 'user_profile',
     resource_id: user.user_id,
-    outcome: "success",
+    outcome: 'success',
     metadata: {
-      format: request.nextUrl.searchParams.get("format") || "json",
+      format: request.nextUrl.searchParams.get('format') || 'json',
     },
   });
 
-  const format = request.nextUrl.searchParams.get("format");
-  if (format === "portable") {
+  const format = request.nextUrl.searchParams.get('format');
+  if (format === 'portable') {
     const zipBuffer = await buildZipBuffer(data);
     return new NextResponse(new Uint8Array(zipBuffer), {
       status: 200,
       headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="afloat-data-export-${user.user_id}.zip"`,
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="afloat-data-export-${user.user_id}.zip"`,
       },
     });
   }

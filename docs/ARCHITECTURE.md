@@ -15,7 +15,7 @@ Afloat is a **short-session cognitive assistant** — a web-based chat interface
 A user comes in stuck. They can't decide, don't have enough context, or need a quick triage. The tool:
 
 1. Listens to what they're stuck on
-2. Figures out *what kind* of block it is (meeting triage? priority decision? need a summary?)
+2. Figures out _what kind_ of block it is (meeting triage? priority decision? need a summary?)
 3. Gives them a short, honest brief — just enough to unblock
 4. Lets them ask one follow-up, then the session ends
 
@@ -58,13 +58,13 @@ The system has five distinct layers. Each layer has one job.
 
 ### Layer responsibilities
 
-| Layer | Job | Key constraint |
-|---|---|---|
-| **Frontend** | Render chat UI, send/receive messages, show session timer | Must work on free-tier Vercel deployment |
-| **Session Controller** | Orchestrate the 4-step session flow, enforce turn + time limits, log telemetry | Server-side enforcement only (client cannot override) |
-| **LLM Layer** | Detect context-gate type, generate proportional brief, and select the least-cost capable model | Default to Ollama, keep rare OpenAI escalation available for deep-read rescue cases |
-| **Data Layer** | Store session telemetry, consent records, subscription references | Never stores user text input. Stored in Upstash Redis (sessions, users, audit logs). |
-| **Payment Layer** | Handle trial ($9/qtr) and continuous ($3/hr metered) subscriptions via Stripe Checkout | All PII stays on Stripe. We store `stripe_customer_id`, `subscription_tier`, and optionally `stripe_subscription_item_id`. |
+| Layer                  | Job                                                                                            | Key constraint                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend**           | Render chat UI, send/receive messages, show session timer                                      | Must work on free-tier Vercel deployment                                                                                   |
+| **Session Controller** | Orchestrate the 4-step session flow, enforce turn + time limits, log telemetry                 | Server-side enforcement only (client cannot override)                                                                      |
+| **LLM Layer**          | Detect context-gate type, generate proportional brief, and select the least-cost capable model | Default to Ollama, keep rare OpenAI escalation available for deep-read rescue cases                                        |
+| **Data Layer**         | Store session telemetry, consent records, subscription references                              | Never stores user text input. Stored in Upstash Redis (sessions, users, audit logs).                                       |
+| **Payment Layer**      | Handle trial ($9/qtr) and continuous ($3/hr metered) subscriptions via Stripe Checkout         | All PII stays on Stripe. We store `stripe_customer_id`, `subscription_tier`, and optionally `stripe_subscription_item_id`. |
 
 ---
 
@@ -77,6 +77,7 @@ Every session follows exactly four steps. This is the core mechanic of the tool.
 The user types their question or describes what they're stuck on.
 
 **What happens technically:**
+
 - Frontend sends the user's text to the Session Controller via API
 - Session Controller generates a `session_id` (UUID v4)
 - Session Controller starts the **tier-aware timer** (120s trial / 1800s continuous, server-side)
@@ -91,14 +92,15 @@ The LLM reads the user's input and classifies which type of context gate is bloc
 
 **The four gate types:**
 
-| Gate Type | Signal | Example |
-|---|---|---|
-| `meeting_triage` | User is deciding whether to attend/schedule something | "Should I go to this meeting? Here's the agenda..." |
-| `priority_decision` | User has multiple options and can't pick | "I have these 5 tasks, which should I do first?" |
-| `quick_briefing` | User needs a summary to engage with something | "What's the gist of this proposal so I can respond?" |
-| `context_gate_resolution` | User is broadly stuck due to lack of understanding | "I don't understand what's happening in this project" |
+| Gate Type                 | Signal                                                | Example                                               |
+| ------------------------- | ----------------------------------------------------- | ----------------------------------------------------- |
+| `meeting_triage`          | User is deciding whether to attend/schedule something | "Should I go to this meeting? Here's the agenda..."   |
+| `priority_decision`       | User has multiple options and can't pick              | "I have these 5 tasks, which should I do first?"      |
+| `quick_briefing`          | User needs a summary to engage with something         | "What's the gist of this proposal so I can respond?"  |
+| `context_gate_resolution` | User is broadly stuck due to lack of understanding    | "I don't understand what's happening in this project" |
 
 **What happens technically:**
+
 - Session Controller sends user text + system prompt into the routing layer (`DF-02`)
 - The router derives:
   1. `task_type`
@@ -125,6 +127,7 @@ The public message route accepts two request-time routing controls:
 The brief is shown to the user.
 
 **Brief rules:**
+
 - Maximum **150 words** (enforced by the system prompt; the router also applies scope-dependent output budgets as a hard backstop)
 - Must be **proportional** — just enough to unblock, never more
 - Must be **grounded** — no speculation, no filler
@@ -132,6 +135,7 @@ The brief is shown to the user.
 - Must **not replace the user's decision** — the brief enables the decision, the user makes it
 
 **What happens technically:**
+
 - Session Controller passes the LLM response to the Frontend
 - Frontend renders the brief in the chat UI
 - Turn counter is now `1` (LLM has responded once)
@@ -139,17 +143,20 @@ The brief is shown to the user.
 ### Step 4: User Decision
 
 The user either:
+
 - **Proceeds** (leaves satisfied → session ends) — `user_proceeded = true`
 - **Asks one follow-up** (turn 2 → LLM responds → turn counter = 2 → session ends)
 - **Does nothing** (timer expires → session ends)
 
 **Follow-up rules:**
+
 - Maximum **1 follow-up** allowed
 - After the follow-up response, the session ends regardless
 - The follow-up uses the same session context (same system prompt + conversation history)
 - If the user needs more help, they start a new session
 
 **What happens technically:**
+
 - If user sends a follow-up: Session Controller sends it to LLM (turn 2), records `latency_per_turn[1]`
 - LLM responds (turn counter = 2, max reached) → Session Controller sends response + "session complete" signal
 - Session Controller records: `end_time`, `turns`, `user_proceeded`, `session_completed = true`
@@ -157,13 +164,13 @@ The user either:
 
 ### Session termination triggers
 
-| Trigger | Result |
-|---|---|
-| User sends no follow-up (closes tab / clicks "done") | `session_completed = true`, `user_proceeded = true` |
-| User sends 1 follow-up, gets response | `session_completed = true`, turn count = 2 |
-| Turn limit reached (3 turns total including user messages) | `session_completed = true`, forced end |
-| Timer expires (120s trial / 1800s continuous) | `session_completed = true`, timeout flag |
-| Error (LLM failure, network issue) | `session_completed = false`, error logged |
+| Trigger                                                    | Result                                              |
+| ---------------------------------------------------------- | --------------------------------------------------- |
+| User sends no follow-up (closes tab / clicks "done")       | `session_completed = true`, `user_proceeded = true` |
+| User sends 1 follow-up, gets response                      | `session_completed = true`, turn count = 2          |
+| Turn limit reached (3 turns total including user messages) | `session_completed = true`, forced end              |
+| Timer expires (120s trial / 1800s continuous)              | `session_completed = true`, timeout flag            |
+| Error (LLM failure, network issue)                         | `session_completed = false`, error logged           |
 
 ---
 
@@ -215,6 +222,7 @@ SECTION 4: BEHAVIOR GUARDRAILS
 The Session Controller parses the `[GATE: ...]` tag from the first line of the LLM response to extract the `gate_type` for telemetry. The `[BRIEF]` tag and everything after it is what gets displayed to the user (with the tags stripped).
 
 If the LLM response doesn't contain a valid `[GATE: ...]` tag, the Session Controller:
+
 1. Logs `gate_type = "unclassified"`
 2. Still delivers the response to the user (don't break the experience)
 3. Flags the session for review in telemetry
@@ -229,10 +237,10 @@ The Session Controller is the gatekeeper. It is the **only server-side component
 
 Session limits are configurable per subscription tier via `getTierLimits(tier)`:
 
-| Tier | Max LLM Calls | Max Duration | Use Case |
-|------|--------------|-------------|----------|
-| `trial` | 2 | 120s (2 min) | Quick decision support |
-| `continuous` | 6 | 1,800s (30 min) | Extended analysis sessions |
+| Tier         | Max LLM Calls | Max Duration    | Use Case                   |
+| ------------ | ------------- | --------------- | -------------------------- |
+| `trial`      | 2             | 120s (2 min)    | Quick decision support     |
+| `continuous` | 6             | 1,800s (30 min) | Extended analysis sessions |
 
 Unknown tiers fall back to trial limits. Existing sessions without a `tier` field default to `"trial"`.
 
@@ -244,9 +252,10 @@ Turn 2: User sends follow-up → Controller forwards to LLM → LLM responds (fi
 Turn 3: Hard stop. No more LLM calls. Session ends.
 ```
 
-"Turns" in the contract means **total messages in the conversation** (user + assistant combined count toward the max_turns=3 limit on *LLM calls*, meaning the user gets at most 2 messages and the LLM gets at most 2 responses, but the initial user input + LLM response + optional follow-up exchange = max 3 LLM-touching interactions).
+"Turns" in the contract means **total messages in the conversation** (user + assistant combined count toward the max*turns=3 limit on \_LLM calls*, meaning the user gets at most 2 messages and the LLM gets at most 2 responses, but the initial user input + LLM response + optional follow-up exchange = max 3 LLM-touching interactions).
 
 Practical implementation:
+
 - `llm_call_count` starts at 0
 - Each time the Session Controller sends a request to the LLM, increment `llm_call_count`
 - If `llm_call_count >= 2`, reject further user input with a "session complete" response
@@ -269,13 +278,13 @@ The timer is **server-side only**. The frontend displays a countdown for UX, but
 
 ### Error handling
 
-| Error | Action |
-|---|---|
-| LLM API returns 5xx | Retry once after 1 second. If still failing, return "I couldn't process that. Please try again." and log `session_completed = false`. |
-| LLM API returns 429 (rate limit) | Return "The service is busy. Please try again in a moment." and log `session_completed = false`. |
-| LLM response takes > 10 seconds | Timeout the request. Return "That took too long. Please try again." and log latency as 10s. |
-| LLM response is empty or malformed | Deliver a fallback: "I wasn't able to generate a useful response. Please try rephrasing." |
-| User sends empty message | Reject with "Please describe what you're stuck on." (does not count as a turn). |
+| Error                              | Action                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| LLM API returns 5xx                | Retry once after 1 second. If still failing, return "I couldn't process that. Please try again." and log `session_completed = false`. |
+| LLM API returns 429 (rate limit)   | Return "The service is busy. Please try again in a moment." and log `session_completed = false`.                                      |
+| LLM response takes > 10 seconds    | Timeout the request. Return "That took too long. Please try again." and log latency as 10s.                                           |
+| LLM response is empty or malformed | Deliver a fallback: "I wasn't able to generate a useful response. Please try rephrasing."                                             |
+| User sends empty message           | Reject with "Please describe what you're stuck on." (does not count as a turn).                                                       |
 
 ---
 
@@ -319,24 +328,36 @@ Written to data layer as a JSON log entry after session ends:
   "subscription_tier": "trial",
   "billing_cycle_anchor": "2026-03-01T00:00:00Z",
   "consents": {
-    "essential_processing": { "granted": true, "timestamp": "...", "policy_version": "v1.0" },
-    "session_telemetry": { "granted": true, "timestamp": "...", "policy_version": "v1.0" },
-    "marketing_communications": { "granted": false, "timestamp": "...", "policy_version": "v1.0" }
+    "essential_processing": {
+      "granted": true,
+      "timestamp": "...",
+      "policy_version": "v1.0"
+    },
+    "session_telemetry": {
+      "granted": true,
+      "timestamp": "...",
+      "policy_version": "v1.0"
+    },
+    "marketing_communications": {
+      "granted": false,
+      "timestamp": "...",
+      "policy_version": "v1.0"
+    }
   }
 }
 ```
 
 ### Redis key schema (Upstash)
 
-| Key pattern | Content | TTL |
-|---|---|---|
-| `user:{user_id}` | UserRecord JSON | Account lifetime |
-| `stripe_map:{customer_id}` | `user_id` string | Account lifetime |
-| `session:{session_id}` | SessionState JSON | ~150s (trial) / ~1830s (continuous) |
-| `sessions:{YYYY-MM-DD}` | List of SessionLog JSON strings | 90 days |
-| `audit:{YYYY-MM-DD}` | List of audit log JSON strings | 365 days |
-| `stripe_event:{event_id}` | Idempotency marker (`"1"`) | 24 hours |
-| `rl:{identifier}` | Rate limit counter | Sliding window |
+| Key pattern                | Content                         | TTL                                 |
+| -------------------------- | ------------------------------- | ----------------------------------- |
+| `user:{user_id}`           | UserRecord JSON                 | Account lifetime                    |
+| `stripe_map:{customer_id}` | `user_id` string                | Account lifetime                    |
+| `session:{session_id}`     | SessionState JSON               | ~150s (trial) / ~1830s (continuous) |
+| `sessions:{YYYY-MM-DD}`    | List of SessionLog JSON strings | 90 days                             |
+| `audit:{YYYY-MM-DD}`       | List of audit log JSON strings  | 365 days                            |
+| `stripe_event:{event_id}`  | Idempotency marker (`"1"`)      | 24 hours                            |
+| `rl:{identifier}`          | Rate limit counter              | Sliding window                      |
 
 ---
 
@@ -396,7 +417,7 @@ At session end:
     user_proceeded = false
 ```
 
-The key distinction: if the user *saw the brief and then left*, that counts as proceeding. The brief unblocked them. If the session broke *before* the brief was delivered, that's a failure.
+The key distinction: if the user _saw the brief and then left_, that counts as proceeding. The brief unblocked them. If the session broke _before_ the brief was delivered, that's a failure.
 
 **Reporting:** Daily. Count `user_proceeded = true` / total sessions.
 
@@ -443,12 +464,12 @@ On every session request:
 
 ### Stripe webhook events to handle
 
-| Event | Action |
-|---|---|
-| `checkout.session.completed` | Create user account, store Stripe references |
-| `invoice.paid` | Update subscription_status to "active" |
-| `invoice.payment_failed` | Update subscription_status to "past_due" |
-| `customer.subscription.deleted` | Update subscription_status to "canceled" |
+| Event                           | Action                                       |
+| ------------------------------- | -------------------------------------------- |
+| `checkout.session.completed`    | Create user account, store Stripe references |
+| `invoice.paid`                  | Update subscription_status to "active"       |
+| `invoice.payment_failed`        | Update subscription_status to "past_due"     |
+| `customer.subscription.deleted` | Update subscription_status to "canceled"     |
 
 ---
 
@@ -489,15 +510,15 @@ The frontend is intentionally simple. It's a single-page chat interface.
 
 ### States the UI must handle
 
-| State | Display |
-|---|---|
-| `waiting_for_input` | Input bar active, timer running |
-| `waiting_for_response` | Input disabled, loading indicator, timer running |
-| `brief_delivered` | Brief shown, input active for optional follow-up, "Done" button visible |
-| `follow_up_delivered` | Follow-up response shown, input disabled, "Session complete" message |
-| `session_timed_out` | "Session time limit reached" message, input disabled |
-| `error` | Error message shown, "Try again" button |
-| `not_subscribed` | Subscribe CTA shown instead of chat |
+| State                  | Display                                                                 |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `waiting_for_input`    | Input bar active, timer running                                         |
+| `waiting_for_response` | Input disabled, loading indicator, timer running                        |
+| `brief_delivered`      | Brief shown, input active for optional follow-up, "Done" button visible |
+| `follow_up_delivered`  | Follow-up response shown, input disabled, "Session complete" message    |
+| `session_timed_out`    | "Session time limit reached" message, input disabled                    |
+| `error`                | Error message shown, "Try again" button                                 |
+| `not_subscribed`       | Subscribe CTA shown instead of chat                                     |
 
 ---
 
@@ -505,17 +526,17 @@ The frontend is intentionally simple. It's a single-page chat interface.
 
 All routes are server-side. The frontend calls these.
 
-| Method | Path | Purpose | Auth required |
-|---|---|---|---|
-| `POST` | `/api/v1/session/start` | Start a new session, get session_id | Yes (subscriber) |
-| `POST` | `/api/v1/session/{id}/message` | Send user message, get LLM response | Yes (subscriber) |
-| `POST` | `/api/v1/session/{id}/end` | End session, trigger telemetry write | Yes (subscriber) |
-| `GET` | `/api/v1/user/data-export` | Data rights: export user data | Yes |
-| `DELETE` | `/api/v1/user/data` | Data rights: delete user data | Yes |
-| `GET` | `/api/v1/user/data-export?format=portable` | Data rights: portable export | Yes |
-| `PATCH` | `/api/v1/user/profile` | Data rights: rectify user data | Yes |
-| `POST` | `/api/v1/webhooks/stripe` | Stripe webhook receiver | Stripe signature |
-| `GET` | `/api/v1/health` | Health check (uptime monitoring) | No |
+| Method   | Path                                       | Purpose                              | Auth required    |
+| -------- | ------------------------------------------ | ------------------------------------ | ---------------- |
+| `POST`   | `/api/v1/session/start`                    | Start a new session, get session_id  | Yes (subscriber) |
+| `POST`   | `/api/v1/session/{id}/message`             | Send user message, get LLM response  | Yes (subscriber) |
+| `POST`   | `/api/v1/session/{id}/end`                 | End session, trigger telemetry write | Yes (subscriber) |
+| `GET`    | `/api/v1/user/data-export`                 | Data rights: export user data        | Yes              |
+| `DELETE` | `/api/v1/user/data`                        | Data rights: delete user data        | Yes              |
+| `GET`    | `/api/v1/user/data-export?format=portable` | Data rights: portable export         | Yes              |
+| `PATCH`  | `/api/v1/user/profile`                     | Data rights: rectify user data       | Yes              |
+| `POST`   | `/api/v1/webhooks/stripe`                  | Stripe webhook receiver              | Stripe signature |
+| `GET`    | `/api/v1/health`                           | Health check (uptime monitoring)     | No               |
 
 ---
 
@@ -539,13 +560,13 @@ The safety gradient runs in the message route (`/api/v1/session/[id]/message`) a
 
 ### What runs where
 
-| Component | Runs on | Trust level |
-|---|---|---|
-| Frontend (chat UI) | User's browser | Untrusted — all input validated server-side |
-| Session Controller + API routes | Vercel serverless functions | Trusted — server-side only |
-| LLM calls | Ollama endpoint by default; OpenAI only for rare lifeguard escalation | Mixed — local/first-party by default, third-party only when escalated |
-| Payment | Stripe (external) | Third-party — PCI-DSS compliant, DPA required |
-| Data storage | Upstash Redis (cloud, US-Central) | Trusted — TLS enforced, encrypted at rest |
+| Component                       | Runs on                                                               | Trust level                                                           |
+| ------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Frontend (chat UI)              | User's browser                                                        | Untrusted — all input validated server-side                           |
+| Session Controller + API routes | Vercel serverless functions                                           | Trusted — server-side only                                            |
+| LLM calls                       | Ollama endpoint by default; OpenAI only for rare lifeguard escalation | Mixed — local/first-party by default, third-party only when escalated |
+| Payment                         | Stripe (external)                                                     | Third-party — PCI-DSS compliant, DPA required                         |
+| Data storage                    | Upstash Redis (cloud, US-Central)                                     | Trusted — TLS enforced, encrypted at rest                             |
 
 ### Key security rules
 

@@ -1,13 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
-import { getSession, deleteSession } from "@/lib/session-controller";
-import { writeSessionLog } from "@/lib/data-layer";
-import { getUser } from "@/lib/data-layer";
-import { shouldWriteTelemetry } from "@/lib/consent";
-import { getSessionEndRateLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { auditAction } from "@/lib/audit";
-import { reportUsage, isStripeConfigured } from "@/lib/stripe";
-import type { SessionEndResponse, ApiError } from "@/types/api";
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, isAuthenticated } from '@/lib/auth-middleware';
+import { getSession, deleteSession } from '@/lib/session-controller';
+import { writeSessionLog } from '@/lib/data-layer';
+import { getUser } from '@/lib/data-layer';
+import { shouldWriteTelemetry } from '@/lib/consent';
+import { getSessionEndRateLimiter, checkRateLimit } from '@/lib/rate-limit';
+import { auditAction } from '@/lib/audit';
+import type { SessionEndResponse, ApiError } from '@/types/api';
 
 export async function POST(
   request: NextRequest,
@@ -29,14 +28,14 @@ export async function POST(
 
   if (!session) {
     return NextResponse.json<ApiError>(
-      { error: "not_found", message: "Session not found." },
+      { error: 'not_found', message: 'Session not found.' },
       { status: 404 }
     );
   }
 
   if (session.user_id !== user.user_id) {
     return NextResponse.json<ApiError>(
-      { error: "forbidden", message: "Access denied." },
+      { error: 'forbidden', message: 'Access denied.' },
       { status: 403 }
     );
   }
@@ -66,27 +65,18 @@ export async function POST(
     });
   }
 
-  // Report metered usage for continuous tier (only if Stripe is configured)
-  if (session.tier === "continuous" && userRecord && isStripeConfigured()) {
-    const durationMs = new Date(endTime).getTime() - new Date(session.start_time).getTime();
-    const usageMinutes = Math.max(1, Math.ceil(durationMs / 60_000));
-    try {
-      await reportUsage(
-        userRecord.stripe_customer_id,
-        usageMinutes,
-        Math.floor(Date.now() / 1000)
-      );
-    } catch {
-      // Best-effort usage reporting — don't block session end
-    }
-  }
+  // Metered session usage is now reported at session start (see session/start/route.ts).
+  // Legacy per-minute reporting for continuous tier removed in Phase 2.
 
   await auditAction(request, user, {
-    action: "update",
-    resource_type: "session_log",
+    action: 'update',
+    resource_type: 'session_log',
     resource_id: session.session_id,
-    outcome: "success",
-    metadata: { action_detail: "session_end", telemetry_written: writeTelemetry },
+    outcome: 'success',
+    metadata: {
+      action_detail: 'session_end',
+      telemetry_written: writeTelemetry,
+    },
   });
 
   await deleteSession(sessionId);

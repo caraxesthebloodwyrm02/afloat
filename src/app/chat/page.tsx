@@ -1,42 +1,44 @@
-"use client";
+'use client';
 
-import { ChatInput } from "@/components/chat-input";
-import { ChatWindow } from "@/components/chat-window";
-import { SessionStatus } from "@/components/session-status";
-import { SessionTimer } from "@/components/session-timer";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatInput } from '@/components/chat-input';
+import { ChatWindow } from '@/components/chat-window';
+import { SessionStatus } from '@/components/session-status';
+import { SessionTimer } from '@/components/session-timer';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type SessionState =
-  | "waiting_for_input"
-  | "waiting_for_response"
-  | "brief_delivered"
-  | "follow_up_delivered"
-  | "session_timed_out"
-  | "error"
-  | "not_subscribed";
+  | 'waiting_for_input'
+  | 'waiting_for_response'
+  | 'brief_delivered'
+  | 'follow_up_delivered'
+  | 'session_timed_out'
+  | 'error'
+  | 'not_subscribed';
 
 interface Message {
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
 }
 
 const DEFAULT_MAX_DURATION_MS = 120_000;
 
 function readToken(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("afloat_token") ?? "";
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('afloat_token') ?? '';
 }
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionState, setSessionState] = useState<SessionState>(() =>
-    readToken() ? "waiting_for_input" : "not_subscribed",
+    readToken() ? 'waiting_for_input' : 'not_subscribed'
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [startTime, setStartTime] = useState<number>(0);
-  const [maxDurationMs, setMaxDurationMs] = useState<number>(DEFAULT_MAX_DURATION_MS);
-  const [tier, setTier] = useState<string>("trial");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [maxDurationMs, setMaxDurationMs] = useState<number>(
+    DEFAULT_MAX_DURATION_MS
+  );
+  const [tier, setTier] = useState<string>('trial');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [turnsRemaining, setTurnsRemaining] = useState<number | null>(null);
   const tokenRef = useRef(readToken());
 
@@ -47,20 +49,20 @@ export default function ChatPage() {
     const controller = new AbortController();
     let cancelled = false;
 
-    fetch("/api/v1/session/start", {
-      method: "POST",
+    fetch('/api/v1/session/start', {
+      method: 'POST',
       headers: { Authorization: `Bearer ${tok}` },
       signal: controller.signal,
     })
       .then((res) => {
         if (cancelled) return;
         if (res.status === 403) {
-          setSessionState("not_subscribed");
+          setSessionState('not_subscribed');
           return;
         }
         if (!res.ok) {
-          setSessionState("error");
-          setErrorMessage("Failed to start session.");
+          setSessionState('error');
+          setErrorMessage('Failed to start session.');
           return;
         }
         return res.json().then((data) => {
@@ -73,14 +75,14 @@ export default function ChatPage() {
             setTurnsRemaining(data.max_turns);
           }
           setMessages([]);
-          setSessionState("waiting_for_input");
-          setErrorMessage("");
+          setSessionState('waiting_for_input');
+          setErrorMessage('');
         });
       })
       .catch(() => {
         if (cancelled) return;
-        setSessionState("error");
-        setErrorMessage("Network error. Please try again.");
+        setSessionState('error');
+        setErrorMessage('Network error. Please try again.');
       });
 
     return () => {
@@ -93,14 +95,14 @@ export default function ChatPage() {
     async (text: string) => {
       if (!sessionId || !tokenRef.current) return;
 
-      setMessages((prev) => [...prev, { role: "user", content: text }]);
-      setSessionState("waiting_for_response");
+      setMessages((prev) => [...prev, { role: 'user', content: text }]);
+      setSessionState('waiting_for_response');
 
       try {
         const res = await fetch(`/api/v1/session/${sessionId}/message`, {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${tokenRef.current}`,
           },
           body: JSON.stringify({
@@ -115,39 +117,39 @@ export default function ChatPage() {
         const data = await res.json();
 
         if (!res.ok) {
-          if (data.error === "session_timeout") {
-            setSessionState("session_timed_out");
+          if (data.error === 'session_timeout') {
+            setSessionState('session_timed_out');
             return;
           }
-          if (data.error === "session_complete") {
-            setSessionState("follow_up_delivered");
+          if (data.error === 'session_complete') {
+            setSessionState('follow_up_delivered');
             return;
           }
-          setSessionState("error");
-          setErrorMessage(data.message || "Something went wrong.");
+          setSessionState('error');
+          setErrorMessage(data.message || 'Something went wrong.');
           return;
         }
 
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: data.brief },
+          { role: 'assistant', content: data.brief },
         ]);
 
-        if (typeof data.turns_remaining === "number") {
+        if (typeof data.turns_remaining === 'number') {
           setTurnsRemaining(data.turns_remaining);
         }
 
-        if (data.session_status === "complete" || data.turns_remaining === 0) {
-          setSessionState("follow_up_delivered");
+        if (data.session_status === 'complete' || data.turns_remaining === 0) {
+          setSessionState('follow_up_delivered');
         } else {
-          setSessionState("brief_delivered");
+          setSessionState('brief_delivered');
         }
       } catch {
-        setSessionState("error");
-        setErrorMessage("Network error. Please try again.");
+        setSessionState('error');
+        setErrorMessage('Network error. Please try again.');
       }
     },
-    [sessionId, messages],
+    [sessionId, messages]
   );
 
   const endSession = useCallback(async () => {
@@ -155,37 +157,37 @@ export default function ChatPage() {
 
     try {
       await fetch(`/api/v1/session/${sessionId}/end`, {
-        method: "POST",
+        method: 'POST',
         headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
     } catch {
       // best-effort
     }
 
-    setSessionState("follow_up_delivered");
+    setSessionState('follow_up_delivered');
   }, [sessionId]);
 
   const handleNewSession = useCallback(() => {
     setSessionId(null);
     setMessages([]);
-    setSessionState("waiting_for_input");
-    setErrorMessage("");
+    setSessionState('waiting_for_input');
+    setErrorMessage('');
     setStartTime(0);
     setMaxDurationMs(DEFAULT_MAX_DURATION_MS);
-    setTier("trial");
+    setTier('trial');
     setTurnsRemaining(null);
   }, []);
 
   const handleTimerExpire = useCallback(() => {
     if (
-      sessionState === "waiting_for_input" ||
-      sessionState === "brief_delivered"
+      sessionState === 'waiting_for_input' ||
+      sessionState === 'brief_delivered'
     ) {
-      setSessionState("session_timed_out");
+      setSessionState('session_timed_out');
       // Best-effort end session on server
       if (sessionId && tokenRef.current) {
         fetch(`/api/v1/session/${sessionId}/end`, {
-          method: "POST",
+          method: 'POST',
           headers: { Authorization: `Bearer ${tokenRef.current}` },
         }).catch(() => {});
       }
@@ -193,33 +195,37 @@ export default function ChatPage() {
   }, [sessionState, sessionId]);
 
   const isTimerActive =
-    sessionState === "waiting_for_input" ||
-    sessionState === "waiting_for_response" ||
-    sessionState === "brief_delivered";
+    sessionState === 'waiting_for_input' ||
+    sessionState === 'waiting_for_response' ||
+    sessionState === 'brief_delivered';
 
   const isInputDisabled =
-    sessionState === "waiting_for_response" ||
-    sessionState === "follow_up_delivered" ||
-    sessionState === "session_timed_out" ||
-    sessionState === "error" ||
-    sessionState === "not_subscribed";
+    sessionState === 'waiting_for_response' ||
+    sessionState === 'follow_up_delivered' ||
+    sessionState === 'session_timed_out' ||
+    sessionState === 'error' ||
+    sessionState === 'not_subscribed';
 
-  const showDone = sessionState === "brief_delivered";
+  const showDone = sessionState === 'brief_delivered';
 
   const showStatusOverlay =
-    sessionState === "follow_up_delivered" ||
-    sessionState === "session_timed_out" ||
-    sessionState === "error" ||
-    sessionState === "not_subscribed";
+    sessionState === 'follow_up_delivered' ||
+    sessionState === 'session_timed_out' ||
+    sessionState === 'error' ||
+    sessionState === 'not_subscribed';
 
   return (
     <div className="flex flex-col h-[calc(100vh-57px)] max-w-2xl mx-auto">
       <header className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-200 dark:border-zinc-800">
-        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Afloat</h1>
+        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          Afloat
+        </h1>
         {startTime > 0 && (
           <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-3 py-1">
-            {tier !== "trial" && (
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">{tier}</span>
+            {tier !== 'trial' && (
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                {tier}
+              </span>
             )}
             <SessionTimer
               startTime={startTime}
@@ -233,7 +239,7 @@ export default function ChatPage() {
 
       <ChatWindow
         messages={messages}
-        isLoading={sessionState === "waiting_for_response"}
+        isLoading={sessionState === 'waiting_for_response'}
         turnsRemaining={turnsRemaining}
       />
 
@@ -242,7 +248,7 @@ export default function ChatPage() {
           state={sessionState}
           errorMessage={errorMessage}
           onNewSession={handleNewSession}
-          onRetry={sessionState === "error" ? handleNewSession : undefined}
+          onRetry={sessionState === 'error' ? handleNewSession : undefined}
         />
       ) : (
         <ChatInput
@@ -254,7 +260,7 @@ export default function ChatPage() {
           placeholder={
             messages.length === 0
               ? "Describe what you're stuck on..."
-              : "Ask a follow-up..."
+              : 'Ask a follow-up...'
           }
         />
       )}

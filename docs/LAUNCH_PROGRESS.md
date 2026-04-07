@@ -65,31 +65,31 @@ The core product, billing stack, data layer, compliance infrastructure, and depl
 
 ### Stack
 
-| Layer | Technology | Notes |
-|---|---|---|
-| Frontend | Next.js 16.1.6 (App Router, Turbopack) | React 19, Tailwind CSS 4 |
-| API | Next.js serverless functions | All routes under `/api/v1/` |
-| LLM | OpenAI API | Server-side only, responses never persisted |
-| Session store | Upstash Redis (REST) | All user, session, and audit data |
-| Payments | Stripe | Checkout, webhooks, metered billing |
-| Hosting | Vercel | Serverless, Edge network |
-| CI/CD | GitHub Actions | Lint → Test → Build → Deploy on push to `main` |
+| Layer         | Technology                             | Notes                                          |
+| ------------- | -------------------------------------- | ---------------------------------------------- |
+| Frontend      | Next.js 16.1.6 (App Router, Turbopack) | React 19, Tailwind CSS 4                       |
+| API           | Next.js serverless functions           | All routes under `/api/v1/`                    |
+| LLM           | OpenAI API                             | Server-side only, responses never persisted    |
+| Session store | Upstash Redis (REST)                   | All user, session, and audit data              |
+| Payments      | Stripe                                 | Checkout, webhooks, metered billing            |
+| Hosting       | Vercel                                 | Serverless, Edge network                       |
+| CI/CD         | GitHub Actions                         | Lint → Test → Build → Deploy on push to `main` |
 
 ### API Routes
 
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| `POST` | `/api/v1/session/start` | JWT (subscriber) | Start session, get session_id and tier limits |
-| `POST` | `/api/v1/session/[id]/message` | JWT (subscriber) | Send message, receive LLM brief |
-| `POST` | `/api/v1/session/[id]/end` | JWT (subscriber) | End session, write telemetry, report usage |
-| `POST` | `/api/v1/subscribe` | Rate limited | Create Stripe Checkout session |
-| `GET` | `/api/v1/subscribe/verify` | — | Verify checkout completion, issue JWT |
-| `POST` | `/api/v1/webhooks/stripe` | Stripe signature | Receive and process Stripe events |
-| `GET` | `/api/v1/user/data-export` | JWT | GDPR right to access and portability |
-| `DELETE` | `/api/v1/user/data` | JWT | GDPR right to erasure (7-day grace) |
-| `PATCH` | `/api/v1/user/profile` | JWT | GDPR right to rectification |
-| `GET` | `/api/v1/health` | None | Uptime and version check |
-| `GET` | `/api/cron/cleanup` | `CRON_SECRET` bearer | Daily retention enforcement |
+| Method   | Path                           | Auth                 | Purpose                                       |
+| -------- | ------------------------------ | -------------------- | --------------------------------------------- |
+| `POST`   | `/api/v1/session/start`        | JWT (subscriber)     | Start session, get session_id and tier limits |
+| `POST`   | `/api/v1/session/[id]/message` | JWT (subscriber)     | Send message, receive LLM brief               |
+| `POST`   | `/api/v1/session/[id]/end`     | JWT (subscriber)     | End session, write telemetry, report usage    |
+| `POST`   | `/api/v1/subscribe`            | Rate limited         | Create Stripe Checkout session                |
+| `GET`    | `/api/v1/subscribe/verify`     | —                    | Verify checkout completion, issue JWT         |
+| `POST`   | `/api/v1/webhooks/stripe`      | Stripe signature     | Receive and process Stripe events             |
+| `GET`    | `/api/v1/user/data-export`     | JWT                  | GDPR right to access and portability          |
+| `DELETE` | `/api/v1/user/data`            | JWT                  | GDPR right to erasure (7-day grace)           |
+| `PATCH`  | `/api/v1/user/profile`         | JWT                  | GDPR right to rectification                   |
+| `GET`    | `/api/v1/health`               | None                 | Uptime and version check                      |
+| `GET`    | `/api/cron/cleanup`            | `CRON_SECRET` bearer | Daily retention enforcement                   |
 
 ### Session Flow
 
@@ -111,12 +111,12 @@ Session End (telemetry written, usage reported for continuous tier)
 
 ### Tier Limits
 
-| Property | Trial | Continuous |
-|---|---|---|
-| Max LLM calls | 2 | 6 |
-| Max session duration | 120 seconds (2 min) | 1800 seconds (30 min) |
-| Billing | $9 / quarter (flat) | $0.05 / minute (metered) |
-| Safety gradient | Pass-through | Blocks rapid-fire (<5s avg interval) |
+| Property             | Trial               | Continuous                           |
+| -------------------- | ------------------- | ------------------------------------ |
+| Max LLM calls        | 2                   | 6                                    |
+| Max session duration | 120 seconds (2 min) | 1800 seconds (30 min)                |
+| Billing              | $9 / quarter (flat) | $0.05 / minute (metered)             |
+| Safety gradient      | Pass-through        | Blocks rapid-fire (<5s avg interval) |
 
 ---
 
@@ -124,44 +124,44 @@ Session End (telemetry written, usage reported for continuous tier)
 
 ### Upstash Redis
 
-| Property | Value |
-|---|---|
+| Property | Value                               |
+| -------- | ----------------------------------- |
 | Endpoint | `pleased-marmoset-37365.upstash.io` |
-| Region | Iowa, USA (us-central1) |
-| Plan | Free tier |
-| TLS | Enabled |
-| Status | ✅ Connected and verified |
+| Region   | Iowa, USA (us-central1)             |
+| Plan     | Free tier                           |
+| TLS      | Enabled                             |
+| Status   | ✅ Connected and verified           |
 
 **Redis key schema:**
 
-| Key pattern | Content | TTL |
-|---|---|---|
-| `user:{user_id}` | UserRecord JSON | Account lifetime |
-| `stripe_customer:{customer_id}` | user_id mapping | Account lifetime |
-| `session:{session_id}` | SessionState JSON | ~150s (trial) / ~1830s (continuous) |
-| `sessions:{YYYY-MM-DD}` | Daily session log list | 90 days |
-| `audit:{YYYY-MM-DD}` | Audit log list | 365 days |
-| `stripe_event:{event_id}` | Idempotency marker | 24 hours |
-| `rl:{identifier}` | Rate limit counter | Sliding window |
+| Key pattern                     | Content                | TTL                                 |
+| ------------------------------- | ---------------------- | ----------------------------------- |
+| `user:{user_id}`                | UserRecord JSON        | Account lifetime                    |
+| `stripe_customer:{customer_id}` | user_id mapping        | Account lifetime                    |
+| `session:{session_id}`          | SessionState JSON      | ~150s (trial) / ~1830s (continuous) |
+| `sessions:{YYYY-MM-DD}`         | Daily session log list | 90 days                             |
+| `audit:{YYYY-MM-DD}`            | Audit log list         | 365 days                            |
+| `stripe_event:{event_id}`       | Idempotency marker     | 24 hours                            |
+| `rl:{identifier}`               | Rate limit counter     | Sliding window                      |
 
 ### Vercel
 
-| Property | Value |
-|---|---|
-| Project URL | `https://afloat-six.vercel.app` |
-| Plan | Free (Hobby) |
-| Region | Default (US East) |
-| Cron | `/api/cron/cleanup` at `0 2 * * *` (daily 02:00 UTC) |
-| Status | ✅ Deployed, v0.1.1 live |
+| Property    | Value                                                |
+| ----------- | ---------------------------------------------------- |
+| Project URL | `https://afloat-six.vercel.app`                      |
+| Plan        | Free (Hobby)                                         |
+| Region      | Default (US East)                                    |
+| Cron        | `/api/cron/cleanup` at `0 2 * * *` (daily 02:00 UTC) |
+| Status      | ✅ Deployed, v0.1.1 live                             |
 
 ### GitHub
 
-| Property | Value |
-|---|---|
-| Repository | `caraxesthebloodwyrm02/afloat` |
-| Default branch | `main` |
-| CI/CD trigger | Push to any branch (non-MD files) |
-| Deploy target | Vercel (production on `main`, preview on other branches) |
+| Property       | Value                                                    |
+| -------------- | -------------------------------------------------------- |
+| Repository     | `caraxesthebloodwyrm02/afloat`                           |
+| Default branch | `main`                                                   |
+| CI/CD trigger  | Push to any branch (non-MD files)                        |
+| Deploy target  | Vercel (production on `main`, preview on other branches) |
 
 ---
 
@@ -171,59 +171,59 @@ All Stripe configuration is in **live mode**.
 
 ### Account
 
-| Property | Value |
-|---|---|
+| Property   | Value                   |
+| ---------- | ----------------------- |
 | Account ID | `acct_1SkW3uFJouFkgsrk` |
-| Mode | Live |
+| Mode       | Live                    |
 
 ### Product
 
-| Property | Value |
-|---|---|
-| Product ID | `prod_U3sTAipQcQ0hZL` |
-| Name | afloat |
-| Description | assistive tool |
-| Status | Active |
+| Property    | Value                 |
+| ----------- | --------------------- |
+| Product ID  | `prod_U3sTAipQcQ0hZL` |
+| Name        | afloat                |
+| Description | assistive tool        |
+| Status      | Active                |
 
 ### Prices
 
-| Tier | Price ID | Amount | Interval | Type | Status |
-|---|---|---|---|---|---|
-| Trial | `price_1T5kidFJouFkgsrktGKkdX07` | $9.00 | Every 3 months | Licensed (flat) | ✅ Active |
-| Continuous | `price_1T5pqcFJouFkgsrkWghtlIvW` | $0.05 / unit | Monthly | Metered | ✅ Active |
+| Tier       | Price ID                         | Amount       | Interval       | Type            | Status    |
+| ---------- | -------------------------------- | ------------ | -------------- | --------------- | --------- |
+| Trial      | `price_1T5kidFJouFkgsrktGKkdX07` | $9.00        | Every 3 months | Licensed (flat) | ✅ Active |
+| Continuous | `price_1T5pqcFJouFkgsrkWghtlIvW` | $0.05 / unit | Monthly        | Metered         | ✅ Active |
 
 ### Billing Meter
 
-| Property | Value |
-|---|---|
-| Meter ID | `mtr_61UFDkraxDbu1tmNm41FJouFkgsrkXDc` |
-| Display name | Afloat Session Minutes |
-| Event name | `afloat_session_minutes` |
-| Aggregation | Sum |
-| Value key | `value` |
-| Customer mapping key | `stripe_customer_id` |
-| Status | ✅ Active |
+| Property             | Value                                  |
+| -------------------- | -------------------------------------- |
+| Meter ID             | `mtr_61UFDkraxDbu1tmNm41FJouFkgsrkXDc` |
+| Display name         | Afloat Session Minutes                 |
+| Event name           | `afloat_session_minutes`               |
+| Aggregation          | Sum                                    |
+| Value key            | `value`                                |
+| Customer mapping key | `stripe_customer_id`                   |
+| Status               | ✅ Active                              |
 
 ### Webhook Endpoint
 
-| Property | Value |
-|---|---|
-| Destination ID | `we_1T5qUyFJouFkgsrkjKWVfZZd` |
-| Name | captivating-splendor |
-| URL | `https://afloat-six.vercel.app/api/v1/webhooks/stripe` |
-| API version | `2025-12-15.clover` |
-| Status | ✅ Active |
-| Events (4) | `checkout.session.completed` · `invoice.paid` · `invoice.payment_failed` · `customer.subscription.deleted` |
-| Signing secret | Set in Vercel as `STRIPE_WEBHOOK_SECRET` ✅ |
+| Property       | Value                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------- |
+| Destination ID | `we_1T5qUyFJouFkgsrkjKWVfZZd`                                                                              |
+| Name           | captivating-splendor                                                                                       |
+| URL            | `https://afloat-six.vercel.app/api/v1/webhooks/stripe`                                                     |
+| API version    | `2025-12-15.clover`                                                                                        |
+| Status         | ✅ Active                                                                                                  |
+| Events (4)     | `checkout.session.completed` · `invoice.paid` · `invoice.payment_failed` · `customer.subscription.deleted` |
+| Signing secret | Set in Vercel as `STRIPE_WEBHOOK_SECRET` ✅                                                                |
 
 ### Webhook Handler Behaviour
 
-| Event | Handler action |
-|---|---|
-| `checkout.session.completed` | Creates user record, detects tier from line items, sets `subscription_status: active` |
-| `invoice.paid` | Sets `subscription_status: active` (handles renewals and $0 metered invoices) |
-| `invoice.payment_failed` | Sets `subscription_status: past_due` |
-| `customer.subscription.deleted` | Sets `subscription_status: canceled` |
+| Event                           | Handler action                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------- |
+| `checkout.session.completed`    | Creates user record, detects tier from line items, sets `subscription_status: active` |
+| `invoice.paid`                  | Sets `subscription_status: active` (handles renewals and $0 metered invoices)         |
+| `invoice.payment_failed`        | Sets `subscription_status: past_due`                                                  |
+| `customer.subscription.deleted` | Sets `subscription_status: canceled`                                                  |
 
 Idempotency: each event ID is stored in Redis for 24 hours. Duplicate deliveries (Stripe retries) are detected and skipped.
 
@@ -233,28 +233,28 @@ Idempotency: each event ID is stored in Redis for 24 hours. Duplicate deliveries
 
 All variables confirmed set in Vercel production. Local `.env.local` mirrors these for development.
 
-| Variable | Scope | Status |
-|---|---|---|
-| `STRIPE_SECRET_KEY` | All | ✅ |
-| `STRIPE_PUBLISHABLE_KEY` | All | ✅ |
-| `STRIPE_WEBHOOK_SECRET` | Production only | ✅ |
-| `STRIPE_PRICE_ID` | All | ✅ (`price_1T5kidFJouFkgsrktGKkdX07`) |
-| `STRIPE_CONTINUOUS_PRICE_ID` | All | ✅ (`price_1T5pqcFJouFkgsrkWghtlIvW`) |
-| `STRIPE_METER_EVENT_NAME` | All | ✅ (`afloat_session_minutes`) |
-| `OPENAI_API_KEY` | All | ✅ |
-| `UPSTASH_REDIS_REST_URL` | All | ✅ (`https://pleased-marmoset-37365.upstash.io`) |
-| `UPSTASH_REDIS_REST_TOKEN` | All | ✅ |
-| `JWT_SECRET` | All | ✅ |
-| `PROVENANCE_SIGNING_KEY` | All | ✅ (distinct from JWT_SECRET) |
-| `NEXT_PUBLIC_APP_URL` | All | ✅ (`https://afloat-six.vercel.app`) |
-| `CRON_SECRET` | All | ✅ |
+| Variable                     | Scope           | Status                                           |
+| ---------------------------- | --------------- | ------------------------------------------------ |
+| `STRIPE_SECRET_KEY`          | All             | ✅                                               |
+| `STRIPE_PUBLISHABLE_KEY`     | All             | ✅                                               |
+| `STRIPE_WEBHOOK_SECRET`      | Production only | ✅                                               |
+| `STRIPE_PRICE_ID`            | All             | ✅ (`price_1T5kidFJouFkgsrktGKkdX07`)            |
+| `STRIPE_CONTINUOUS_PRICE_ID` | All             | ✅ (`price_1T5pqcFJouFkgsrkWghtlIvW`)            |
+| `STRIPE_METER_EVENT_NAME`    | All             | ✅ (`afloat_session_minutes`)                    |
+| `OPENAI_API_KEY`             | All             | ✅                                               |
+| `UPSTASH_REDIS_REST_URL`     | All             | ✅ (`https://pleased-marmoset-37365.upstash.io`) |
+| `UPSTASH_REDIS_REST_TOKEN`   | All             | ✅                                               |
+| `JWT_SECRET`                 | All             | ✅                                               |
+| `PROVENANCE_SIGNING_KEY`     | All             | ✅ (distinct from JWT_SECRET)                    |
+| `NEXT_PUBLIC_APP_URL`        | All             | ✅ (`https://afloat-six.vercel.app`)             |
+| `CRON_SECRET`                | All             | ✅                                               |
 
 **Local development only** (`.env.local`, never committed):
 
-| Variable | Value |
-|---|---|
+| Variable                | Value                                                                                           |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_4137bd968284cf0eea61df614f50c720dfa6fc6c952073b0a8160c6510a1772a` (from `stripe listen`) |
-| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` |
+| `NEXT_PUBLIC_APP_URL`   | `http://localhost:3000`                                                                         |
 
 ---
 
@@ -366,9 +366,11 @@ Items are listed in priority order for launch readiness.
 These documents are required by the contract (`§7g`) and are the last compliance gap.
 
 #### ROPA — Record of Processing Activities (`§7g.4`)
+
 A formal register of all data processing activities as required under GDPR Article 30.
 
 **Must cover:**
+
 - Name and contact of controller (Irfan Kabir, sole operator)
 - Purposes of processing for each activity
 - Categories of data subjects and personal data
@@ -379,9 +381,11 @@ A formal register of all data processing activities as required under GDPR Artic
 **Suggested file:** `docs/ROPA.md`
 
 #### Incident Response Plan (`§7g.5`)
+
 A documented procedure for handling personal data breaches, including the 72-hour notification obligation under GDPR Article 33.
 
 **Must cover:**
+
 - Detection criteria (what counts as a breach)
 - Immediate containment steps (revoke keys, kill sessions, disable endpoints)
 - Assessment: scope, severity, number of affected data subjects
@@ -393,9 +397,11 @@ A documented procedure for handling personal data breaches, including the 72-hou
 **Suggested file:** `docs/INCIDENT_RESPONSE.md`
 
 #### Internal Compliance Runbook (`§7g.6`)
+
 An operational guide for the sole operator covering day-to-day compliance tasks.
 
 **Must cover:**
+
 - How to process a GDPR data subject request (access / deletion / rectification)
 - How to handle a consent withdrawal
 - How to rotate secrets (JWT_SECRET, PROVENANCE_SIGNING_KEY, Stripe keys)
@@ -410,16 +416,16 @@ An operational guide for the sole operator covering day-to-day compliance tasks.
 
 Eight test cases defined in the contract that must be manually executed and recorded.
 
-| ID | Test | How to execute |
-|---|---|---|
-| TC-01 | Consent opt-in is not pre-checked | Visit `/consent` in fresh session; verify no boxes pre-checked |
-| TC-02 | Consent can be withdrawn per category | Grant then revoke `session_telemetry`; verify telemetry not written on next session |
-| TC-03 | Data export returns correct structure | Call `GET /api/v1/user/data-export` with valid JWT; verify JSON schema |
-| TC-04 | Data deletion removes profile within 7 days | Call `DELETE /api/v1/user/data`; run cron; verify `GET` returns null |
-| TC-05 | Session text is never persisted | Start session, send message, check Redis for message content; must not exist |
-| TC-06 | IP address is stored hashed only | Trigger any audit event; verify `ip_hash` field is SHA-256 format, not raw IP |
-| TC-07 | Webhook signature verification rejects unsigned requests | POST to webhook without `stripe-signature` header; expect `401` |
-| TC-08 | Canceled subscription blocks `/chat` access | Cancel subscription in Stripe; verify `/chat` returns 402 or redirects to `/subscribe` |
+| ID    | Test                                                     | How to execute                                                                         |
+| ----- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| TC-01 | Consent opt-in is not pre-checked                        | Visit `/consent` in fresh session; verify no boxes pre-checked                         |
+| TC-02 | Consent can be withdrawn per category                    | Grant then revoke `session_telemetry`; verify telemetry not written on next session    |
+| TC-03 | Data export returns correct structure                    | Call `GET /api/v1/user/data-export` with valid JWT; verify JSON schema                 |
+| TC-04 | Data deletion removes profile within 7 days              | Call `DELETE /api/v1/user/data`; run cron; verify `GET` returns null                   |
+| TC-05 | Session text is never persisted                          | Start session, send message, check Redis for message content; must not exist           |
+| TC-06 | IP address is stored hashed only                         | Trigger any audit event; verify `ip_hash` field is SHA-256 format, not raw IP          |
+| TC-07 | Webhook signature verification rejects unsigned requests | POST to webhook without `stripe-signature` header; expect `401`                        |
+| TC-08 | Canceled subscription blocks `/chat` access              | Cancel subscription in Stripe; verify `/chat` returns 402 or redirects to `/subscribe` |
 
 ### 8.3 Baseline Performance Tests (`§2.11`)
 
@@ -433,6 +439,7 @@ Record real latency measurements from the live production deployment.
 **Milestone:** 3 paying users within Phase 1 (90 days from 2026-03-01).
 
 **Soft launch steps:**
+
 1. Share `/subscribe` URL with at least 3 known contacts
 2. Verify `checkout.session.completed` fires and user record is created
 3. Verify the user can access `/chat` and complete a session
@@ -444,16 +451,17 @@ Record real latency measurements from the live production deployment.
 
 Once real sessions are running, these must be tracked monthly:
 
-| KPI | Target | Data source |
-|---|---|---|
-| Session success rate | ≥ 95% | `session_completed: true` / total in Redis |
-| Context gate pass rate | ≥ 70% | `gate_type != "out_of_scope"` / total |
-| Average session duration | ≤ 2.0 min | `latency_per_turn` sum in session logs |
-| Response latency | ≤ 3.0 s avg | `latency_per_turn` in session logs |
+| KPI                      | Target      | Data source                                |
+| ------------------------ | ----------- | ------------------------------------------ |
+| Session success rate     | ≥ 95%       | `session_completed: true` / total in Redis |
+| Context gate pass rate   | ≥ 70%       | `gate_type != "out_of_scope"` / total      |
+| Average session duration | ≤ 2.0 min   | `latency_per_turn` sum in session logs     |
+| Response latency         | ≤ 3.0 s avg | `latency_per_turn` in session logs         |
 
 ### 8.6 First Transparency Report (`§5.5`)
 
 A public-facing summary of Afloat's first month of operation. Should cover:
+
 - Number of sessions
 - Revenue received
 - Costs incurred
@@ -467,11 +475,14 @@ Publish as a page in the app or a linked document.
 The auto-deletion cron route is implemented and scheduled in `vercel.json` (`0 2 * * *`). It has not yet run in production as there is no data to delete.
 
 **Verification method:** After first user is created, manually invoke the cron endpoint:
+
 ```
 curl -H "Authorization: Bearer <CRON_SECRET>" \
   https://afloat-six.vercel.app/api/cron/cleanup
 ```
+
 Expected response:
+
 ```json
 { "ok": true, "users_deleted": 0, "sessions_cleaned": 0, "errors": [] }
 ```
@@ -482,42 +493,42 @@ Expected response:
 
 ### Data Privacy Framework
 
-| Section | Item | Status |
-|---|---|---|
-| 7a | Data flow audit (DF-01–DF-05) | ✅ Complete |
-| 7a | PII risk classification | ✅ Complete |
-| 7a | Third-party DPAs (OpenAI, Stripe, Vercel) | ✅ Auto-incorporated |
-| 7b | Consent mechanism (CM-01 opt-in) | ✅ Implemented |
-| 7b | Granular opt-out (CM-02) | ✅ Implemented |
-| 7b | Consent renewal on policy change (CM-03) | ✅ Implemented |
-| 7c | Right to access (DR-01) | ✅ Implemented |
-| 7c | Right to erasure (DR-02) | ✅ Implemented |
-| 7c | Right to portability (DR-03) | ✅ Implemented |
-| 7c | Right to rectification (DR-04) | ✅ Implemented |
-| 7d | Immutable audit log | ✅ Implemented |
-| 7d | Alerting thresholds defined | ✅ Defined |
-| 7e | Retention policies defined | ✅ Defined |
-| 7e | User text never persisted (0-day) | ✅ Verified |
-| 7e | Auto-deletion cron | ✅ Implemented, unverified in production |
-| 7f | Privacy policy v1.0 | ✅ Published at `/privacy` |
-| 7f | Footer link | ✅ In `layout.tsx` |
-| 7g | DPIA | ✅ `DPIA.md` complete |
-| 7g | ROPA | ✅ `ROPA.md` complete (2026-03-01) |
-| 7g | Incident Response Plan | ✅ `INCIDENT_RESPONSE.md` complete (2026-03-01) |
-| 7g | Compliance Runbook | ✅ `RUNBOOK.md` complete (2026-03-01) |
-| 7g | TC-01 through TC-08 | ✅ 14/14 passed (2026-03-01) |
+| Section | Item                                      | Status                                          |
+| ------- | ----------------------------------------- | ----------------------------------------------- |
+| 7a      | Data flow audit (DF-01–DF-05)             | ✅ Complete                                     |
+| 7a      | PII risk classification                   | ✅ Complete                                     |
+| 7a      | Third-party DPAs (OpenAI, Stripe, Vercel) | ✅ Auto-incorporated                            |
+| 7b      | Consent mechanism (CM-01 opt-in)          | ✅ Implemented                                  |
+| 7b      | Granular opt-out (CM-02)                  | ✅ Implemented                                  |
+| 7b      | Consent renewal on policy change (CM-03)  | ✅ Implemented                                  |
+| 7c      | Right to access (DR-01)                   | ✅ Implemented                                  |
+| 7c      | Right to erasure (DR-02)                  | ✅ Implemented                                  |
+| 7c      | Right to portability (DR-03)              | ✅ Implemented                                  |
+| 7c      | Right to rectification (DR-04)            | ✅ Implemented                                  |
+| 7d      | Immutable audit log                       | ✅ Implemented                                  |
+| 7d      | Alerting thresholds defined               | ✅ Defined                                      |
+| 7e      | Retention policies defined                | ✅ Defined                                      |
+| 7e      | User text never persisted (0-day)         | ✅ Verified                                     |
+| 7e      | Auto-deletion cron                        | ✅ Implemented, unverified in production        |
+| 7f      | Privacy policy v1.0                       | ✅ Published at `/privacy`                      |
+| 7f      | Footer link                               | ✅ In `layout.tsx`                              |
+| 7g      | DPIA                                      | ✅ `DPIA.md` complete                           |
+| 7g      | ROPA                                      | ✅ `ROPA.md` complete (2026-03-01)              |
+| 7g      | Incident Response Plan                    | ✅ `INCIDENT_RESPONSE.md` complete (2026-03-01) |
+| 7g      | Compliance Runbook                        | ✅ `RUNBOOK.md` complete (2026-03-01)           |
+| 7g      | TC-01 through TC-08                       | ✅ 14/14 passed (2026-03-01)                    |
 
 ### Key Security Properties
 
-| Property | Enforcement | Status |
-|---|---|---|
-| User text never stored | `updateSession()` strips history before Redis write | ✅ |
-| IPs stored hashed only | `hashIP()` with SHA-256 in `audit.ts` | ✅ |
-| No card data stored | Stripe handles all payment PII | ✅ |
-| Webhook signature verified | `constructWebhookEvent()` rejects unsigned requests | ✅ |
-| JWT required on protected routes | `auth-middleware.ts` applied to session + user routes | ✅ |
-| Cron endpoint fail-closed | Returns 500 if `CRON_SECRET` not set | ✅ |
-| Safety gradient fail-closed | Returns `allowed: false` if evaluation throws | ✅ |
+| Property                         | Enforcement                                           | Status |
+| -------------------------------- | ----------------------------------------------------- | ------ |
+| User text never stored           | `updateSession()` strips history before Redis write   | ✅     |
+| IPs stored hashed only           | `hashIP()` with SHA-256 in `audit.ts`                 | ✅     |
+| No card data stored              | Stripe handles all payment PII                        | ✅     |
+| Webhook signature verified       | `constructWebhookEvent()` rejects unsigned requests   | ✅     |
+| JWT required on protected routes | `auth-middleware.ts` applied to session + user routes | ✅     |
+| Cron endpoint fail-closed        | Returns 500 if `CRON_SECRET` not set                  | ✅     |
+| Safety gradient fail-closed      | Returns `allowed: false` if evaluation throws         | ✅     |
 
 ---
 
@@ -525,18 +536,19 @@ Expected response:
 
 Full milestone definitions are in `ROADMAP.md`.
 
-| Milestone | Description | Status |
-|---|---|---|
-| M1 — Technical Baseline | Core session, auth, export, provenance | ✅ Complete (107/107 tests) |
-| M2 — Response Quality Foundation | Gate tag validation, response shape checks | ⏳ Not started |
-| M3 — Session Depth & Tier System | Two-tier billing, safety gradient, metered usage | ✅ Complete |
-| M4 — Data Retention & Cleanup | Session TTL enforcement, deletion probes | ⏳ Not started (cron implemented, probes not written) |
-| M5 — Observability | Structured request logging, response quality metrics | ⏳ Not started |
-| M6 — Product Behavior Baseline | `baseline.txt` v2.0.0 — response quality contract | ⏳ Not started |
+| Milestone                        | Description                                          | Status                                                |
+| -------------------------------- | ---------------------------------------------------- | ----------------------------------------------------- |
+| M1 — Technical Baseline          | Core session, auth, export, provenance               | ✅ Complete (107/107 tests)                           |
+| M2 — Response Quality Foundation | Gate tag validation, response shape checks           | ⏳ Not started                                        |
+| M3 — Session Depth & Tier System | Two-tier billing, safety gradient, metered usage     | ✅ Complete                                           |
+| M4 — Data Retention & Cleanup    | Session TTL enforcement, deletion probes             | ⏳ Not started (cron implemented, probes not written) |
+| M5 — Observability               | Structured request logging, response quality metrics | ⏳ Not started                                        |
+| M6 — Product Behavior Baseline   | `baseline.txt` v2.0.0 — response quality contract    | ⏳ Not started                                        |
 
 ### Next milestone: M2
 
 M2 requires no infrastructure changes. It is pure code + tests:
+
 1. Audit `prompt.ts` for enforceability
 2. Add `[GATE: type]` tag parsing to the message route (observation only, no user-facing change)
 3. Write D-series probes (REQ-D1 through REQ-D5)
@@ -548,27 +560,27 @@ M2 requires no infrastructure changes. It is pure code + tests:
 
 ### Pricing
 
-| Tier | Billing | Effective monthly |
-|---|---|---|
-| Trial | $9.00 / quarter | $3.00 / month |
+| Tier       | Billing                | Effective monthly                    |
+| ---------- | ---------------------- | ------------------------------------ |
+| Trial      | $9.00 / quarter        | $3.00 / month                        |
 | Continuous | $0.05 / minute metered | Variable (avg $3.00 at 60 min/month) |
 
 ### 90-Day Contract Targets
 
-| Metric | Target | Basis |
-|---|---|---|
-| Gross revenue | $108.00 | 12 subscribers × $9/quarter (trial tier, one billing cycle) |
-| Payment processor fees | $3.24 | ~3% of gross |
-| Infrastructure costs | $0.00 | All services on free tiers |
-| Net revenue | ≥ $104.76 | Gross - fees - costs |
+| Metric                 | Target    | Basis                                                       |
+| ---------------------- | --------- | ----------------------------------------------------------- |
+| Gross revenue          | $108.00   | 12 subscribers × $9/quarter (trial tier, one billing cycle) |
+| Payment processor fees | $3.24     | ~3% of gross                                                |
+| Infrastructure costs   | $0.00     | All services on free tiers                                  |
+| Net revenue            | ≥ $104.76 | Gross - fees - costs                                        |
 
 ### Cost Controls
 
-| Trigger | Condition | Action |
-|---|---|---|
-| Acquisition risk | < 6 subscribers by Day 60 | Activate Model C (pivot strategy) |
-| Latency overrun | > 3.0s avg for 7 consecutive days | Downgrade prompt or model |
-| Cost overrun | > 15% over estimate | Freeze discretionary spend |
+| Trigger          | Condition                         | Action                            |
+| ---------------- | --------------------------------- | --------------------------------- |
+| Acquisition risk | < 6 subscribers by Day 60         | Activate Model C (pivot strategy) |
+| Latency overrun  | > 3.0s avg for 7 consecutive days | Downgrade prompt or model         |
+| Cost overrun     | > 15% over estimate               | Freeze discretionary spend        |
 
 ### Ledger
 
@@ -619,37 +631,37 @@ The following is the authoritative ordered checklist for moving from infrastruct
 
 ## Appendix A — File Map
 
-| File | Purpose |
-|---|---|
-| `ARCHITECTURE.md` | Full system architecture, 12 sections |
-| `ROADMAP.md` | Milestone definitions and quality gates |
-| `BUILD_GUIDE.md` | Step-by-step build instructions |
-| `STRIPE_SETUP_GUIDE.md` | Stripe Dashboard configuration reference |
-| `CONTRACT_LAUNCH_CHECKLIST.md` | Contract-bound launch checklist |
-| `DPIA.md` | Data Protection Impact Assessment |
-| `contract.json` | Machine-readable contract, ledger, and KPIs |
-| `baseline.txt` | Technical baseline v1.0.0 (ratified) |
-| `docs/LAUNCH_PROGRESS.md` | This document |
-| `docs/ROPA.md` | ✅ Record of Processing Activities (GDPR Art 30) |
-| `docs/INCIDENT_RESPONSE.md` | ✅ Breach response plan (72-hour notification) |
-| `docs/RUNBOOK.md` | ✅ Operational compliance guide |
-| `src/lib/stripe.ts` | Stripe client, checkout, webhook, metered billing |
-| `src/lib/auth.ts` | JWT creation and verification |
-| `src/lib/auth-middleware.ts` | Route-level auth enforcement |
-| `src/lib/redis.ts` | Upstash Redis client |
-| `src/lib/data-layer.ts` | User CRUD, session logs, deletion |
-| `src/lib/audit.ts` | Append-only audit log writer |
-| `src/lib/consent.ts` | Consent record management |
-| `src/lib/safety.ts` | Safety gradient evaluation |
-| `src/lib/session-controller.ts` | Session lifecycle, tier enforcement |
-| `src/lib/llm.ts` | OpenAI call wrapper |
-| `src/lib/prompt.ts` | System prompt definition |
-| `src/app/api/v1/webhooks/stripe/route.ts` | Stripe webhook handler |
-| `src/app/api/cron/cleanup/route.ts` | Auto-deletion cron job |
-| `src/app/privacy/page.tsx` | Privacy policy (v1.0, effective 2026-03-01) |
-| `vercel.json` | Cron schedule configuration |
-| `.github/workflows/ci-cd.yml` | GitHub Actions CI/CD pipeline |
+| File                                      | Purpose                                           |
+| ----------------------------------------- | ------------------------------------------------- |
+| `ARCHITECTURE.md`                         | Full system architecture, 12 sections             |
+| `ROADMAP.md`                              | Milestone definitions and quality gates           |
+| `BUILD_GUIDE.md`                          | Step-by-step build instructions                   |
+| `STRIPE_SETUP_GUIDE.md`                   | Stripe Dashboard configuration reference          |
+| `CONTRACT_LAUNCH_CHECKLIST.md`            | Contract-bound launch checklist                   |
+| `DPIA.md`                                 | Data Protection Impact Assessment                 |
+| `contract.json`                           | Machine-readable contract, ledger, and KPIs       |
+| `baseline.txt`                            | Technical baseline v1.0.0 (ratified)              |
+| `docs/LAUNCH_PROGRESS.md`                 | This document                                     |
+| `docs/ROPA.md`                            | ✅ Record of Processing Activities (GDPR Art 30)  |
+| `docs/INCIDENT_RESPONSE.md`               | ✅ Breach response plan (72-hour notification)    |
+| `docs/RUNBOOK.md`                         | ✅ Operational compliance guide                   |
+| `src/lib/stripe.ts`                       | Stripe client, checkout, webhook, metered billing |
+| `src/lib/auth.ts`                         | JWT creation and verification                     |
+| `src/lib/auth-middleware.ts`              | Route-level auth enforcement                      |
+| `src/lib/redis.ts`                        | Upstash Redis client                              |
+| `src/lib/data-layer.ts`                   | User CRUD, session logs, deletion                 |
+| `src/lib/audit.ts`                        | Append-only audit log writer                      |
+| `src/lib/consent.ts`                      | Consent record management                         |
+| `src/lib/safety.ts`                       | Safety gradient evaluation                        |
+| `src/lib/session-controller.ts`           | Session lifecycle, tier enforcement               |
+| `src/lib/llm.ts`                          | OpenAI call wrapper                               |
+| `src/lib/prompt.ts`                       | System prompt definition                          |
+| `src/app/api/v1/webhooks/stripe/route.ts` | Stripe webhook handler                            |
+| `src/app/api/cron/cleanup/route.ts`       | Auto-deletion cron job                            |
+| `src/app/privacy/page.tsx`                | Privacy policy (v1.0, effective 2026-03-01)       |
+| `vercel.json`                             | Cron schedule configuration                       |
+| `.github/workflows/ci-cd.yml`             | GitHub Actions CI/CD pipeline                     |
 
 ---
 
-*This document reflects the state of the project as of 2026-02-28. Update the "Last updated" field and relevant sections whenever significant progress is made.*
+_This document reflects the state of the project as of 2026-02-28. Update the "Last updated" field and relevant sections whenever significant progress is made._

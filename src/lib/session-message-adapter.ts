@@ -2,18 +2,20 @@ import {
   callLLMWithRetry,
   type LLMResponse,
   type LLMRoutingContext,
-} from "@/lib/llm";
+} from '@/lib/llm';
 
-const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
+const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
 export function isPhase4MessageCapabilityEnabled(): boolean {
-  const rawValue = (process.env.PHASE4_MESSAGE_CAPABILITY_ENABLED ?? "").trim().toLowerCase();
+  const rawValue = (process.env.PHASE4_MESSAGE_CAPABILITY_ENABLED ?? '')
+    .trim()
+    .toLowerCase();
   return ENABLED_VALUES.has(rawValue);
 }
 
 async function callPhase4Capability(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
   routingContext?: LLMRoutingContext
 ): Promise<LLMResponse> {
   const response = await callLLMWithRetry(
@@ -29,7 +31,7 @@ async function callPhase4Capability(
 
 export async function generateMessageResponse(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
   routingContext?: LLMRoutingContext
 ): Promise<LLMResponse> {
   if (!isPhase4MessageCapabilityEnabled()) {

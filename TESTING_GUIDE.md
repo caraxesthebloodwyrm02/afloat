@@ -5,11 +5,13 @@
 ### 1. Unit Tests (Vitest)
 
 **Run the test suite:**
+
 ```bash
 npm test -- tests/secrets.test.ts
 ```
 
 **What it tests:**
+
 - ✅ **Entropy Detection**: Validates `hasLowEntropy()` function with various string patterns
 - ✅ **Validation Logic**: Tests `validateSecrets()` with different scenarios
 - ✅ **Error Cases**: Missing secrets, short secrets, weak defaults
@@ -17,6 +19,7 @@ npm test -- tests/secrets.test.ts
 - ✅ **Generation**: Secret generation utilities
 
 **Key Test Results from Current Run:**
+
 - ❌ **13 tests failed** - confirming the entropy validation issues
 - ❌ **Missing exports** - `hasLowEntropy` not exported from secrets module
 - ❌ **Validation logic gaps** - some expected error conditions not being caught
@@ -24,21 +27,25 @@ npm test -- tests/secrets.test.ts
 ### 2. Manual Testing Script
 
 **Quick analysis:**
+
 ```bash
 node scripts/test-secrets.js analyze
 ```
 
 **Generate strong secrets:**
+
 ```bash
 node scripts/test-secrets.js generate
 ```
 
 **Test entropy detection:**
+
 ```bash
 node scripts/test-secrets.js test
 ```
 
 **Get suggested fixes:**
+
 ```bash
 node scripts/test-secrets.js fix
 ```
@@ -46,14 +53,17 @@ node scripts/test-secrets.js fix
 ### 3. Development Server Test
 
 **Current status validation:**
+
 ```bash
 npm run dev
 ```
-*Expected to fail with entropy validation errors*
+
+_Expected to fail with entropy validation errors_
 
 ### 4. Environment Variable Testing
 
 **Check current secrets:**
+
 ```bash
 node -e "
 const fs = require('fs');
@@ -73,6 +83,7 @@ envContent.split('\n').forEach(line => {
 ### 5. Integration Testing
 
 **Test with actual secrets:**
+
 ```bash
 # Create test environment
 cp .env.local .env.test
@@ -112,11 +123,13 @@ cp .env.test .env.local && npm run dev
 ### Expected Test Outcomes
 
 **Before Fix:**
+
 - ❌ Development server fails to start
 - ❌ 13/13 unit tests fail
 - ❌ Entropy ratio < 0.3 for hex secrets
 
 **After Fix:**
+
 - ✅ Development server starts successfully
 - ✅ All unit tests pass
 - ✅ Entropy ratio > 0.7 for base64 secrets
@@ -124,6 +137,7 @@ cp .env.test .env.local && npm run dev
 ## Testing Best Practices
 
 ### 1. Entropy Validation
+
 ```javascript
 // Test entropy calculation
 function testEntropy(secret, expectedMinRatio = 0.3) {
@@ -134,11 +148,15 @@ function testEntropy(secret, expectedMinRatio = 0.3) {
 ```
 
 ### 2. Secret Generation Testing
+
 ```javascript
 // Test secret generation
 function testSecretGeneration() {
   const crypto = require('crypto');
-  const secret = crypto.randomBytes(32).toString('base64').replace(/[+/=]/g, '');
+  const secret = crypto
+    .randomBytes(32)
+    .toString('base64')
+    .replace(/[+/=]/g, '');
   console.log('Generated:', secret);
   console.log('Length:', secret.length);
   console.log('Entropy:', new Set(secret.split('')).size / secret.length);
@@ -146,6 +164,7 @@ function testSecretGeneration() {
 ```
 
 ### 3. Integration Testing
+
 ```javascript
 // Test full validation pipeline
 function testValidation() {
@@ -160,6 +179,7 @@ function testValidation() {
 ## Continuous Testing
 
 ### Add to CI/CD
+
 ```yaml
 # .github/workflows/test-secrets.yml
 - name: Test Secret Validation
@@ -169,6 +189,7 @@ function testValidation() {
 ```
 
 ### Pre-commit Hook
+
 ```bash
 # .husky/pre-commit
 #!/bin/sh
@@ -176,6 +197,7 @@ npm test -- tests/secrets.test.ts
 ```
 
 ### Development Monitoring
+
 ```bash
 # Watch for secret changes
 npm run test:watch -- tests/secrets.test.ts
@@ -184,8 +206,9 @@ npm run test:watch -- tests/secrets.test.ts
 ## Summary
 
 The testing framework provides comprehensive coverage:
+
 - **Unit tests** for individual functions
-- **Integration tests** for full validation pipeline  
+- **Integration tests** for full validation pipeline
 - **Manual scripts** for quick analysis
 - **Development server** validation for real-world testing
 

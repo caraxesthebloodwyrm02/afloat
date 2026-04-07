@@ -1,28 +1,28 @@
-import { defineConfig } from "vitest/config";
-import path from "path";
+import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
   test: {
     globals: true,
-    environment: "node",
+    environment: 'node',
     env: {
-      PROVENANCE_SIGNING_KEY: "NsRYe4D6gqT8mh300LKybRZ0kTRBfoAXTPTEmOPGG1I",
-      JWT_SECRET: "B9WqS5sMazj8bfDlHkktwSv7jI6r74nxYnMkA1Re4E",
-      UPSTASH_REDIS_REST_URL: "http://localhost:6379",
-      UPSTASH_REDIS_REST_TOKEN: "XpT9mW3kR7vL2nQ8sY4hB6cJ",
-      OPENAI_API_KEY: "sk-Xt9mW3kR7vL2nQ8sY4hB6cJ1fA5dE",
+      PROVENANCE_SIGNING_KEY: 'NsRYe4D6gqT8mh300LKybRZ0kTRBfoAXTPTEmOPGG1I',
+      JWT_SECRET: 'B9WqS5sMazj8bfDlHkktwSv7jI6r74nxYnMkA1Re4E',
+      UPSTASH_REDIS_REST_URL: 'http://localhost:6379',
+      UPSTASH_REDIS_REST_TOKEN: 'XpT9mW3kR7vL2nQ8sY4hB6cJ',
+      OPENAI_API_KEY: 'test_openai_key_placeholder',
     },
-    setupFiles: ["./tests/setup.ts"],
+    setupFiles: ['./tests/setup.ts'],
     coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html"],
-      include: ["src/lib/**/*.ts", "src/app/api/**/*.ts"],
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      include: ['src/lib/**/*.ts', 'src/app/api/**/*.ts'],
       exclude: [
-        "tests/**",
-        "**/*.test.ts",
-        "**/*.spec.ts",
-        "src/lib/provenance/index.ts",
-        "src/lib/provenance/types.ts",
+        'tests/**',
+        '**/*.test.ts',
+        '**/*.spec.ts',
+        'src/lib/provenance/index.ts',
+        'src/lib/provenance/types.ts',
       ],
       thresholds: {
         lines: 68,
@@ -34,7 +34,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
 });

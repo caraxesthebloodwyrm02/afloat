@@ -5,16 +5,16 @@ run-name: CI/CD - ${{ github.ref_name }} - ${{ github.sha }}
 on:
   push:
     branches:
-      - "**"
+      - '**'
     paths-ignore:
-      - "**/*.md"
-      - "docs/**"
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches:
       - main
     paths-ignore:
-      - "**/*.md"
-      - "docs/**"
+      - '**/*.md'
+      - 'docs/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,8 +25,8 @@ permissions:
 
 env:
   CI: true
-  NODE_VERSION: "22"
-  VERCEL_CLI_VERSION: "50.23.2"
+  NODE_VERSION: '22'
+  VERCEL_CLI_VERSION: '50.23.2'
 
 defaults:
   run:
