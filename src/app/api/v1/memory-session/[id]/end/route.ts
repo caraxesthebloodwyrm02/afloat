@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession, endSession, deleteSession } from "@/lib/memory-session-store";
-import type { SessionEndResponse, ApiError } from "@/types/api";
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  getSession,
+  endSession,
+  deleteSession,
+} from '@/lib/memory-session-store';
+import type { SessionEndResponse, ApiError } from '@/types/api';
 
 export async function POST(
   request: NextRequest,
@@ -11,7 +15,7 @@ export async function POST(
 
   if (!session) {
     return NextResponse.json<ApiError>(
-      { error: "not_found", message: "Session not found." },
+      { error: 'not_found', message: 'Session not found.' },
       { status: 404 }
     );
   }
@@ -19,7 +23,7 @@ export async function POST(
   const result = endSession(sessionId);
   if (!result) {
     return NextResponse.json<ApiError>(
-      { error: "not_found", message: "Session not found." },
+      { error: 'not_found', message: 'Session not found.' },
       { status: 404 }
     );
   }

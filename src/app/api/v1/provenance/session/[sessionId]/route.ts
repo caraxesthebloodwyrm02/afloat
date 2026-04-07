@@ -1,12 +1,12 @@
-import { requireAuth, isAuthenticated } from "@/lib/auth-middleware";
-import { getSessionDPRs, verifySessionChain } from "@/lib/provenance";
-import { getSession } from "@/lib/session-controller";
-import type { ApiError } from "@/types/api";
-import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAuthenticated } from '@/lib/auth-middleware';
+import { getSessionDPRs, verifySessionChain } from '@/lib/provenance';
+import { getSession } from '@/lib/session-controller';
+import type { ApiError } from '@/types/api';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> },
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const authResult = await requireAuth(request);
   if (!isAuthenticated(authResult)) return authResult;
@@ -19,8 +19,8 @@ export async function GET(
   const session = await getSession(sessionId);
   if (session && session.user_id !== user.user_id) {
     return NextResponse.json<ApiError>(
-      { error: "forbidden", message: "Access denied." },
-      { status: 403 },
+      { error: 'forbidden', message: 'Access denied.' },
+      { status: 403 }
     );
   }
 
@@ -28,10 +28,10 @@ export async function GET(
   if (chain.length === 0) {
     return NextResponse.json<ApiError>(
       {
-        error: "not_found",
-        message: "No provenance records found for this session.",
+        error: 'not_found',
+        message: 'No provenance records found for this session.',
       },
-      { status: 404 },
+      { status: 404 }
     );
   }
 
@@ -40,8 +40,8 @@ export async function GET(
     const chainOwnerId = chain[0].actor_id;
     if (chainOwnerId !== user.user_id) {
       return NextResponse.json<ApiError>(
-        { error: "forbidden", message: "Access denied." },
-        { status: 403 },
+        { error: 'forbidden', message: 'Access denied.' },
+        { status: 403 }
       );
     }
   }

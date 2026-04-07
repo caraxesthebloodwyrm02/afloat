@@ -1,13 +1,11 @@
-import { NextResponse } from "next/server";
-import {
-  createSession,
-} from "@/lib/memory-session-store";
-import type { SessionStartResponse } from "@/types/api";
-import { getTierLimits } from "@/types/session";
+import { NextResponse } from 'next/server';
+import { createSession } from '@/lib/memory-session-store';
+import type { SessionStartResponse } from '@/types/api';
+import { getTierLimits } from '@/types/session';
 
 export async function POST() {
-  const userId = "test-user";
-  const tier = "trial";
+  const userId = 'test-user';
+  const tier = 'free_trial';
   const session = createSession(userId, tier);
   const limits = getTierLimits(tier);
 

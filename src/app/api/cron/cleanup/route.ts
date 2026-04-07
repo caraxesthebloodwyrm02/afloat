@@ -1,25 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getRedis } from "@/lib/redis";
-import { permanentlyDeleteUserData } from "@/lib/data-layer";
-import { writeAuditLog } from "@/lib/audit";
-import type { UserRecord } from "@/types/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { getRedis } from '@/lib/redis';
+import { permanentlyDeleteUserData } from '@/lib/data-layer';
+import { writeAuditLog } from '@/lib/audit';
+import type { UserRecord } from '@/types/user';
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Verify Vercel Cron authorization
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
     return NextResponse.json(
-      { error: "Server misconfigured: CRON_SECRET not set" },
+      { error: 'Server misconfigured: CRON_SECRET not set' },
       { status: 500 }
     );
   }
 
-  const authHeader = request.headers.get("authorization");
+  const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const redis = getRedis();
@@ -33,15 +33,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // --- 1. Process pending user deletions ---
   let cursor = 0;
   do {
-    const [nextCursor, keys] = await redis.scan(cursor, { match: "user:*", count: 100 });
-    cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+    const [nextCursor, keys] = await redis.scan(cursor, {
+      match: 'user:*',
+      count: 100,
+    });
+    cursor =
+      typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
 
     for (const key of keys) {
       try {
         const raw = await redis.get<string>(key);
         if (!raw) continue;
 
-        const user = (typeof raw === "string" ? JSON.parse(raw) : raw) as UserRecord;
+        const user = (
+          typeof raw === 'string' ? JSON.parse(raw) : raw
+        ) as UserRecord;
 
         if (
           user.pending_deletion &&
@@ -49,13 +55,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ) {
           await permanentlyDeleteUserData(user.user_id);
           await writeAuditLog({
-            actor: "system",
-            action: "delete",
-            resource_type: "user_profile",
+            actor: 'system',
+            action: 'delete',
+            resource_type: 'user_profile',
             resource_id: user.user_id,
-            outcome: "success",
-            ip_hash: "cron-job",
-            metadata: { trigger: "auto_deletion", deletion_date: user.pending_deletion.deletion_date },
+            outcome: 'success',
+            ip_hash: 'cron-job',
+            metadata: {
+              trigger: 'auto_deletion',
+              deletion_date: user.pending_deletion.deletion_date,
+            },
           });
           summary.users_deleted++;
         }
@@ -70,13 +79,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const retentionMs = 90 * 24 * 60 * 60 * 1000;
   cursor = 0;
   do {
-    const [nextCursor, keys] = await redis.scan(cursor, { match: "sessions:*", count: 100 });
-    cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+    const [nextCursor, keys] = await redis.scan(cursor, {
+      match: 'sessions:*',
+      count: 100,
+    });
+    cursor =
+      typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
 
     for (const key of keys) {
       try {
         // Key format: sessions:YYYY-MM-DD
-        const dateStr = key.replace("sessions:", "");
+        const dateStr = key.replace('sessions:', '');
         const keyDate = new Date(dateStr);
 
         if (isNaN(keyDate.getTime())) continue;
@@ -84,13 +97,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (now.getTime() - keyDate.getTime() > retentionMs) {
           await redis.del(key);
           await writeAuditLog({
-            actor: "system",
-            action: "delete",
-            resource_type: "session_log",
+            actor: 'system',
+            action: 'delete',
+            resource_type: 'session_log',
             resource_id: key,
-            outcome: "success",
-            ip_hash: "cron-job",
-            metadata: { trigger: "retention_expiry", date_key: dateStr },
+            outcome: 'success',
+            ip_hash: 'cron-job',
+            metadata: { trigger: 'retention_expiry', date_key: dateStr },
           });
           summary.sessions_cleaned++;
         }
