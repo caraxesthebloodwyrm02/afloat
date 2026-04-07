@@ -344,8 +344,8 @@ describe('callLLMWithFallback Dynamic Ollama-First Routing', () => {
       if (url.includes('/api/tags')) {
         return createJsonResponse(200, { models: [{ name: 'llama3.1:8b' }] });
       }
-      if (url.includes('api.openai.com')) {
-        expect(url).toContain('api.openai.com');
+      if (new URL(url).hostname === 'api.openai.com') {
+        expect(new URL(url).hostname).toBe('api.openai.com');
         const body = JSON.parse(String(init?.body ?? '{}')) as {
           max_tokens?: number;
         };
@@ -384,8 +384,8 @@ describe('callLLMWithFallback Dynamic Ollama-First Routing', () => {
       if (url.includes('/api/generate')) {
         return createJsonResponse(429, { error: 'rate limited' });
       }
-      if (url.includes('api.openai.com')) {
-        expect(url).toContain('api.openai.com');
+      if (new URL(url).hostname === 'api.openai.com') {
+        expect(new URL(url).hostname).toBe('api.openai.com');
         return createJsonResponse(200, {
           choices: [
             {
@@ -437,7 +437,10 @@ describe('callLLMWithFallback Dynamic Ollama-First Routing', () => {
     ).rejects.toBeInstanceOf(LLMError);
 
     const allUrls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(allUrls.some((url) => url.includes('api.openai.com'))).toBe(false);
+    const hasOpenAI = allUrls.some((u) => {
+      try { return new URL(u).hostname === 'api.openai.com'; } catch { return false; }
+    });
+    expect(hasOpenAI).toBe(false);
   });
 
   it('does not auto-escalate for regular scope when Ollama fails', async () => {
@@ -458,6 +461,9 @@ describe('callLLMWithFallback Dynamic Ollama-First Routing', () => {
     ).rejects.toBeInstanceOf(LLMError);
 
     const allUrls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(allUrls.some((url) => url.includes('api.openai.com'))).toBe(false);
+    const hasOpenAI = allUrls.some((u) => {
+      try { return new URL(u).hostname === 'api.openai.com'; } catch { return false; }
+    });
+    expect(hasOpenAI).toBe(false);
   });
 });

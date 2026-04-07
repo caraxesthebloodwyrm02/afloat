@@ -41,7 +41,7 @@ vi.mock('@/lib/redis', () => ({
     }),
     scan: vi.fn(async (_cursor: number, opts?: { match?: string }) => {
       const pattern = opts?.match ?? '*';
-      const prefix = pattern.replace('*', '');
+      const prefix = pattern.replaceAll('*', '');
       const keys = [
         ...Array.from(mockRedisStore.keys()),
         ...Array.from(mockRedisList.keys()),
