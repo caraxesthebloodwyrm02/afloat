@@ -15,12 +15,15 @@ const originalEnv = { ...process.env };
 /** Helper: set all required secrets with high-entropy valid values */
 function setValidEnv() {
   process.env.JWT_SECRET = 'B9WqS5sMazj8bfDlHkktwSv7jI6r74nxYnMkA1Re4E';
-  process.env.PROVENANCE_SIGNING_KEY = 'NsRYe4D6gqT8mh300LKybRZ0kTRBfoAXTPTEmOPGG1I';
+  process.env.PROVENANCE_SIGNING_KEY =
+    'NsRYe4D6gqT8mh300LKybRZ0kTRBfoAXTPTEmOPGG1I';
   process.env.CRON_SECRET = 'RcyltHzXg2mH6Fwag4ARwXz5';
-  process.env.OPENAI_API_KEY = 'sk-Xt9mW3kR7vL2nQ8sY4hB6cJ1fA5dE';
-  process.env.STRIPE_SECRET_KEY = 'sk_live_5add2fd69527664455fbd6b05e1207e10b72e9f29c464bab';
+  process.env.OPENAI_API_KEY = 'test_openai_key_placeholder';
+  process.env.STRIPE_SECRET_KEY =
+    'sk_live_5add2fd69527664455fbd6b05e1207e10b72e9f29c464bab';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_Kx7mW3kR7vL2nQ8sY4hB6cJ1fA5dE';
-  process.env.STRIPE_PUBLISHABLE_KEY = 'pk_live_5add2fd69527664455fbd6b05e1207e10b72e9f2';
+  process.env.STRIPE_PUBLISHABLE_KEY =
+    'pk_live_5add2fd69527664455fbd6b05e1207e10b72e9f2';
   process.env.STRIPE_PRICE_ID = 'price_1ABCdef123456789';
   process.env.STRIPE_CONTINUOUS_PRICE_ID = 'price_1XYZcontinuous789';
   process.env.UPSTASH_REDIS_REST_URL = 'https://test.upstash.io';
@@ -40,7 +43,8 @@ describe('Secret Validation', () => {
 
   describe('hasLowEntropy function', () => {
     it('should detect low entropy in hex strings', () => {
-      const hexString = '6602544f7a44d48f4411c843d28e827621bcef84fc522ce1ca9616185d8b3e7b';
+      const hexString =
+        '6602544f7a44d48f4411c843d28e827621bcef84fc522ce1ca9616185d8b3e7b';
       expect(hasLowEntropy(hexString)).toBe(true);
     });
 
@@ -56,7 +60,8 @@ describe('Secret Validation', () => {
 
     it('should accept sequential strings with high unique ratio', () => {
       // 25 unique chars in 50 length = 0.50 ratio — passes the 0.3 threshold
-      const sequentialString = 'abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxy';
+      const sequentialString =
+        'abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxy';
       expect(hasLowEntropy(sequentialString)).toBe(false);
     });
 
@@ -85,7 +90,7 @@ describe('Secret Validation', () => {
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.valid).toBe(false);
 
-      const jwtError = result.errors.find(e => e.secret === 'JWT_SECRET');
+      const jwtError = result.errors.find((e) => e.secret === 'JWT_SECRET');
       expect(jwtError).toBeDefined();
       expect(jwtError?.reason).toContain('Missing required secret');
     });
@@ -99,7 +104,7 @@ describe('Secret Validation', () => {
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.valid).toBe(false);
 
-      const jwtError = result.errors.find(e => e.secret === 'JWT_SECRET');
+      const jwtError = result.errors.find((e) => e.secret === 'JWT_SECRET');
       expect(jwtError).toBeDefined();
       expect(jwtError?.reason).toContain('Below minimum length');
     });
@@ -107,27 +112,35 @@ describe('Secret Validation', () => {
     it('should warn about low entropy secrets', () => {
       setValidEnv();
       // Override with hex-encoded (low entropy) values
-      process.env.JWT_SECRET = '6602544f7a44d48f4411c843d28e827621bcef84fc522ce1ca9616185d8b3e7b';
-      process.env.PROVENANCE_SIGNING_KEY = 'cc4c44f0576884f82b8fd5b80200e2ab0c8ac8fcf3a10028514214ea0e36c74d';
-      process.env.CRON_SECRET = 'a65ec9f7994188a097353bcd90a95e20922967a3ce3ec3b3926bef1bcf17f368';
+      process.env.JWT_SECRET =
+        '6602544f7a44d48f4411c843d28e827621bcef84fc522ce1ca9616185d8b3e7b';
+      process.env.PROVENANCE_SIGNING_KEY =
+        'cc4c44f0576884f82b8fd5b80200e2ab0c8ac8fcf3a10028514214ea0e36c74d';
+      process.env.CRON_SECRET =
+        'a65ec9f7994188a097353bcd90a95e20922967a3ce3ec3b3926bef1bcf17f368';
 
       const result = validateSecrets();
       expect(result.warnings.length).toBeGreaterThan(0);
 
-      const lowEntropyWarnings = result.warnings.filter(w => w.reason.includes('Low entropy'));
+      const lowEntropyWarnings = result.warnings.filter((w) =>
+        w.reason.includes('Low entropy')
+      );
       expect(lowEntropyWarnings.length).toBeGreaterThan(0);
     });
 
     it('should detect weak default values', () => {
       setValidEnv();
       process.env.JWT_SECRET = 'change-this-to-a-random-secret';
-      process.env.PROVENANCE_SIGNING_KEY = 'change-this-to-a-different-random-secret';
+      process.env.PROVENANCE_SIGNING_KEY =
+        'change-this-to-a-different-random-secret';
       process.env.CRON_SECRET = 'change-this-to-a-random-secret-for-cron-jobs';
 
       const result = validateSecrets();
       expect(result.errors.length).toBeGreaterThan(0);
 
-      const weakErrors = result.errors.filter(e => e.reason.includes('weak or default value'));
+      const weakErrors = result.errors.filter((e) =>
+        e.reason.includes('weak or default value')
+      );
       expect(weakErrors.length).toBe(3);
     });
 
@@ -140,7 +153,9 @@ describe('Secret Validation', () => {
       const result = validateSecrets();
       expect(result.errors.length).toBeGreaterThan(0);
 
-      const collisionError = result.errors.find(e => e.reason.includes('must differ'));
+      const collisionError = result.errors.find((e) =>
+        e.reason.includes('must differ')
+      );
       expect(collisionError).toBeDefined();
     });
   });
@@ -161,8 +176,12 @@ describe('Secret Generation Utilities', () => {
       expect(hexEntropy).toBeLessThan(0.3);
 
       // Base64 encoding (high entropy ratio)
-      const base64Secret = crypto.randomBytes(32).toString('base64').replace(/[+/=]/g, '');
-      const base64Entropy = new Set(base64Secret.split('')).size / base64Secret.length;
+      const base64Secret = crypto
+        .randomBytes(32)
+        .toString('base64')
+        .replace(/[+/=]/g, '');
+      const base64Entropy =
+        new Set(base64Secret.split('')).size / base64Secret.length;
       expect(base64Entropy).toBeGreaterThan(0.5);
     });
   });
@@ -172,7 +191,8 @@ describe('Secret Generation Utilities', () => {
       const crypto = await import('node:crypto');
 
       function generateStrongSecret(byteLength: number): string {
-        return crypto.randomBytes(byteLength)
+        return crypto
+          .randomBytes(byteLength)
           .toString('base64')
           .replace(/[+/=]/g, '')
           .substring(0, byteLength * 2);
@@ -205,7 +225,9 @@ describe('Secret Governance Branches', () => {
     process.env.JWT_SECRET = 'short';
     resetValidationCache();
 
-    expect(() => getValidatedSecret('JWT_SECRET')).toThrow(/Secret validation failed/);
+    expect(() => getValidatedSecret('JWT_SECRET')).toThrow(
+      /Secret validation failed/
+    );
   });
 
   it('getValidatedSecret returns value when secret is valid', () => {
@@ -234,7 +256,7 @@ describe('Secret Governance Branches', () => {
 
     const result = validateSecrets();
     const warning = result.warnings.find((w) =>
-      w.reason.includes('OPENAI_LIFEGUARD_ENABLED=true'),
+      w.reason.includes('OPENAI_LIFEGUARD_ENABLED=true')
     );
     expect(warning).toBeDefined();
   });
@@ -247,7 +269,7 @@ describe('Secret Governance Branches', () => {
 
     const result = validateSecrets();
     const warning = result.warnings.find((w) =>
-      w.reason.includes('Using test key in production'),
+      w.reason.includes('Using test key in production')
     );
     expect(warning).toBeDefined();
   });
@@ -257,7 +279,9 @@ describe('Secret Governance Branches', () => {
     delete process.env.JWT_SECRET;
     resetValidationCache();
 
-    expect(() => enforceSecretGovernance()).toThrow(/Secret governance validation failed/);
+    expect(() => enforceSecretGovernance()).toThrow(
+      /Secret governance validation failed/
+    );
   });
 
   it('enforceSecretGovernance emits warnings and pass log when only warnings exist', () => {
