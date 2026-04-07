@@ -1,3 +1,5 @@
+import type { SubscriptionTier } from '@/types/session';
+
 export interface ConsentGrant {
   granted: boolean;
   timestamp: string;
@@ -11,14 +13,19 @@ export interface UserConsents {
   routing_memory: ConsentGrant;
 }
 
-export type SubscriptionStatus = "active" | "past_due" | "canceled" | "pending";
+export type SubscriptionStatus =
+  | 'active'
+  | 'past_due'
+  | 'canceled'
+  | 'pending'
+  | 'trialing';
 
-export type SubscriptionTier = "trial" | "continuous";
+export type { SubscriptionTier };
 
-export type RoutingTaskType = "coding" | "analysis" | "quick" | "general";
-export type RoutingScope = "fast" | "balanced" | "deep_read";
-export type RoutingSentiment = "positive" | "neutral" | "frustrated";
-export type RoutingProvider = "ollama" | "openai";
+export type RoutingTaskType = 'coding' | 'analysis' | 'quick' | 'general';
+export type RoutingScope = 'fast' | 'balanced' | 'deep_read';
+export type RoutingSentiment = 'positive' | 'neutral' | 'frustrated';
+export type RoutingProvider = 'ollama' | 'openai';
 
 export interface RoutingModelPerformance {
   provider: RoutingProvider;
