@@ -1,12 +1,15 @@
-import { v4 as uuidv4 } from "uuid";
-import { getRedis } from "./redis";
-import type { SessionState, GateType } from "@/types/session";
-import { getTierLimits } from "@/types/session";
+import { v4 as uuidv4 } from 'uuid';
+import { getRedis } from './redis';
+import type { SessionState, GateType } from '@/types/session';
+import { getTierLimits } from '@/types/session';
 
-const SESSION_PREFIX = "session:";
-const SESSION_LOCK_PREFIX = "session_lock:";
+const SESSION_PREFIX = 'session:';
+const SESSION_LOCK_PREFIX = 'session_lock:';
 
-export async function createSession(userId: string, tier: string = "trial"): Promise<SessionState> {
+export async function createSession(
+  userId: string,
+  tier: string = 'trial'
+): Promise<SessionState> {
   const redis = getRedis();
   const limits = getTierLimits(tier);
   const ttlSeconds = Math.ceil(limits.maxDurationMs / 1000) + 30;
@@ -24,33 +27,54 @@ export async function createSession(userId: string, tier: string = "trial"): Pro
     error: null,
   };
 
-  await redis.set(`${SESSION_PREFIX}${session.session_id}`, JSON.stringify(session), {
-    ex: ttlSeconds,
-  });
+  await redis.set(
+    `${SESSION_PREFIX}${session.session_id}`,
+    JSON.stringify(session),
+    {
+      ex: ttlSeconds,
+    }
+  );
 
   return session;
 }
 
-export async function getSession(sessionId: string): Promise<SessionState | null> {
+export async function getSession(
+  sessionId: string
+): Promise<SessionState | null> {
   const redis = getRedis();
   const data = await redis.get<string>(`${SESSION_PREFIX}${sessionId}`);
   if (!data) return null;
-  const parsed = typeof data === "string" ? JSON.parse(data) : data as unknown as SessionState;
-  if (!parsed.tier) parsed.tier = "trial";
+  const parsed =
+    typeof data === 'string'
+      ? JSON.parse(data)
+      : (data as unknown as SessionState);
+  if (!parsed.tier) parsed.tier = 'trial';
   return parsed;
 }
 
 export async function updateSession(session: SessionState): Promise<void> {
   const redis = getRedis();
-  const ttlMs = getTierLimits(session.tier).maxDurationMs - (Date.now() - new Date(session.start_time).getTime());
+  const ttlMs =
+    getTierLimits(session.tier).maxDurationMs -
+    (Date.now() - new Date(session.start_time).getTime());
   const ttlSeconds = Math.max(Math.ceil(ttlMs / 1000) + 30, 10);
 
   // Strip conversation_history before persisting — user text must not be written to the data layer (DF-01)
-  const toStore = { ...session, conversation_history: [] as Array<{ role: "user" | "assistant"; content: string }> };
+  const toStore = {
+    ...session,
+    conversation_history: [] as Array<{
+      role: 'user' | 'assistant';
+      content: string;
+    }>,
+  };
 
-  await redis.set(`${SESSION_PREFIX}${session.session_id}`, JSON.stringify(toStore), {
-    ex: ttlSeconds,
-  });
+  await redis.set(
+    `${SESSION_PREFIX}${session.session_id}`,
+    JSON.stringify(toStore),
+    {
+      ex: ttlSeconds,
+    }
+  );
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
@@ -61,11 +85,11 @@ export async function deleteSession(sessionId: string): Promise<void> {
 
 export async function acquireSessionLock(sessionId: string): Promise<boolean> {
   const redis = getRedis();
-  const result = await redis.set(`${SESSION_LOCK_PREFIX}${sessionId}`, "1", {
+  const result = await redis.set(`${SESSION_LOCK_PREFIX}${sessionId}`, '1', {
     nx: true,
     ex: 10, // auto-release after 10s to prevent deadlocks
   });
-  return result === "OK";
+  return result === 'OK';
 }
 
 export async function releaseSessionLock(sessionId: string): Promise<void> {
@@ -75,7 +99,7 @@ export async function releaseSessionLock(sessionId: string): Promise<void> {
 
 export interface EnforcementResult {
   allowed: boolean;
-  errorCode?: "session_complete" | "session_timeout" | "empty_input";
+  errorCode?: 'session_complete' | 'session_timeout' | 'empty_input';
   errorMessage?: string;
 }
 
@@ -86,7 +110,7 @@ export function enforceSessionLimits(
   if (!userMessage || !userMessage.trim()) {
     return {
       allowed: false,
-      errorCode: "empty_input",
+      errorCode: 'empty_input',
       errorMessage: "Please describe what you're stuck on.",
     };
   }
@@ -97,16 +121,16 @@ export function enforceSessionLimits(
   if (elapsed > limits.maxDurationMs) {
     return {
       allowed: false,
-      errorCode: "session_timeout",
-      errorMessage: "Session time limit reached.",
+      errorCode: 'session_timeout',
+      errorMessage: 'Session time limit reached.',
     };
   }
 
   if (session.llm_call_count >= limits.maxLlmCalls) {
     return {
       allowed: false,
-      errorCode: "session_complete",
-      errorMessage: "Session limit reached.",
+      errorCode: 'session_complete',
+      errorMessage: 'Session limit reached.',
     };
   }
 
@@ -128,7 +152,7 @@ export function recordTurn(
   // NOTE: conversation_history is maintained in-memory only for the API call.
   // It is NOT written to the data layer — see updateSession which strips it.
   session.conversation_history.push(
-    { role: "user", content: userMessage },
-    { role: "assistant", content: assistantBrief }
+    { role: 'user', content: userMessage },
+    { role: 'assistant', content: assistantBrief }
   );
 }

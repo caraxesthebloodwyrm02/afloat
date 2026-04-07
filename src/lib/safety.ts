@@ -23,17 +23,18 @@ export function evaluateSafetyGradient(
   sessionDurationMs: number
 ): SafetyEvaluation {
   // Trial tier — minimal capability, minimal safety overhead
-  if (tier === "trial") {
+  if (tier === 'trial') {
     return { allowed: true };
   }
 
   // Continuous tier — check for rapid-fire message patterns
-  if (tier === "continuous" && messageCount > 1) {
+  if (tier === 'continuous' && messageCount > 1) {
     const avgIntervalMs = sessionDurationMs / messageCount;
     if (avgIntervalMs < MIN_MESSAGE_INTERVAL_MS) {
       return {
         allowed: false,
-        reason: "Rate of messages exceeds safety threshold. Please slow down between messages.",
+        reason:
+          'Rate of messages exceeds safety threshold. Please slow down between messages.',
       };
     }
   }
@@ -53,7 +54,7 @@ export function failClosedSafetyCheck(
   } catch {
     return {
       allowed: false,
-      reason: "Safety check failed — access denied (fail-closed).",
+      reason: 'Safety check failed — access denied (fail-closed).',
     };
   }
 }
@@ -93,23 +94,38 @@ export function preCheckGate(input: string): PreCheckResult {
   }
 
   if (input.length > MAX_INPUT_LENGTH) {
-    return { blocked: true, reason_code: "INPUT_TOO_LONG", sanitized_input: input, flags };
+    return {
+      blocked: true,
+      reason_code: 'INPUT_TOO_LONG',
+      sanitized_input: input,
+      flags,
+    };
   }
 
   // Sanitize control characters
-  const sanitized = input.replace(CONTROL_CHAR_RE, "");
+  const sanitized = input.replace(CONTROL_CHAR_RE, '');
   if (sanitized.length !== input.length) {
-    flags.push("control_chars_removed");
+    flags.push('control_chars_removed');
   }
 
   // Prompt injection detection
   for (const pattern of INJECTION_PATTERNS) {
     if (pattern.test(sanitized.trim())) {
-      return { blocked: true, reason_code: "PROMPT_INJECTION_DETECTED", sanitized_input: sanitized, flags };
+      return {
+        blocked: true,
+        reason_code: 'PROMPT_INJECTION_DETECTED',
+        sanitized_input: sanitized,
+        flags,
+      };
     }
   }
 
-  return { blocked: false, reason_code: null, sanitized_input: sanitized, flags };
+  return {
+    blocked: false,
+    reason_code: null,
+    sanitized_input: sanitized,
+    flags,
+  };
 }
 
 // --- PII Shield (synthesized from GRID mycelium/safety.py + privacy/engine.py) ---
@@ -124,10 +140,10 @@ export interface PIIDetectionResult {
 // Patterns adapted from GRID _PII_PATTERNS (safety.py lines 83-99)
 // Intentionally excludes IP addresses — meeting notes often contain version numbers
 const PII_PATTERNS: Record<string, RegExp> = {
-  email_address:          /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-  phone_number:           /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
+  email_address: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+  phone_number: /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
   social_security_number: /\b\d{3}-\d{2}-\d{4}\b/g,
-  credit_card_number:     /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g,
+  credit_card_number: /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g,
 };
 
 export function detectAndRedactPII(text: string): PIIDetectionResult {
@@ -140,9 +156,17 @@ export function detectAndRedactPII(text: string): PIIDetectionResult {
     if (matches && matches.length > 0) {
       types_detected.push(piiType);
       type_counts[piiType] = matches.length;
-      redacted = redacted.replace(new RegExp(pattern.source, pattern.flags), "[REDACTED]");
+      redacted = redacted.replace(
+        new RegExp(pattern.source, pattern.flags),
+        '[REDACTED]'
+      );
     }
   }
 
-  return { pii_found: types_detected.length > 0, types_detected, type_counts, redacted_text: redacted };
+  return {
+    pii_found: types_detected.length > 0,
+    types_detected,
+    type_counts,
+    redacted_text: redacted,
+  };
 }

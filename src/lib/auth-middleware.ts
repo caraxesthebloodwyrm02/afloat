@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifyToken, type JWTPayload } from "./auth";
-import { isAllowedCaller } from "./access";
-import type { ApiError } from "@/types/api";
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken, type JWTPayload } from './auth';
+import { isAllowedCaller } from './access';
+import type { ApiError } from '@/types/api';
 
 export async function authenticateRequest(
   request: NextRequest
 ): Promise<{ user: JWTPayload } | NextResponse<ApiError>> {
-  const authHeader = request.headers.get("authorization");
+  const authHeader = request.headers.get('authorization');
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json(
-      { error: "unauthorized" as const, message: "Authentication required." },
+      { error: 'unauthorized' as const, message: 'Authentication required.' },
       { status: 401 }
     );
   }
@@ -20,7 +20,7 @@ export async function authenticateRequest(
 
   if (!payload) {
     return NextResponse.json(
-      { error: "unauthorized" as const, message: "Invalid or expired token." },
+      { error: 'unauthorized' as const, message: 'Invalid or expired token.' },
       { status: 401 }
     );
   }
@@ -40,7 +40,7 @@ export async function requireAuth(
   const { user } = authResult;
   if (!isAllowedCaller(user.user_id)) {
     return NextResponse.json(
-      { error: "forbidden" as const, message: "Caller not in allowlist." },
+      { error: 'forbidden' as const, message: 'Caller not in allowlist.' },
       { status: 403 }
     );
   }
@@ -50,5 +50,5 @@ export async function requireAuth(
 export function isAuthenticated(
   result: { user: JWTPayload } | NextResponse<ApiError>
 ): result is { user: JWTPayload } {
-  return "user" in result;
+  return 'user' in result;
 }
