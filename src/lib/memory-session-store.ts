@@ -1,6 +1,6 @@
-import { v4 as uuidv4 } from "uuid";
-import type { SessionState, GateType } from "@/types/session";
-import { getTierLimits } from "@/types/session";
+import { v4 as uuidv4 } from 'uuid';
+import type { SessionState, GateType } from '@/types/session';
+import { getTierLimits } from '@/types/session';
 
 type InMemorySession = SessionState & {
   deadline: number;
@@ -16,7 +16,10 @@ export function getSessions(): Map<string, InMemorySession> {
   return sessions;
 }
 
-export function createSession(userId: string, tier: string = "trial"): SessionState {
+export function createSession(
+  userId: string,
+  tier: string = 'free_trial'
+): SessionState {
   const limits = getTierLimits(tier);
   const now = Date.now();
   const session: InMemorySession = {
@@ -41,7 +44,7 @@ export function createSession(userId: string, tier: string = "trial"): SessionSt
 export function getSession(sessionId: string): SessionState | null {
   const session = sessions.get(sessionId);
   if (!session) return null;
-  
+
   const result: SessionState = {
     session_id: session.session_id,
     user_id: session.user_id,
@@ -81,7 +84,7 @@ export function deleteSession(sessionId: string): void {
 
 export interface EnforcementResult {
   allowed: boolean;
-  errorCode?: "session_complete" | "session_timeout" | "empty_input";
+  errorCode?: 'session_complete' | 'session_timeout' | 'empty_input';
   errorMessage?: string;
 }
 
@@ -93,7 +96,7 @@ export function enforceSessionLimits(
   if (!userMessage || !userMessage.trim()) {
     return {
       allowed: false,
-      errorCode: "empty_input",
+      errorCode: 'empty_input',
       errorMessage: "Please describe what you're stuck on.",
     };
   }
@@ -102,8 +105,8 @@ export function enforceSessionLimits(
   if (now > deadline) {
     return {
       allowed: false,
-      errorCode: "session_timeout",
-      errorMessage: "Session time limit reached.",
+      errorCode: 'session_timeout',
+      errorMessage: 'Session time limit reached.',
     };
   }
 
@@ -111,8 +114,8 @@ export function enforceSessionLimits(
   if (session.llm_call_count >= limits.maxLlmCalls) {
     return {
       allowed: false,
-      errorCode: "session_complete",
-      errorMessage: "Session limit reached.",
+      errorCode: 'session_complete',
+      errorMessage: 'Session limit reached.',
     };
   }
 
@@ -132,18 +135,20 @@ export function recordTurn(
     session.gate_type = gateType;
   }
   session.conversation_history.push(
-    { role: "user", content: userMessage },
-    { role: "assistant", content: assistantBrief }
+    { role: 'user', content: userMessage },
+    { role: 'assistant', content: assistantBrief }
   );
 }
 
-export function endSession(sessionId: string): { session_completed: boolean } | null {
+export function endSession(
+  sessionId: string
+): { session_completed: boolean } | null {
   const session = sessions.get(sessionId);
   if (!session) return null;
-  
+
   const limits = getTierLimits(session.tier);
   const elapsed = Date.now() - new Date(session.start_time).getTime();
-  
+
   session.session_completed = elapsed <= limits.maxDurationMs;
   return { session_completed: session.session_completed };
 }

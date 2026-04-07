@@ -1,5 +1,5 @@
-import { getRedis } from "./redis";
-import type { SessionLog } from "@/types/session";
+import { getRedis } from './redis';
+import type { SessionLog } from '@/types/session';
 import type {
   RoutingMemoryProfile,
   RoutingProvider,
@@ -7,7 +7,7 @@ import type {
   RoutingSentiment,
   RoutingTaskType,
   UserRecord,
-} from "@/types/user";
+} from '@/types/user';
 
 const LUA_REPLACE_LIST = `
 local current = redis.call('LRANGE', KEYS[1], 0, -1)
@@ -22,20 +22,22 @@ return #ARGV
 
 export async function writeSessionLog(log: SessionLog): Promise<void> {
   const redis = getRedis();
-  const dateKey = log.end_time.split("T")[0];
+  const dateKey = log.end_time.split('T')[0];
   await redis.rpush(`sessions:${dateKey}`, JSON.stringify(log));
 }
 
 export async function getSessionLogs(dateKey: string): Promise<SessionLog[]> {
   const redis = getRedis();
   const entries = await redis.lrange(`sessions:${dateKey}`, 0, -1);
-  return entries.map((e) => (typeof e === "string" ? JSON.parse(e) : e) as SessionLog);
+  return entries.map(
+    (e) => (typeof e === 'string' ? JSON.parse(e) : e) as SessionLog
+  );
 }
 
 // --- User Store ---
 
-const USER_PREFIX = "user:";
-const ROUTING_PROFILE_PREFIX = "routing_profile:";
+const USER_PREFIX = 'user:';
+const ROUTING_PROFILE_PREFIX = 'routing_profile:';
 
 interface RoutingMemorySignal {
   timestamp: string;
@@ -49,7 +51,7 @@ interface RoutingMemorySignal {
   sentiment: RoutingSentiment;
   deep_read: boolean;
   escalated_to_openai: boolean;
-  escalation_type: "none" | "auto" | "forced";
+  escalation_type: 'none' | 'auto' | 'forced';
 }
 
 function createDefaultRoutingProfile(userId: string): RoutingMemoryProfile {
@@ -61,10 +63,10 @@ function createDefaultRoutingProfile(userId: string): RoutingMemoryProfile {
     preferred_models: [],
     model_performance: {},
     task_memory: {
-      last_intent: "",
+      last_intent: '',
       recent_intents: [],
-      last_task_type: "general",
-      sentiment: "neutral",
+      last_task_type: 'general',
+      sentiment: 'neutral',
       deep_read_preference: 0,
     },
     escalation: {
@@ -84,13 +86,16 @@ export async function getUser(userId: string): Promise<UserRecord | null> {
   const redis = getRedis();
   const data = await redis.get<string>(`${USER_PREFIX}${userId}`);
   if (!data) return null;
-  const parsed = typeof data === "string" ? JSON.parse(data) : data as unknown as UserRecord;
-  if (!parsed.subscription_tier) parsed.subscription_tier = "trial";
+  const parsed =
+    typeof data === 'string'
+      ? JSON.parse(data)
+      : (data as unknown as UserRecord);
+  if (!parsed.subscription_tier) parsed.subscription_tier = 'trial';
   if (!parsed.consents.routing_memory) {
     parsed.consents.routing_memory = {
       granted: false,
       timestamp: new Date().toISOString(),
-      policy_version: "v1.0",
+      policy_version: 'v1.0',
     };
   }
   return parsed;
@@ -110,9 +115,13 @@ export async function getUserByStripeCustomerId(
   stripeCustomerId: string
 ): Promise<UserRecord | null> {
   const redis = getRedis();
-  const mappedUserId = await redis.get<string>(`stripe_map:${stripeCustomerId}`);
+  const mappedUserId = await redis.get<string>(
+    `stripe_map:${stripeCustomerId}`
+  );
   if (!mappedUserId) return null;
-  return getUser(typeof mappedUserId === "string" ? mappedUserId : String(mappedUserId));
+  return getUser(
+    typeof mappedUserId === 'string' ? mappedUserId : String(mappedUserId)
+  );
 }
 
 export async function setStripeCustomerMapping(
@@ -133,7 +142,7 @@ export async function getRoutingMemoryProfile(
   if (!data) return null;
 
   const parsed =
-    typeof data === "string"
+    typeof data === 'string'
       ? (JSON.parse(data) as RoutingMemoryProfile)
       : (data as unknown as RoutingMemoryProfile);
 
@@ -145,7 +154,7 @@ export async function getRoutingMemoryProfile(
       ? parsed.preferred_models
       : [],
     model_performance:
-      parsed.model_performance && typeof parsed.model_performance === "object"
+      parsed.model_performance && typeof parsed.model_performance === 'object'
         ? parsed.model_performance
         : {},
     task_memory: {
@@ -173,7 +182,9 @@ export async function recordRoutingMemorySignal(
   userId: string,
   signal: RoutingMemorySignal
 ): Promise<RoutingMemoryProfile> {
-  const profile = (await getRoutingMemoryProfile(userId)) ?? createDefaultRoutingProfile(userId);
+  const profile =
+    (await getRoutingMemoryProfile(userId)) ??
+    createDefaultRoutingProfile(userId);
   const stats = profile.model_performance[signal.model_id] ?? {
     provider: signal.provider,
     success_count: 0,
@@ -203,12 +214,15 @@ export async function recordRoutingMemorySignal(
     0,
     Math.min(
       1,
-      profile.task_memory.deep_read_preference * 0.75 + (signal.deep_read ? 0.25 : 0)
+      profile.task_memory.deep_read_preference * 0.75 +
+        (signal.deep_read ? 0.25 : 0)
     )
   );
   profile.task_memory.recent_intents = [
     signal.intent,
-    ...profile.task_memory.recent_intents.filter((entry) => entry !== signal.intent),
+    ...profile.task_memory.recent_intents.filter(
+      (entry) => entry !== signal.intent
+    ),
   ].slice(0, 8);
 
   if (signal.success) {
@@ -219,9 +233,9 @@ export async function recordRoutingMemorySignal(
   }
 
   if (signal.escalated_to_openai) {
-    if (signal.escalation_type === "auto") {
+    if (signal.escalation_type === 'auto') {
       profile.escalation.openai_auto_count += 1;
-    } else if (signal.escalation_type === "forced") {
+    } else if (signal.escalation_type === 'forced') {
       profile.escalation.openai_forced_count += 1;
     }
     profile.escalation.last_escalated_at = signal.timestamp;
@@ -234,7 +248,9 @@ export async function recordRoutingMemorySignal(
 
 // --- User Data Export ---
 
-export async function exportUserData(userId: string): Promise<Record<string, unknown> | null> {
+export async function exportUserData(
+  userId: string
+): Promise<Record<string, unknown> | null> {
   const user = await getUser(userId);
   if (!user) return null;
   const routingProfile = await getRoutingMemoryProfile(userId);
@@ -243,12 +259,18 @@ export async function exportUserData(userId: string): Promise<Record<string, unk
   const userSessions: SessionLog[] = [];
   let cursor = 0;
   do {
-    const [nextCursor, keys] = await redis.scan(cursor, { match: "sessions:*", count: 100 });
-    cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+    const [nextCursor, keys] = await redis.scan(cursor, {
+      match: 'sessions:*',
+      count: 100,
+    });
+    cursor =
+      typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
     for (const key of keys) {
       const entries = await redis.lrange(key, 0, -1);
       for (const entry of entries) {
-        const log = (typeof entry === "string" ? JSON.parse(entry) : entry) as SessionLog;
+        const log = (
+          typeof entry === 'string' ? JSON.parse(entry) : entry
+        ) as SessionLog;
         if (log.user_id === userId) {
           userSessions.push(log);
         }
@@ -307,7 +329,7 @@ export async function permanentlyDeleteUserData(userId: string): Promise<void> {
   if (user) {
     if (user.stripe_customer_id) {
       try {
-        const { deleteStripeCustomer } = await import("./stripe");
+        const { deleteStripeCustomer } = await import('./stripe');
         await deleteStripeCustomer(user.stripe_customer_id);
       } catch {
         // best-effort Stripe customer deletion
@@ -319,19 +341,27 @@ export async function permanentlyDeleteUserData(userId: string): Promise<void> {
   // Delete session logs belonging to this user
   let cursor = 0;
   do {
-    const [nextCursor, keys] = await redis.scan(cursor, { match: "sessions:*", count: 100 });
-    cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+    const [nextCursor, keys] = await redis.scan(cursor, {
+      match: 'sessions:*',
+      count: 100,
+    });
+    cursor =
+      typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
     for (const key of keys) {
       const entries = await redis.lrange(key, 0, -1);
       const remaining: string[] = [];
       for (const entry of entries) {
-        const log = (typeof entry === "string" ? JSON.parse(entry) : entry) as SessionLog;
+        const log = (
+          typeof entry === 'string' ? JSON.parse(entry) : entry
+        ) as SessionLog;
         if (log.user_id !== userId) {
-          remaining.push(typeof entry === "string" ? entry : JSON.stringify(entry));
+          remaining.push(
+            typeof entry === 'string' ? entry : JSON.stringify(entry)
+          );
         }
       }
       if (entries.length !== remaining.length) {
-        if ("eval" in redis && typeof redis.eval === "function") {
+        if ('eval' in redis && typeof redis.eval === 'function') {
           await redis.eval(LUA_REPLACE_LIST, [key], remaining);
         } else {
           await redis.del(key);

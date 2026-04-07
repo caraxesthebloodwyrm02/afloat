@@ -1,7 +1,10 @@
-import type { GateType } from "@/types/session";
-import { recordRoutingMemorySignal, getRoutingMemoryProfile } from "./data-layer";
-import { SYSTEM_PROMPT } from "./prompt";
-import { recordSafetyEvent } from "./safety-telemetry";
+import type { GateType } from '@/types/session';
+import {
+  recordRoutingMemorySignal,
+  getRoutingMemoryProfile,
+} from './data-layer';
+import { SYSTEM_PROMPT } from './prompt';
+import { recordSafetyEvent } from './safety-telemetry';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,18 +14,18 @@ export interface LLMRoutingContext {
   user_id?: string;
   allow_routing_memory?: boolean;
   deep_read_override?: boolean;
-  openai_override?: "auto" | "force" | "never";
+  openai_override?: 'auto' | 'force' | 'never';
 }
 
-type ProviderType = "ollama" | "openai";
-type TaskType = "coding" | "analysis" | "quick" | "general";
-type RoutingScope = "fast" | "balanced" | "deep_read";
+type ProviderType = 'ollama' | 'openai';
+type TaskType = 'coding' | 'analysis' | 'quick' | 'general';
+type RoutingScope = 'fast' | 'balanced' | 'deep_read';
 
 export interface LLMRoutingTrace {
   task_type: TaskType;
   scope: RoutingScope;
   complexity_score: number;
-  openai_policy: "auto" | "force" | "never";
+  openai_policy: 'auto' | 'force' | 'never';
   attempted_models: string[];
   selected_candidates: string[];
   memory_influence_applied: boolean;
@@ -47,11 +50,11 @@ export interface ResponseQualityFlags {
 }
 
 export class LLMError extends Error {
-  reason: "timeout" | "rate_limited" | "server_error" | "unknown";
+  reason: 'timeout' | 'rate_limited' | 'server_error' | 'unknown';
 
-  constructor(message: string, reason: LLMError["reason"]) {
+  constructor(message: string, reason: LLMError['reason']) {
     super(message);
-    this.name = "LLMError";
+    this.name = 'LLMError';
     this.reason = reason;
   }
 }
@@ -69,7 +72,7 @@ interface RoutingPlan {
   task_type: TaskType;
   scope: RoutingScope;
   complexity_score: number;
-  openai_policy: "auto" | "force" | "never";
+  openai_policy: 'auto' | 'force' | 'never';
 }
 
 interface ProviderAttempt {
@@ -77,7 +80,7 @@ interface ProviderAttempt {
   model: string;
   parameters: Record<string, unknown>;
   call: (
-    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
   ) => Promise<string>;
 }
 
@@ -90,27 +93,27 @@ interface OllamaTagsResponse {
 // ---------------------------------------------------------------------------
 
 const VALID_GATE_TYPES: GateType[] = [
-  "meeting_triage",
-  "priority_decision",
-  "quick_briefing",
-  "context_gate_resolution",
-  "out_of_scope",
+  'meeting_triage',
+  'priority_decision',
+  'quick_briefing',
+  'context_gate_resolution',
+  'out_of_scope',
 ];
 
 const DEFAULT_OLLAMA_MODELS = [
-  "llama3.1:70b",
-  "mixtral:8x7b",
-  "qwen2.5:72b",
-  "llama3.1:8b",
-  "gemma2:9b",
-  "qwen2.5:7b",
-  "mistral:7b",
-  "qwen2.5-coder:7b",
-  "deepseek-coder-v2:16b",
-  "codellama",
-  "gemma2:2b",
-  "llama3.2:3b",
-  "phi3:mini",
+  'llama3.1:70b',
+  'mixtral:8x7b',
+  'qwen2.5:72b',
+  'llama3.1:8b',
+  'gemma2:9b',
+  'qwen2.5:7b',
+  'mistral:7b',
+  'qwen2.5-coder:7b',
+  'deepseek-coder-v2:16b',
+  'codellama',
+  'gemma2:2b',
+  'llama3.2:3b',
+  'phi3:mini',
 ];
 
 const CATALOG_CACHE_TTL_MS = 60_000;
@@ -119,7 +122,7 @@ let cachedCatalog: { expires_at: number; models: string[] } | null = null;
 
 function getOllamaHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   };
 
   const apiKey = process.env.OLLAMA_API_KEY?.trim();
@@ -127,10 +130,10 @@ function getOllamaHeaders(): Record<string, string> {
     return headers;
   }
 
-  const headerName = process.env.OLLAMA_AUTH_HEADER?.trim() || "Authorization";
-  const authScheme = process.env.OLLAMA_AUTH_SCHEME?.trim() || "Bearer";
+  const headerName = process.env.OLLAMA_AUTH_HEADER?.trim() || 'Authorization';
+  const authScheme = process.env.OLLAMA_AUTH_SCHEME?.trim() || 'Bearer';
   headers[headerName] =
-    authScheme.toLowerCase() === "none" ? apiKey : `${authScheme} ${apiKey}`;
+    authScheme.toLowerCase() === 'none' ? apiKey : `${authScheme} ${apiKey}`;
 
   return headers;
 }
@@ -141,7 +144,7 @@ function parseGateAndBrief(raw: string): {
 } {
   const gateMatch = raw.match(/\[GATE:\s*(\w+)\]/);
 
-  let gate_type: GateType = "unclassified";
+  let gate_type: GateType = 'unclassified';
   if (gateMatch) {
     const parsed = gateMatch[1] as GateType;
     if (VALID_GATE_TYPES.includes(parsed)) {
@@ -150,8 +153,8 @@ function parseGateAndBrief(raw: string): {
   }
 
   const brief = raw
-    .replace(/\[GATE:\s*\w+\]\s*/g, "")
-    .replace(/\[BRIEF\]\s*/g, "")
+    .replace(/\[GATE:\s*\w+\]\s*/g, '')
+    .replace(/\[BRIEF\]\s*/g, '')
     .trim();
 
   return { gate_type, brief };
@@ -167,14 +170,14 @@ export function estimateTokenCount(text: string): number {
 
 export function assessResponseQuality(
   gateType: GateType,
-  brief: string,
+  brief: string
 ): ResponseQualityFlags {
   const wordCount = brief.split(/\s+/).filter(Boolean).length;
   return {
-    missing_gate_tag: gateType === "unclassified",
+    missing_gate_tag: gateType === 'unclassified',
     exceeds_word_limit: wordCount > 150,
     word_count: wordCount,
-    ends_with_question: brief.trimEnd().endsWith("?"),
+    ends_with_question: brief.trimEnd().endsWith('?'),
   };
 }
 
@@ -198,28 +201,34 @@ function parseBillionSize(modelName: string): number {
     return Number.parseFloat(match[1]);
   }
 
-  if (clean.includes("mini")) return 3;
+  if (clean.includes('mini')) return 3;
   return 7;
 }
 
 function getModelCandidate(model: string): ModelCandidate {
   const normalized = normalizeModelName(model);
   const sizeB = parseBillionSize(normalized);
-  const isCoder = normalized.includes("coder") || normalized.includes("codellama");
+  const isCoder =
+    normalized.includes('coder') || normalized.includes('codellama');
   const isLarge = sizeB >= 65;
   const isTiny = sizeB <= 4;
 
   const quality = Math.min(100, 40 + sizeB * 0.8 + (isCoder ? 4 : 0));
   const speed = Math.max(10, 95 - sizeB * 1.2);
-  const reasoning = Math.min(100, 35 + sizeB + (normalized.includes("qwen") ? 6 : 0));
+  const reasoning = Math.min(
+    100,
+    35 + sizeB + (normalized.includes('qwen') ? 6 : 0)
+  );
   const coding = Math.min(
     100,
-    (isCoder ? 70 : 30) + (normalized.includes("qwen") ? 10 : 0) + (normalized.includes("deepseek") ? 10 : 0),
+    (isCoder ? 70 : 30) +
+      (normalized.includes('qwen') ? 10 : 0) +
+      (normalized.includes('deepseek') ? 10 : 0)
   );
 
   if (isLarge) {
     return {
-      provider: "ollama",
+      provider: 'ollama',
       model,
       quality: Math.max(quality, 92),
       speed: Math.min(speed, 35),
@@ -230,7 +239,7 @@ function getModelCandidate(model: string): ModelCandidate {
 
   if (isTiny) {
     return {
-      provider: "ollama",
+      provider: 'ollama',
       model,
       quality: Math.min(quality, 70),
       speed: Math.max(speed, 82),
@@ -240,7 +249,7 @@ function getModelCandidate(model: string): ModelCandidate {
   }
 
   return {
-    provider: "ollama",
+    provider: 'ollama',
     model,
     quality,
     speed,
@@ -253,48 +262,56 @@ function detectTaskType(userMessage: string): TaskType {
   const text = userMessage.toLowerCase();
   if (
     /code|debug|bug|refactor|typescript|javascript|python|stack trace|compile|test/i.test(
-      text,
+      text
     )
   ) {
-    return "coding";
+    return 'coding';
   }
   if (
     /analy[sz]e|compare|trade-?off|architecture|strategy|root cause|why|evaluate/i.test(
-      text,
+      text
     )
   ) {
-    return "analysis";
+    return 'analysis';
   }
   if (/quick|brief|tl;dr|one line|short answer|fast/i.test(text)) {
-    return "quick";
+    return 'quick';
   }
-  return "general";
+  return 'general';
 }
 
-function detectSentiment(userMessage: string): "positive" | "neutral" | "frustrated" {
+function detectSentiment(
+  userMessage: string
+): 'positive' | 'neutral' | 'frustrated' {
   const text = userMessage.toLowerCase();
   if (/stuck|urgent|blocked|frustrat|annoy|broken|failing|hate/i.test(text)) {
-    return "frustrated";
+    return 'frustrated';
   }
   if (/great|thanks|awesome|good|perfect|nice/i.test(text)) {
-    return "positive";
+    return 'positive';
   }
-  return "neutral";
+  return 'neutral';
 }
 
 function computeComplexityScore(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  deepReadOverride: boolean,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  deepReadOverride: boolean
 ): number {
   let score = 20;
   score += Math.min(35, Math.floor(userMessage.length / 90));
   score += Math.min(20, conversationHistory.length * 4);
 
-  if (/step by step|detailed|deep read|full analysis|exhaustive|comprehensive/i.test(userMessage)) {
+  if (
+    /step by step|detailed|deep read|full analysis|exhaustive|comprehensive/i.test(
+      userMessage
+    )
+  ) {
     score += 20;
   }
-  if (/compare|architecture|multi-step|trade-?off|evaluate/i.test(userMessage)) {
+  if (
+    /compare|architecture|multi-step|trade-?off|evaluate/i.test(userMessage)
+  ) {
     score += 15;
   }
   if (/code|debug|refactor|implement|fix|test/i.test(userMessage)) {
@@ -309,28 +326,28 @@ function computeComplexityScore(
 
 function deriveRoutingPlan(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  routingContext?: LLMRoutingContext,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  routingContext?: LLMRoutingContext
 ): RoutingPlan {
   const deepReadOverride = Boolean(routingContext?.deep_read_override);
   const complexity = computeComplexityScore(
     userMessage,
     conversationHistory,
-    deepReadOverride,
+    deepReadOverride
   );
 
-  let scope: RoutingScope = "balanced";
+  let scope: RoutingScope = 'balanced';
   if (deepReadOverride || complexity >= 80) {
-    scope = "deep_read";
+    scope = 'deep_read';
   } else if (complexity <= 35 || /quick|brief|fast|short/i.test(userMessage)) {
-    scope = "fast";
+    scope = 'fast';
   }
 
   return {
     task_type: detectTaskType(userMessage),
     scope,
     complexity_score: complexity,
-    openai_policy: routingContext?.openai_override ?? "auto",
+    openai_policy: routingContext?.openai_override ?? 'auto',
   };
 }
 
@@ -340,40 +357,49 @@ async function fetchOllamaCatalog(): Promise<string[]> {
     return cachedCatalog.models;
   }
 
-  const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+  const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 4000);
 
   try {
     const response = await fetch(`${baseUrl}/api/tags`, {
-      method: "GET",
+      method: 'GET',
       headers: getOllamaHeaders(),
       signal: controller.signal,
     });
 
     if (!response.ok) {
-      throw new Error(`Ollama tags endpoint failed with status ${response.status}`, {
-        cause: { status: response.status },
-      });
+      throw new Error(
+        `Ollama tags endpoint failed with status ${response.status}`,
+        {
+          cause: { status: response.status },
+        }
+      );
     }
 
     const data = (await response.json()) as OllamaTagsResponse;
     const discovered = (data.models ?? [])
       .map((entry) => entry.name)
-      .filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+      .filter(
+        (name): name is string =>
+          typeof name === 'string' && name.trim().length > 0
+      )
       .map((name) => normalizeModelName(name));
 
     const merged = Array.from(
       new Set([
         ...discovered,
         ...DEFAULT_OLLAMA_MODELS.map((m) => normalizeModelName(m)),
-      ]),
+      ])
     );
     cachedCatalog = { expires_at: now + CATALOG_CACHE_TTL_MS, models: merged };
     return merged;
   } catch {
     const fallback = DEFAULT_OLLAMA_MODELS.map((m) => normalizeModelName(m));
-    cachedCatalog = { expires_at: now + CATALOG_CACHE_TTL_MS, models: fallback };
+    cachedCatalog = {
+      expires_at: now + CATALOG_CACHE_TTL_MS,
+      models: fallback,
+    };
     return fallback;
   } finally {
     clearTimeout(timeout);
@@ -387,23 +413,32 @@ function scoreCandidate(
     success_count?: number;
     failure_count?: number;
     average_latency_ms?: number;
-  } | null,
+  } | null
 ): number {
   let score = 0;
 
-  if (plan.scope === "deep_read") {
-    score += candidate.quality * 0.5 + candidate.reasoning * 0.4 + candidate.speed * 0.1;
-  } else if (plan.scope === "fast") {
-    score += candidate.speed * 0.6 + candidate.quality * 0.25 + candidate.reasoning * 0.15;
+  if (plan.scope === 'deep_read') {
+    score +=
+      candidate.quality * 0.5 +
+      candidate.reasoning * 0.4 +
+      candidate.speed * 0.1;
+  } else if (plan.scope === 'fast') {
+    score +=
+      candidate.speed * 0.6 +
+      candidate.quality * 0.25 +
+      candidate.reasoning * 0.15;
   } else {
-    score += candidate.quality * 0.4 + candidate.reasoning * 0.35 + candidate.speed * 0.25;
+    score +=
+      candidate.quality * 0.4 +
+      candidate.reasoning * 0.35 +
+      candidate.speed * 0.25;
   }
 
-  if (plan.task_type === "coding") {
+  if (plan.task_type === 'coding') {
     score += candidate.coding * 0.45;
-  } else if (plan.task_type === "analysis") {
+  } else if (plan.task_type === 'analysis') {
     score += candidate.reasoning * 0.25;
-  } else if (plan.task_type === "quick") {
+  } else if (plan.task_type === 'quick') {
     score += candidate.speed * 0.2;
   }
 
@@ -417,10 +452,13 @@ function scoreCandidate(
       score -= Math.min(12, failures * 2);
     }
 
-    if ((memoryModelStats.average_latency_ms ?? 0) > 0 && plan.scope !== "deep_read") {
+    if (
+      (memoryModelStats.average_latency_ms ?? 0) > 0 &&
+      plan.scope !== 'deep_read'
+    ) {
       const latencyPenalty = Math.min(
         12,
-        (memoryModelStats.average_latency_ms ?? 0) / 1500,
+        (memoryModelStats.average_latency_ms ?? 0) / 1500
       );
       score -= latencyPenalty;
     }
@@ -432,7 +470,7 @@ function scoreCandidate(
 function selectOllamaCandidates(
   models: string[],
   plan: RoutingPlan,
-  memoryProfile: Awaited<ReturnType<typeof getRoutingMemoryProfile>> | null,
+  memoryProfile: Awaited<ReturnType<typeof getRoutingMemoryProfile>> | null
 ): string[] {
   const ranked = models
     .map((model) => {
@@ -445,8 +483,13 @@ function selectOllamaCandidates(
     })
     .sort((a, b) => b.score - a.score);
 
-  const preferred = memoryProfile?.preferred_models?.filter((model) => models.includes(model)) ?? [];
-  const merged = Array.from(new Set([...preferred, ...ranked.map((entry) => entry.model)]));
+  const preferred =
+    memoryProfile?.preferred_models?.filter((model) =>
+      models.includes(model)
+    ) ?? [];
+  const merged = Array.from(
+    new Set([...preferred, ...ranked.map((entry) => entry.model)])
+  );
   return merged.slice(0, 8);
 }
 
@@ -456,10 +499,10 @@ function selectOllamaCandidates(
 
 function getOllamaParameters(
   plan: RoutingPlan,
-  model: string,
+  model: string
 ): { timeout_ms: number; options: Record<string, unknown> } {
   const sizeB = parseBillionSize(model);
-  const deepRead = plan.scope === "deep_read";
+  const deepRead = plan.scope === 'deep_read';
 
   let timeoutMs = 10_000;
   if (sizeB >= 65) timeoutMs = deepRead ? 45_000 : 30_000;
@@ -478,21 +521,21 @@ function getOllamaParameters(
 
 async function callOllama(
   model: string,
-  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-  plan: RoutingPlan,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  plan: RoutingPlan
 ): Promise<{ raw: string; parameters: Record<string, unknown> }> {
-  const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+  const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
   const params = getOllamaParameters(plan, model);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), params.timeout_ms);
 
   try {
     const response = await fetch(`${baseUrl}/api/generate`, {
-      method: "POST",
+      method: 'POST',
       headers: getOllamaHeaders(),
       body: JSON.stringify({
         model,
-        prompt: messages.map((m) => `${m.role}: ${m.content}`).join("\n"),
+        prompt: messages.map((m) => `${m.role}: ${m.content}`).join('\n'),
         stream: false,
         options: params.options,
       }),
@@ -500,18 +543,24 @@ async function callOllama(
     });
 
     if (!response.ok) {
-      throw new Error(`Ollama generation failed with status ${response.status}`, {
-        cause: { status: response.status },
-      });
+      throw new Error(
+        `Ollama generation failed with status ${response.status}`,
+        {
+          cause: { status: response.status },
+        }
+      );
     }
 
-    const data = (await response.json()) as { response?: string; error?: string };
-    if (typeof data.error === "string" && data.error.trim()) {
+    const data = (await response.json()) as {
+      response?: string;
+      error?: string;
+    };
+    if (typeof data.error === 'string' && data.error.trim()) {
       throw new Error(data.error);
     }
 
     return {
-      raw: data.response ?? "",
+      raw: data.response ?? '',
       parameters: {
         ...params.options,
         timeout_ms: params.timeout_ms,
@@ -523,16 +572,23 @@ async function callOllama(
 }
 
 async function callOpenAILifeguard(
-  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-  plan: RoutingPlan,
-): Promise<{ raw: string; parameters: Record<string, unknown>; model: string }> {
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  plan: RoutingPlan
+): Promise<{
+  raw: string;
+  parameters: Record<string, unknown>;
+  model: string;
+}> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new LLMError("OpenAI escalation requested but OPENAI_API_KEY is missing.", "unknown");
+    throw new LLMError(
+      'OpenAI escalation requested but OPENAI_API_KEY is missing.',
+      'unknown'
+    );
   }
 
-  const model = process.env.OPENAI_LIFEGUARD_MODEL || "gpt-5.4";
-  const deepRead = plan.scope === "deep_read";
+  const model = process.env.OPENAI_LIFEGUARD_MODEL || 'gpt-5.4';
+  const deepRead = plan.scope === 'deep_read';
   const maxTokens = deepRead ? 900 : 500;
   const timeoutMs = deepRead ? 45_000 : 25_000;
 
@@ -540,10 +596,10 @@ async function callOpenAILifeguard(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
@@ -556,15 +612,18 @@ async function callOpenAILifeguard(
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI lifeguard failed with status ${response.status}`, {
-        cause: { status: response.status },
-      });
+      throw new Error(
+        `OpenAI lifeguard failed with status ${response.status}`,
+        {
+          cause: { status: response.status },
+        }
+      );
     }
 
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string | null } }>;
     };
-    const raw = data.choices?.[0]?.message?.content ?? "";
+    const raw = data.choices?.[0]?.message?.content ?? '';
     return {
       raw,
       model,
@@ -584,17 +643,20 @@ async function callOpenAILifeguard(
 // ---------------------------------------------------------------------------
 
 function extractStatus(err: unknown): number | null {
-  if (!err || typeof err !== "object") return null;
+  if (!err || typeof err !== 'object') return null;
 
-  if ("status" in err && typeof (err as { status: unknown }).status === "number") {
+  if (
+    'status' in err &&
+    typeof (err as { status: unknown }).status === 'number'
+  ) {
     return (err as { status: number }).status;
   }
 
-  if ("cause" in err) {
+  if ('cause' in err) {
     const cause = (err as { cause?: unknown }).cause;
-    if (cause && typeof cause === "object" && "status" in cause) {
+    if (cause && typeof cause === 'object' && 'status' in cause) {
       const status = (cause as { status?: unknown }).status;
-      if (typeof status === "number") {
+      if (typeof status === 'number') {
         return status;
       }
     }
@@ -604,36 +666,42 @@ function extractStatus(err: unknown): number | null {
 }
 
 function classifyError(err: unknown, providerName: string): LLMError {
-  if (err instanceof Error && err.name === "AbortError") {
-    return new LLMError("That took too long. Please try again.", "timeout");
+  if (err instanceof Error && err.name === 'AbortError') {
+    return new LLMError('That took too long. Please try again.', 'timeout');
   }
 
   const status = extractStatus(err);
   if (status === 429) {
     return new LLMError(
       `${providerName} rate limit reached. Trying next provider.`,
-      "rate_limited",
+      'rate_limited'
     );
   }
   if (status !== null && status >= 500) {
-    return new LLMError("I couldn't process that. Please try again.", "server_error");
+    return new LLMError(
+      "I couldn't process that. Please try again.",
+      'server_error'
+    );
   }
 
   if (err instanceof Error && /model|not found/i.test(err.message)) {
     return new LLMError(
       `${providerName} model not available. Trying next provider.`,
-      "server_error",
+      'server_error'
     );
   }
 
-  if (err instanceof Error && /fetch|network|connect|econnrefused|failed to fetch/i.test(err.message)) {
+  if (
+    err instanceof Error &&
+    /fetch|network|connect|econnrefused|failed to fetch/i.test(err.message)
+  ) {
     return new LLMError(
       `Network error connecting to ${providerName}. Trying next provider.`,
-      "server_error",
+      'server_error'
     );
   }
 
-  return new LLMError("I couldn't process that. Please try again.", "unknown");
+  return new LLMError("I couldn't process that. Please try again.", 'unknown');
 }
 
 // ---------------------------------------------------------------------------
@@ -642,8 +710,8 @@ function classifyError(err: unknown, providerName: string): LLMError {
 
 async function callProvider(
   provider: ProviderAttempt,
-  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-  routingTrace: LLMRoutingTrace,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  routingTrace: LLMRoutingTrace
 ): Promise<LLMResponse> {
   routingTrace.attempted_models.push(`${provider.provider}:${provider.model}`);
 
@@ -652,9 +720,10 @@ async function callProvider(
 
     if (!raw) {
       return {
-        gate_type: "unclassified",
-        brief: "I wasn't able to generate a useful response. Please try rephrasing.",
-        raw: "",
+        gate_type: 'unclassified',
+        brief:
+          "I wasn't able to generate a useful response. Please try rephrasing.",
+        raw: '',
         provider: provider.provider,
         model_id: provider.model,
         model_parameters: provider.parameters,
@@ -671,7 +740,7 @@ async function callProvider(
       qualityFlags.ends_with_question
     ) {
       recordSafetyEvent({
-        event_type: "response_quality_flag",
+        event_type: 'response_quality_flag',
         flags: qualityFlags,
       }).catch(() => {});
     }
@@ -699,28 +768,28 @@ async function callProvider(
  */
 function buildMessages(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
-): Array<{ role: "system" | "user" | "assistant"; content: string }> {
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+): Array<{ role: 'system' | 'user' | 'assistant'; content: string }> {
   return [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: 'system', content: SYSTEM_PROMPT },
     ...conversationHistory.map((m) => ({
-      role: m.role as "user" | "assistant",
+      role: m.role as 'user' | 'assistant',
       content: m.content,
     })),
-    { role: "user", content: userMessage },
+    { role: 'user', content: userMessage },
   ];
 }
 
 function shouldAutoEscalateToOpenAI(
   plan: RoutingPlan,
-  routingContext: LLMRoutingContext | undefined,
+  routingContext: LLMRoutingContext | undefined
 ): boolean {
   if (!process.env.OPENAI_API_KEY) return false;
-  if (routingContext?.openai_override === "never") return false;
-  if (routingContext?.openai_override === "force") return true;
+  if (routingContext?.openai_override === 'never') return false;
+  if (routingContext?.openai_override === 'force') return true;
 
   // "Very rare" auto-escalation: only for deep-read/high-complexity requests.
-  return plan.scope === "deep_read" && plan.complexity_score >= 88;
+  return plan.scope === 'deep_read' && plan.complexity_score >= 88;
 }
 
 async function persistRoutingSignal(
@@ -730,7 +799,7 @@ async function persistRoutingSignal(
   routingContext: LLMRoutingContext | undefined,
   success: boolean,
   latencyMs: number,
-  escalatedToOpenAI: boolean,
+  escalatedToOpenAI: boolean
 ): Promise<void> {
   if (!routingContext?.user_id || !routingContext.allow_routing_memory) {
     return;
@@ -748,13 +817,13 @@ async function persistRoutingSignal(
     scope: plan.scope,
     intent: userMessage.slice(0, 220),
     sentiment: detectSentiment(userMessage),
-    deep_read: plan.scope === "deep_read",
+    deep_read: plan.scope === 'deep_read',
     escalated_to_openai: escalatedToOpenAI,
     escalation_type: escalatedToOpenAI
-      ? routingContext.openai_override === "force"
-        ? "forced"
-        : "auto"
-      : "none",
+      ? routingContext.openai_override === 'force'
+        ? 'forced'
+        : 'auto'
+      : 'none',
   }).catch(() => {});
 }
 
@@ -770,10 +839,14 @@ async function persistRoutingSignal(
  */
 export async function callLLMWithFallback(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  routingContext?: LLMRoutingContext,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  routingContext?: LLMRoutingContext
 ): Promise<LLMResponse> {
-  const plan = deriveRoutingPlan(userMessage, conversationHistory, routingContext);
+  const plan = deriveRoutingPlan(
+    userMessage,
+    conversationHistory,
+    routingContext
+  );
   const messages = buildMessages(userMessage, conversationHistory);
 
   const memoryProfile =
@@ -782,10 +855,10 @@ export async function callLLMWithFallback(
       : null;
 
   const catalog = await fetchOllamaCatalog();
-  if (catalog.length === 0 && routingContext?.openai_override !== "force") {
+  if (catalog.length === 0 && routingContext?.openai_override !== 'force') {
     throw new LLMError(
-      "No Ollama models are available. Ensure Ollama is running and models are pulled.",
-      "unknown",
+      'No Ollama models are available. Ensure Ollama is running and models are pulled.',
+      'unknown'
     );
   }
 
@@ -802,17 +875,19 @@ export async function callLLMWithFallback(
   };
 
   const lastErrorRef: { value: LLMError | null } = { value: null };
-  const tryProvider = async (provider: ProviderAttempt): Promise<LLMResponse | null> => {
+  const tryProvider = async (
+    provider: ProviderAttempt
+  ): Promise<LLMResponse | null> => {
     try {
       return await callProvider(provider, messages, routingTrace);
     } catch (error) {
       const llmErr =
         error instanceof LLMError
           ? error
-          : new LLMError("Unknown error", "unknown");
+          : new LLMError('Unknown error', 'unknown');
       lastErrorRef.value = llmErr;
 
-      if (llmErr.reason === "server_error") {
+      if (llmErr.reason === 'server_error') {
         try {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           return await callProvider(provider, messages, routingTrace);
@@ -820,7 +895,7 @@ export async function callLLMWithFallback(
           const retryClassified =
             retryErr instanceof LLMError
               ? retryErr
-              : new LLMError("Unknown error", "unknown");
+              : new LLMError('Unknown error', 'unknown');
           lastErrorRef.value = retryClassified;
         }
       }
@@ -829,18 +904,18 @@ export async function callLLMWithFallback(
     }
   };
 
-  if (routingContext?.openai_override === "force") {
+  if (routingContext?.openai_override === 'force') {
     const start = Date.now();
     const openaiResult = await callOpenAILifeguard(messages, plan);
     const response = await callProvider(
       {
-        provider: "openai",
+        provider: 'openai',
         model: openaiResult.model,
         parameters: openaiResult.parameters,
         call: async () => openaiResult.raw,
       },
       messages,
-      routingTrace,
+      routingTrace
     );
     routingTrace.escalated_to_openai = true;
     await persistRoutingSignal(
@@ -850,7 +925,7 @@ export async function callLLMWithFallback(
       routingContext,
       true,
       Date.now() - start,
-      true,
+      true
     );
     return response;
   }
@@ -858,7 +933,7 @@ export async function callLLMWithFallback(
   for (const model of ollamaCandidates) {
     const params = getOllamaParameters(plan, model);
     const provider: ProviderAttempt = {
-      provider: "ollama",
+      provider: 'ollama',
       model,
       parameters: {
         ...params.options,
@@ -876,19 +951,22 @@ export async function callLLMWithFallback(
     const severeQualityIssue =
       quality.missing_gate_tag || quality.exceeds_word_limit;
 
-    if (severeQualityIssue && shouldAutoEscalateToOpenAI(plan, routingContext)) {
+    if (
+      severeQualityIssue &&
+      shouldAutoEscalateToOpenAI(plan, routingContext)
+    ) {
       try {
         const openaiStart = Date.now();
         const openaiResult = await callOpenAILifeguard(messages, plan);
         const openaiResponse = await callProvider(
           {
-            provider: "openai",
+            provider: 'openai',
             model: openaiResult.model,
             parameters: openaiResult.parameters,
             call: async () => openaiResult.raw,
           },
           messages,
-          routingTrace,
+          routingTrace
         );
         routingTrace.escalated_to_openai = true;
         await persistRoutingSignal(
@@ -898,12 +976,14 @@ export async function callLLMWithFallback(
           routingContext,
           true,
           Date.now() - openaiStart,
-          true,
+          true
         );
         return openaiResponse;
       } catch (err) {
         lastErrorRef.value =
-          err instanceof LLMError ? err : new LLMError("Unknown error", "unknown");
+          err instanceof LLMError
+            ? err
+            : new LLMError('Unknown error', 'unknown');
       }
     }
 
@@ -914,7 +994,7 @@ export async function callLLMWithFallback(
       routingContext,
       true,
       Date.now() - start,
-      false,
+      false
     );
     return response;
   }
@@ -925,13 +1005,13 @@ export async function callLLMWithFallback(
       const openaiResult = await callOpenAILifeguard(messages, plan);
       const response = await callProvider(
         {
-          provider: "openai",
+          provider: 'openai',
           model: openaiResult.model,
           parameters: openaiResult.parameters,
           call: async () => openaiResult.raw,
         },
         messages,
-        routingTrace,
+        routingTrace
       );
       routingTrace.escalated_to_openai = true;
       await persistRoutingSignal(
@@ -941,22 +1021,26 @@ export async function callLLMWithFallback(
         routingContext,
         true,
         Date.now() - start,
-        true,
+        true
       );
       return response;
     } catch (err) {
       lastErrorRef.value =
-        err instanceof LLMError ? err : new LLMError("Unknown error", "unknown");
+        err instanceof LLMError
+          ? err
+          : new LLMError('Unknown error', 'unknown');
     }
   }
 
   await persistRoutingSignal(
     {
-      gate_type: "unclassified",
-      brief: "",
-      raw: "",
-      provider: "ollama",
-      model_id: routingTrace.attempted_models.at(-1)?.split(":").slice(1).join(":") ?? "unknown",
+      gate_type: 'unclassified',
+      brief: '',
+      raw: '',
+      provider: 'ollama',
+      model_id:
+        routingTrace.attempted_models.at(-1)?.split(':').slice(1).join(':') ??
+        'unknown',
       model_parameters: {},
       routing_trace: routingTrace,
     },
@@ -965,12 +1049,15 @@ export async function callLLMWithFallback(
     routingContext,
     false,
     0,
-    routingTrace.escalated_to_openai,
+    routingTrace.escalated_to_openai
   );
 
   throw (
     lastErrorRef.value ??
-    new LLMError("All providers unavailable. Please try again later.", "unknown")
+    new LLMError(
+      'All providers unavailable. Please try again later.',
+      'unknown'
+    )
   );
 }
 
@@ -985,24 +1072,28 @@ export const callLLMWithRetry = callLLMWithFallback;
  */
 export async function callLLM(
   userMessage: string,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  routingContext?: LLMRoutingContext,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  routingContext?: LLMRoutingContext
 ): Promise<LLMResponse> {
-  const plan = deriveRoutingPlan(userMessage, conversationHistory, routingContext);
+  const plan = deriveRoutingPlan(
+    userMessage,
+    conversationHistory,
+    routingContext
+  );
   const messages = buildMessages(userMessage, conversationHistory);
   const catalog = await fetchOllamaCatalog();
   if (catalog.length === 0) {
     throw new LLMError(
-      "No Ollama models are available. Ensure Ollama is running and models are pulled.",
-      "unknown",
+      'No Ollama models are available. Ensure Ollama is running and models are pulled.',
+      'unknown'
     );
   }
 
   const primary = selectOllamaCandidates(catalog, plan, null)[0];
   if (!primary) {
     throw new LLMError(
-      "No Ollama models are available. Ensure Ollama is running and models are pulled.",
-      "unknown",
+      'No Ollama models are available. Ensure Ollama is running and models are pulled.',
+      'unknown'
     );
   }
 
@@ -1020,7 +1111,7 @@ export async function callLLM(
 
   return callProvider(
     {
-      provider: "ollama",
+      provider: 'ollama',
       model: primary,
       parameters: {
         ...params.options,
@@ -1030,6 +1121,6 @@ export async function callLLM(
         (await callOllama(primary, providerMessages, plan)).raw,
     },
     messages,
-    routingTrace,
+    routingTrace
   );
 }
