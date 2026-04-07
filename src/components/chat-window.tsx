@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 interface Message {
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
 }
 
@@ -13,11 +13,18 @@ interface ChatWindowProps {
   turnsRemaining?: number | null;
 }
 
-export function ChatWindow({ messages, isLoading, turnsRemaining }: ChatWindowProps) {
+export function ChatWindow({
+  messages,
+  isLoading,
+  turnsRemaining,
+}: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
   }, [messages.length, isLoading]);
 
   let assistantCount = 0;
@@ -37,22 +44,22 @@ export function ChatWindow({ messages, isLoading, turnsRemaining }: ChatWindowPr
       )}
 
       {messages.map((msg, i) => {
-        const isAssistant = msg.role === "assistant";
+        const isAssistant = msg.role === 'assistant';
         if (isAssistant) assistantCount++;
         const isFirstBrief = isAssistant && assistantCount === 1;
 
         return (
           <div
             key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
               className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                msg.role === 'user'
+                  ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
                   : isFirstBrief
-                    ? "bg-blue-50 dark:bg-blue-950 text-zinc-800 dark:text-zinc-200 border border-blue-100 dark:border-blue-900"
-                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                    ? 'bg-blue-50 dark:bg-blue-950 text-zinc-800 dark:text-zinc-200 border border-blue-100 dark:border-blue-900'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200'
               }`}
             >
               {msg.content}
@@ -65,19 +72,31 @@ export function ChatWindow({ messages, isLoading, turnsRemaining }: ChatWindowPr
         <div className="flex justify-start">
           <div className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl px-4 py-3">
             <div className="flex gap-1">
-              <span className="w-2 h-2 rounded-full bg-blue-300 dark:bg-blue-700 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-2 h-2 rounded-full bg-blue-300 dark:bg-blue-700 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-2 h-2 rounded-full bg-blue-300 dark:bg-blue-700 animate-bounce" style={{ animationDelay: "300ms" }} />
+              <span
+                className="w-2 h-2 rounded-full bg-blue-300 dark:bg-blue-700 animate-bounce"
+                style={{ animationDelay: '0ms' }}
+              />
+              <span
+                className="w-2 h-2 rounded-full bg-blue-300 dark:bg-blue-700 animate-bounce"
+                style={{ animationDelay: '150ms' }}
+              />
+              <span
+                className="w-2 h-2 rounded-full bg-blue-300 dark:bg-blue-700 animate-bounce"
+                style={{ animationDelay: '300ms' }}
+              />
             </div>
           </div>
         </div>
       )}
 
-      {!isLoading && turnsRemaining != null && turnsRemaining > 0 && messages.length > 0 && (
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center">
-          {turnsRemaining} {turnsRemaining === 1 ? "turn" : "turns"} remaining
-        </p>
-      )}
+      {!isLoading &&
+        turnsRemaining != null &&
+        turnsRemaining > 0 &&
+        messages.length > 0 && (
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center">
+            {turnsRemaining} {turnsRemaining === 1 ? 'turn' : 'turns'} remaining
+          </p>
+        )}
     </div>
   );
 }

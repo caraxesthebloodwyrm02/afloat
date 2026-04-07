@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 
 interface SessionTimerProps {
   startTime: number;
@@ -9,8 +9,13 @@ interface SessionTimerProps {
   onExpire?: () => void;
 }
 
-export function SessionTimer({ startTime, maxDurationMs, isActive, onExpire }: SessionTimerProps) {
-  "use no memo";
+export function SessionTimer({
+  startTime,
+  maxDurationMs,
+  isActive,
+  onExpire,
+}: SessionTimerProps) {
+  'use no memo';
   const calcRemaining = useCallback(() => {
     if (!startTime) return maxDurationMs;
     const elapsed = Date.now() - startTime;
@@ -34,7 +39,7 @@ export function SessionTimer({ startTime, maxDurationMs, isActive, onExpire }: S
   const totalSeconds = Math.ceil(remaining / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  const formatted = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  const formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
   const isLow = totalSeconds <= 30;
   const isCritical = totalSeconds <= 15;
@@ -43,8 +48,8 @@ export function SessionTimer({ startTime, maxDurationMs, isActive, onExpire }: S
     <span
       className={`tabular-nums text-sm font-mono ${
         isLow
-          ? `bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-md ${isCritical ? "animate-pulse" : ""}`
-          : "text-zinc-500 dark:text-zinc-400"
+          ? `bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-md ${isCritical ? 'animate-pulse' : ''}`
+          : 'text-zinc-500 dark:text-zinc-400'
       }`}
     >
       {formatted}

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 interface ConsentState {
   session_telemetry: boolean;
@@ -10,18 +10,18 @@ interface ConsentState {
 export default function SettingsPage() {
   const [consents, setConsents] = useState<ConsentState | null>(null);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem("afloat_token");
+    const token = localStorage.getItem('afloat_token');
     if (!token) {
-      window.location.href = "/subscribe";
+      window.location.href = '/subscribe';
       return;
     }
 
     async function loadConsents() {
       try {
-        const res = await fetch("/api/v1/user/data-export", {
+        const res = await fetch('/api/v1/user/data-export', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -34,7 +34,7 @@ export default function SettingsPage() {
           });
         }
       } catch {
-        setMessage("Failed to load settings.");
+        setMessage('Failed to load settings.');
       }
     }
 
@@ -42,83 +42,83 @@ export default function SettingsPage() {
   }, []);
 
   async function handleToggle(field: keyof ConsentState, value: boolean) {
-    const token = localStorage.getItem("afloat_token");
+    const token = localStorage.getItem('afloat_token');
     if (!token) return;
 
     setConsents((prev) => (prev ? { ...prev, [field]: value } : null));
     setSaving(true);
-    setMessage("");
+    setMessage('');
 
     try {
-      const res = await fetch("/api/v1/user/consent", {
-        method: "POST",
+      const res = await fetch('/api/v1/user/consent', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ [field]: value }),
       });
 
       if (res.ok) {
-        setMessage("Saved.");
+        setMessage('Saved.');
       } else {
-        setMessage("Failed to save.");
+        setMessage('Failed to save.');
         setConsents((prev) => (prev ? { ...prev, [field]: !value } : null));
       }
     } catch {
-      setMessage("Network error.");
+      setMessage('Network error.');
       setConsents((prev) => (prev ? { ...prev, [field]: !value } : null));
     } finally {
       setSaving(false);
-      setTimeout(() => setMessage(""), 2000);
+      setTimeout(() => setMessage(''), 2000);
     }
   }
 
   async function handleDeleteAccount() {
-    const token = localStorage.getItem("afloat_token");
+    const token = localStorage.getItem('afloat_token');
     if (!token) return;
 
     const confirmed = window.confirm(
-      "Are you sure you want to delete your account? You have a 7-day grace period to cancel.",
+      'Are you sure you want to delete your account? You have a 7-day grace period to cancel.'
     );
     if (!confirmed) return;
 
     try {
-      const res = await fetch("/api/v1/user/data", {
-        method: "DELETE",
+      const res = await fetch('/api/v1/user/data', {
+        method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setMessage(data.message || "Deletion requested.");
+        setMessage(data.message || 'Deletion requested.');
       }
     } catch {
-      setMessage("Failed to request deletion.");
+      setMessage('Failed to request deletion.');
     }
   }
 
   async function handleExportData() {
-    const token = localStorage.getItem("afloat_token");
+    const token = localStorage.getItem('afloat_token');
     if (!token) return;
 
     try {
-      const res = await fetch("/api/v1/user/data-export?format=portable", {
+      const res = await fetch('/api/v1/user/data-export?format=portable', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const blob = await res.blob();
-        const disposition = res.headers.get("Content-Disposition") ?? "";
+        const disposition = res.headers.get('Content-Disposition') ?? '';
         const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
-        const filename = filenameMatch?.[1] ?? "afloat-data-export.zip";
+        const filename = filenameMatch?.[1] ?? 'afloat-data-export.zip';
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
       }
     } catch {
-      setMessage("Failed to export data.");
+      setMessage('Failed to export data.');
     }
   }
 
@@ -158,7 +158,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={consents.session_telemetry}
               onChange={(e) =>
-                handleToggle("session_telemetry", e.target.checked)
+                handleToggle('session_telemetry', e.target.checked)
               }
               disabled={saving}
               className="h-4 w-4"
@@ -176,7 +176,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={consents.marketing_communications}
               onChange={(e) =>
-                handleToggle("marketing_communications", e.target.checked)
+                handleToggle('marketing_communications', e.target.checked)
               }
               disabled={saving}
               className="h-4 w-4"
