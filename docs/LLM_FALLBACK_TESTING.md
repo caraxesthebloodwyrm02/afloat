@@ -19,18 +19,18 @@ The current `callLLMWithFallback()` path is no longer a fixed provider chain. It
 
 The routing suite covers these cases:
 
-| Test | What it proves |
-|---|---|
-| Ollama-first success | A discovered Ollama model is used before any escalation |
-| 429 fallthrough | A rate-limited Ollama candidate falls through to the next local candidate |
-| Bearer auth | `OLLAMA_API_KEY` is attached to both tags and generation calls |
-| Custom-header raw token | `OLLAMA_AUTH_HEADER` and `OLLAMA_AUTH_SCHEME=none` work for gateway-style auth |
-| Forced OpenAI rescue | `openai_override: "force"` jumps directly to the OpenAI lifeguard |
-| Rare auto escalation | Deep-read, high-complexity failure can escalate automatically |
-| Local-only guarantee | `openai_override: "never"` blocks escalation even when the request is complex |
-| Routing-memory influence | A consented learned model is promoted in future candidate ordering |
-| Adapter passthrough | The phase-4 adapter preserves routing context through both success and fallback branches |
-| Route normalization | Invalid or missing runtime args normalize to the stable request contract |
+| Test                     | What it proves                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| Ollama-first success     | A discovered Ollama model is used before any escalation                                  |
+| 429 fallthrough          | A rate-limited Ollama candidate falls through to the next local candidate                |
+| Bearer auth              | `OLLAMA_API_KEY` is attached to both tags and generation calls                           |
+| Custom-header raw token  | `OLLAMA_AUTH_HEADER` and `OLLAMA_AUTH_SCHEME=none` work for gateway-style auth           |
+| Forced OpenAI rescue     | `openai_override: "force"` jumps directly to the OpenAI lifeguard                        |
+| Rare auto escalation     | Deep-read, high-complexity failure can escalate automatically                            |
+| Local-only guarantee     | `openai_override: "never"` blocks escalation even when the request is complex            |
+| Routing-memory influence | A consented learned model is promoted in future candidate ordering                       |
+| Adapter passthrough      | The phase-4 adapter preserves routing context through both success and fallback branches |
+| Route normalization      | Invalid or missing runtime args normalize to the stable request contract                 |
 
 ## Request Contract Under Test
 
@@ -39,9 +39,7 @@ The public message route accepts:
 ```json
 {
   "message": "Analyze the trade-offs here.",
-  "history": [
-    { "role": "assistant", "content": "Prior context." }
-  ],
+  "history": [{ "role": "assistant", "content": "Prior context." }],
   "deep_read": true,
   "openai_override": "auto"
 }

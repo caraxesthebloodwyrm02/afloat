@@ -20,15 +20,15 @@ A **personal data breach** is any breach of security leading to accidental or un
 
 ### What constitutes a breach
 
-| Category | Example | Severity |
-|----------|---------|----------|
-| **Unauthorised access** | JWT secret compromised, someone accessing other users' sessions | HIGH |
-| **Data exposure** | User text accidentally persisted to Redis or logs | HIGH |
-| **Third-party breach** | OpenAI/Stripe/Upstash reports a breach affecting our data | HIGH |
-| **Service compromise** | Vercel deployment tampered with, malicious code injected | CRITICAL |
-| **Credential exposure** | API keys committed to source code or publicly accessible | HIGH |
-| **Data loss** | Redis data unexpectedly deleted without authorisation | MEDIUM |
-| **Availability** | Extended outage affecting user access (>4 hours) | LOW |
+| Category                | Example                                                         | Severity |
+| ----------------------- | --------------------------------------------------------------- | -------- |
+| **Unauthorised access** | JWT secret compromised, someone accessing other users' sessions | HIGH     |
+| **Data exposure**       | User text accidentally persisted to Redis or logs               | HIGH     |
+| **Third-party breach**  | OpenAI/Stripe/Upstash reports a breach affecting our data       | HIGH     |
+| **Service compromise**  | Vercel deployment tampered with, malicious code injected        | CRITICAL |
+| **Credential exposure** | API keys committed to source code or publicly accessible        | HIGH     |
+| **Data loss**           | Redis data unexpectedly deleted without authorisation           | MEDIUM   |
+| **Availability**        | Extended outage affecting user access (>4 hours)                | LOW      |
 
 ### Detection sources
 
@@ -47,21 +47,21 @@ Upon detecting or suspecting a breach, execute these steps in order:
 
 ### Step 1: Stop the bleeding (0–15 min)
 
-| Action | How |
-|--------|-----|
+| Action                         | How                                                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | **Revoke compromised secrets** | Rotate `JWT_SECRET`, `PROVENANCE_SIGNING_KEY`, `STRIPE_WEBHOOK_SECRET` in Vercel → Environment Variables |
-| **Kill active sessions** | Delete all `session:*` keys in Upstash Redis console |
-| **Disable endpoints** | If source is compromised: pause Vercel deployment or set maintenance mode |
-| **Revoke API keys** | Rotate `OPENAI_API_KEY` in OpenAI dashboard, `STRIPE_SECRET_KEY` in Stripe dashboard |
+| **Kill active sessions**       | Delete all `session:*` keys in Upstash Redis console                                                     |
+| **Disable endpoints**          | If source is compromised: pause Vercel deployment or set maintenance mode                                |
+| **Revoke API keys**            | Rotate `OPENAI_API_KEY` in OpenAI dashboard, `STRIPE_SECRET_KEY` in Stripe dashboard                     |
 
 ### Step 2: Assess scope (15–60 min)
 
-| Question | How to answer |
-|----------|---------------|
-| What data was affected? | Check audit logs, Redis key access patterns, Vercel function logs |
+| Question                     | How to answer                                                          |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| What data was affected?      | Check audit logs, Redis key access patterns, Vercel function logs      |
 | How many users are affected? | Count distinct `user:*` keys with activity in the affected time window |
-| Is it ongoing? | Check if containment actions halted the breach |
-| What is the entry vector? | Review deployment history, access logs, third-party notifications |
+| Is it ongoing?               | Check if containment actions halted the breach                         |
+| What is the entry vector?    | Review deployment history, access logs, third-party notifications      |
 
 ### Step 3: Document everything
 
@@ -107,6 +107,7 @@ Status: [active / contained / resolved]
 **Timeline:** Without undue delay after determining high risk.
 
 **When NOT required:**
+
 - Data was pseudonymised/encrypted and keys were not compromised
 - Subsequent measures ensure high risk is no longer likely
 - It would involve disproportionate effort (use public communication instead)
@@ -114,6 +115,7 @@ Status: [active / contained / resolved]
 **Notification method:** If email is available via Stripe customer records, send individual notifications. Otherwise, publish a notice on the application.
 
 **Content:** Clear, plain language describing:
+
 - What happened
 - What data was affected
 - What we've done about it
@@ -122,12 +124,12 @@ Status: [active / contained / resolved]
 
 ### 4c. Third-Party Processors
 
-| Processor | Contact method | What to communicate |
-|-----------|---------------|---------------------|
-| OpenAI | support@openai.com / dashboard | If breach involves API key or prompts |
-| Stripe | Stripe Dashboard → Support | If breach involves payment data or webhook secret |
-| Upstash | Upstash Dashboard → Support | If breach involves Redis credentials or stored data |
-| Vercel | Vercel Dashboard → Support | If breach involves deployment or environment variables |
+| Processor | Contact method                 | What to communicate                                    |
+| --------- | ------------------------------ | ------------------------------------------------------ |
+| OpenAI    | support@openai.com / dashboard | If breach involves API key or prompts                  |
+| Stripe    | Stripe Dashboard → Support     | If breach involves payment data or webhook secret      |
+| Upstash   | Upstash Dashboard → Support    | If breach involves Redis credentials or stored data    |
+| Vercel    | Vercel Dashboard → Support     | If breach involves deployment or environment variables |
 
 ---
 
@@ -180,16 +182,16 @@ Conduct within **7 days** of resolution.
 
 ## 7. Secret Rotation Reference
 
-| Secret | Location | Rotation method |
-|--------|----------|----------------|
-| `JWT_SECRET` | Vercel env | `openssl rand -hex 32` → update in Vercel; all active sessions invalidated |
-| `PROVENANCE_SIGNING_KEY` | Vercel env | `openssl rand -hex 32` → update; new DPR chains use new key |
-| `STRIPE_SECRET_KEY` | Stripe Dashboard | Roll key in Stripe → update in Vercel |
-| `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard | Delete and recreate webhook endpoint → update in Vercel |
-| `OPENAI_API_KEY` | OpenAI Dashboard | Revoke and create new key → update in Vercel |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash Console | Rotate token → update in Vercel |
-| `CRON_SECRET` | Vercel env | `openssl rand -hex 32` → update in Vercel |
+| Secret                     | Location         | Rotation method                                                            |
+| -------------------------- | ---------------- | -------------------------------------------------------------------------- |
+| `JWT_SECRET`               | Vercel env       | `openssl rand -hex 32` → update in Vercel; all active sessions invalidated |
+| `PROVENANCE_SIGNING_KEY`   | Vercel env       | `openssl rand -hex 32` → update; new DPR chains use new key                |
+| `STRIPE_SECRET_KEY`        | Stripe Dashboard | Roll key in Stripe → update in Vercel                                      |
+| `STRIPE_WEBHOOK_SECRET`    | Stripe Dashboard | Delete and recreate webhook endpoint → update in Vercel                    |
+| `OPENAI_API_KEY`           | OpenAI Dashboard | Revoke and create new key → update in Vercel                               |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Console  | Rotate token → update in Vercel                                            |
+| `CRON_SECRET`              | Vercel env       | `openssl rand -hex 32` → update in Vercel                                  |
 
 ---
 
-*Prepared by: Irfan Kabir — 2026-03-01*
+_Prepared by: Irfan Kabir — 2026-03-01_

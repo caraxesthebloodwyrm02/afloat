@@ -23,6 +23,7 @@ npm run test:watch   # Vitest (watch mode)
 ```
 
 **Session start protocol** — run before writing any new code:
+
 ```bash
 npm run test:routing && npm run lint
 ```
@@ -58,6 +59,7 @@ npm run test:routing && npm run lint
 ## Environment
 
 14 required environment variables — see `.env.example`. Key notes:
+
 - `OLLAMA_BASE_URL` is the default model endpoint
 - `OPENAI_API_KEY` is optional and used only for rare lifeguard escalation
 - `JWT_SECRET` and `PROVENANCE_SIGNING_KEY` must be different values

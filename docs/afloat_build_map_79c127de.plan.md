@@ -60,8 +60,6 @@ flowchart TD
   acceptanceGates --> step9
 ```
 
-
-
 ## Build Sequence (Reference-Aligned)
 
 ### 1) Pre-build Spec Freeze and Drift Check

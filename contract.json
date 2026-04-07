@@ -1,9 +1,9 @@
 {
   "contract": {
     "id": "7a55f0f1-84be-43b7-8385-5dc0cbb49bed",
-    "version": "1.6.0",
+    "version": "2.0.0",
     "created": "2026-02-25T18:04:41.157591+00:00",
-    "status": "pre_launch",
+    "status": "active_phase_2",
     "time_window": {
       "days": 90,
       "start": "2026-03-01T00:00:00+06:00",
@@ -109,9 +109,13 @@
     },
     "architecture": {
       "llm_layer": {
-        "provider": "openai",
-        "model": "gpt-4o-mini",
-        "max_tokens_per_response": 300,
+        "primary_provider": "ollama",
+        "primary_model": "dynamic_catalog_via_api_tags",
+        "lifeguard_provider": "openai",
+        "lifeguard_model": "gpt-5.4",
+        "routing": "scenario_aware_multi_model_ranking",
+        "max_tokens_per_response": { "normal": 300, "deep_read": 520 },
+        "context_window": { "normal": 4096, "deep_read": 8192 },
         "system_prompt_strategy": "context_gate_detection_and_brief_delivery"
       },
       "session_controller": {
@@ -120,8 +124,21 @@
         "enforcement": "server_side_timer_and_turn_counter",
         "tier_aware": true,
         "tiers": {
-          "trial": { "max_llm_calls": 2, "max_duration_ms": 120000 },
-          "continuous": { "max_llm_calls": 6, "max_duration_ms": 1800000 }
+          "free_trial": {
+            "max_llm_calls": 2,
+            "max_duration_ms": 120000,
+            "max_sessions_total": 5
+          },
+          "starter": {
+            "max_llm_calls": 4,
+            "max_duration_ms": 300000,
+            "max_sessions_per_day": 10
+          },
+          "pro": {
+            "max_llm_calls": 8,
+            "max_duration_ms": 1800000,
+            "max_sessions_per_day": null
+          }
         }
       },
       "data_layer": {
@@ -139,10 +156,21 @@
       },
       "payment_layer": {
         "provider": "stripe",
-        "integration": "stripe_checkout",
-        "plan": {
-          "trial": "$9/qtr_recurring",
-          "continuous": "$3/hr_metered"
+        "integration": "stripe_checkout_metered",
+        "billing_model": "per_session_metered",
+        "per_session_price_cents": 10,
+        "meter_event_name": "afloat_sessions",
+        "plans": {
+          "starter": {
+            "base": "$12/qtr",
+            "included_sessions": 200,
+            "billing_periods": ["monthly", "quarterly", "annual"]
+          },
+          "pro": {
+            "base": "$24/qtr",
+            "included_sessions": 1000,
+            "billing_periods": ["monthly", "quarterly", "annual"]
+          }
         }
       },
       "frontend": {
@@ -180,7 +208,7 @@
     "productive": {
       "metric": "context_gate_pass_rate",
       "description": "Percentage of sessions where user proceeds past the context gate",
-      "threshold": 0.70,
+      "threshold": 0.7,
       "unit": "ratio",
       "measurement": "sessions_where_user_proceeded / total_sessions"
     },
@@ -194,7 +222,7 @@
     "revenue_net": {
       "metric": "net_revenue",
       "description": "Total revenue minus all costs after 90 days",
-      "threshold": 22.00,
+      "threshold": 22.0,
       "unit": "usd",
       "measurement": "sum(gross_revenue) - sum(all_costs)"
     },
@@ -229,63 +257,68 @@
     }
   },
   "revenue": {
-    "net_target_usd": 22.00,
-    "selected_model": "A_micro_subscription",
+    "net_target_usd": 22.0,
+    "selected_model": "metered_per_session",
     "selected_model_details": {
-      "name": "Micro-Subscription",
-      "price_usd": 9.00,
-      "billing_period": "quarterly",
-      "continuous_tier": {
-        "price_usd": 3.00,
-        "billing_period": "hourly_metered"
+      "name": "Per-Session Metered",
+      "per_session_price_usd": 0.1,
+      "billing_model": "base_subscription_plus_metered_overage",
+      "tiers": {
+        "starter": {
+          "base_price_usd": 12.0,
+          "billing_period": "quarterly",
+          "included_sessions_per_month": 200
+        },
+        "pro": {
+          "base_price_usd": 24.0,
+          "billing_period": "quarterly",
+          "included_sessions_per_month": 1000
+        }
       },
-      "users_needed": 12,
-      "projected_gross_usd": 108.00,
-      "acquisition_rate": "~1 user per week via organic channels (billed quarterly)",
       "risk_level": "low",
-      "rationale": "Predictable recurring revenue. Small user base needed. Low acquisition pressure. Quarterly billing reduces Stripe per-transaction fee impact from 12.9% to 6.2%."
+      "rationale": "Usage-based pricing aligned with 91% SaaS market trend (Maxio 2025). Base subscription provides predictable revenue floor. Metered overage captures power user value. Parameters tunable via Redis-backed param-store without redeployment."
     },
     "alternative_models": {
       "B_pay_per_use": {
         "price_usd": 0.25,
         "per": "session",
         "sessions_needed": 140,
-        "projected_gross_usd": 35.00,
+        "projected_gross_usd": 35.0,
         "risk_level": "medium"
       },
       "C_one_time_purchase": {
-        "price_usd": 5.00,
+        "price_usd": 5.0,
         "per": "lifetime",
         "users_needed": 7,
-        "projected_gross_usd": 35.00,
+        "projected_gross_usd": 35.0,
         "risk_level": "lowest"
       },
       "D_hybrid_freemium": {
         "free_sessions_per_day": 3,
-        "premium_usd": 2.00,
+        "premium_usd": 2.0,
         "users_needed": "10-15",
         "risk_level": "variable"
       }
     },
     "estimated_costs": {
       "llm_api": {
-        "estimate_usd": 6.00,
+        "estimate_usd": 6.0,
         "provider": "openai",
         "model": "gpt-4o-mini",
         "basis": "~2 min sessions, small token footprint, 90-day projection"
       },
       "hosting": {
-        "estimate_usd": 0.00,
+        "estimate_usd": 0.0,
         "provider": "free_tier",
         "basis": "Vercel/Netlify/Railway free tier or local-first deployment"
       },
       "marketing": {
-        "estimate_usd": 5.00,
+        "estimate_usd": 5.0,
         "channel": "organic_plus_minimal_ads",
         "basis": "Social media, word of mouth, optional $5 ad spend"
       },
       "domain": {
-        "estimate_usd": 1.00,
+        "estimate_usd": 1.0,
         "provider": "optional",
         "basis": "Free subdomain available; $1 if custom domain desired"
       },
@@ -296,15 +329,15 @@
         "basis": "4 quarterly transactions × ($0.30 + 2.9% of $9) = 4 × $0.561 ≈ $2.24"
       },
       "redis": {
-        "estimate_usd": 0.00,
+        "estimate_usd": 0.0,
         "provider": "upstash",
         "basis": "Free tier (10K commands/day). Monitor for overages at $0.20/100K commands."
       }
     },
     "total_estimated_costs_usd": 14.24,
     "gross_target_usd": 36.24,
-    "conservative_gross_target_usd": 36.00,
-    "projected_gross_with_model_A_usd": 36.00,
+    "conservative_gross_target_usd": 36.0,
+    "projected_gross_with_model_A_usd": 36.0,
     "projected_net_with_model_A_usd": 21.76,
     "surplus_usd": -0.24,
     "surplus_note": "Margin is tight (-$0.24). Quarterly billing reduces Stripe fee drag vs monthly ($2.24 vs $4.64). Any acquisition above 12 subscriber-quarters covers the shortfall.",
@@ -315,7 +348,7 @@
         "rate": "1.2 users/week",
         "subscribers_90d": 14,
         "quarterly_transactions": 5,
-        "gross_usd": 45.00,
+        "gross_usd": 45.0,
         "stripe_fees_usd": 2.81,
         "net_usd": 28.76,
         "result": "PASS"
@@ -324,7 +357,7 @@
         "rate": "1.0 users/week",
         "subscribers_90d": 12,
         "quarterly_transactions": 4,
-        "gross_usd": 36.00,
+        "gross_usd": 36.0,
         "stripe_fees_usd": 2.24,
         "net_usd": 21.76,
         "result": "MARGINAL",
@@ -334,7 +367,7 @@
         "rate": "0.7 users/week",
         "subscribers_90d": 9,
         "quarterly_transactions": 3,
-        "gross_usd": 27.00,
+        "gross_usd": 27.0,
         "stripe_fees_usd": 1.68,
         "net_usd": 14.76,
         "result": "FAIL",
@@ -348,11 +381,11 @@
           "date": "ISO-8601",
           "type": "revenue | cost",
           "category": "subscription | llm_api | hosting | marketing | domain | payment_processing | redis | other",
-          "amount_usd": 0.00,
+          "amount_usd": 0.0,
           "description": "",
-          "running_gross_total": 0.00,
-          "running_cost_total": 0.00,
-          "running_net_total": 0.00
+          "running_gross_total": 0.0,
+          "running_cost_total": 0.0,
+          "running_net_total": 0.0
         }
       },
       "entries": [
@@ -360,11 +393,11 @@
           "date": "2026-02-26T00:00:00+06:00",
           "type": "cost",
           "category": "other",
-          "amount_usd": 0.00,
+          "amount_usd": 0.0,
           "description": "Ledger initialization — test entry to validate audit trail",
-          "running_gross_total": 0.00,
-          "running_cost_total": 0.00,
-          "running_net_total": 0.00
+          "running_gross_total": 0.0,
+          "running_cost_total": 0.0,
+          "running_net_total": 0.0
         }
       ]
     }
@@ -586,7 +619,15 @@
           "name": "session_telemetry",
           "source": "session_controller",
           "destination": "data_layer",
-          "data_collected": ["session_id", "start_time", "end_time", "turns", "gate_type", "user_proceeded", "latency_per_turn"],
+          "data_collected": [
+            "session_id",
+            "start_time",
+            "end_time",
+            "turns",
+            "gate_type",
+            "user_proceeded",
+            "latency_per_turn"
+          ],
           "purpose": "Baseline instrumentation and KPI reporting",
           "retention": "90_days_then_aggregate",
           "pii_risk": "low",
@@ -608,7 +649,11 @@
           "name": "subscription_reference",
           "source": "stripe",
           "destination": "data_layer",
-          "data_collected": ["stripe_customer_id", "subscription_status", "billing_cycle_anchor"],
+          "data_collected": [
+            "stripe_customer_id",
+            "subscription_status",
+            "billing_cycle_anchor"
+          ],
           "purpose": "Link subscription state to user account for access control",
           "retention": "account_lifetime_plus_30_days",
           "pii_risk": "low",
@@ -624,7 +669,11 @@
           "name": "initial_consent",
           "trigger": "account_creation",
           "mechanism": "Explicit opt-in checkbox (unchecked by default) with plain-language summary",
-          "consent_categories": ["essential_processing", "session_telemetry", "marketing_communications"],
+          "consent_categories": [
+            "essential_processing",
+            "session_telemetry",
+            "marketing_communications"
+          ],
           "storage": "consent_record in data_layer with timestamp and version",
           "status": "pending_implementation"
         },
@@ -648,9 +697,21 @@
       "consent_record_schema": {
         "user_id": "string",
         "consents": {
-          "essential_processing": {"granted": true, "timestamp": "ISO-8601", "policy_version": "string"},
-          "session_telemetry": {"granted": false, "timestamp": "ISO-8601", "policy_version": "string"},
-          "marketing_communications": {"granted": false, "timestamp": "ISO-8601", "policy_version": "string"}
+          "essential_processing": {
+            "granted": true,
+            "timestamp": "ISO-8601",
+            "policy_version": "string"
+          },
+          "session_telemetry": {
+            "granted": false,
+            "timestamp": "ISO-8601",
+            "policy_version": "string"
+          },
+          "marketing_communications": {
+            "granted": false,
+            "timestamp": "ISO-8601",
+            "policy_version": "string"
+          }
         }
       }
     },
@@ -665,7 +726,12 @@
           "description": "Returns all data associated with the authenticated user in JSON format",
           "response_time_sla": "72 hours",
           "format": "JSON (machine-readable)",
-          "includes": ["session_logs", "consent_records", "subscription_reference", "telemetry_aggregates"],
+          "includes": [
+            "session_logs",
+            "consent_records",
+            "subscription_reference",
+            "telemetry_aggregates"
+          ],
           "excludes": ["raw_llm_api_payloads (transient, not stored)"],
           "status": "pending_implementation"
         },
@@ -677,7 +743,12 @@
           "description": "Permanently deletes all user data and revokes subscription. Irreversible after 7-day grace period.",
           "response_time_sla": "72 hours",
           "grace_period_days": 7,
-          "cascade_targets": ["session_logs", "consent_records", "subscription_reference", "telemetry (anonymized aggregates retained)"],
+          "cascade_targets": [
+            "session_logs",
+            "consent_records",
+            "subscription_reference",
+            "telemetry (anonymized aggregates retained)"
+          ],
           "stripe_action": "Cancel subscription and request Stripe customer deletion",
           "status": "pending_implementation"
         },
@@ -897,6 +968,34 @@
     }
   },
   "changelog": [
+    {
+      "version": "2.0.0",
+      "date": "2026-04-06T00:00:00+06:00",
+      "changes": [
+        "Phase 2 market strategy: replaced placeholder launch-campaign pricing with real metered per-session billing model",
+        "Billing model changed from flat subscription + per-minute metered to per-session metered with base subscription",
+        "Tiers reduced from 6 (free_trial, starter, pro, session_pack, access_pass, legacy aliases) to 3 (free_trial, starter, pro)",
+        "Removed session_pack and access_pass tiers — deferred until real usage data establishes baseline patterns",
+        "Removed legacy trial/continuous aliases from TIER_LIMITS",
+        "Starter tier: 4 LLM calls, 5-minute sessions, 10 sessions/day cap (server-enforced), 200 included sessions/month",
+        "Pro tier: 8 LLM calls, 30-minute sessions, unlimited daily, 1000 included sessions/month, full model catalog + deep_read",
+        "Free trial: 5 total sessions (server-enforced, was dead code at 3), small model catalog only",
+        "Per-session overage price: $0.10/session, reported to Stripe Billing Meter (event: afloat_sessions)",
+        "Created pricing-config.ts as unified source of truth for all tier parameters",
+        "Created param-store.ts for Redis-backed live parameter adjustment without redeployment",
+        "Created analytics-triggers.ts with 6 event-driven triggers (churn, ceiling, quality, latency, conversion, cost)",
+        "Added 4 new API routes: subscription/status, trial/status, analytics/lifecycle, admin/params",
+        "Added 3 analytics cron routes: daily (03:00 UTC), weekly (Sunday 04:00 UTC), monthly (1st 05:00 UTC)",
+        "Wired emitEvent() into webhook handler for subscription_started, subscription_upgraded, subscription_canceled",
+        "Wired incrementTrialSession() into session start route for free_trial enforcement",
+        "Wired incrementDailySessionCount() into session start route for daily cap enforcement",
+        "Session metered usage reported at session start (replaced legacy per-minute reporting at session end)",
+        "Subscribe route now uses createTierCheckout with tier+billing metadata (replaced legacy trial/continuous switch)",
+        "Updated contract.json architecture, payment_layer, and revenue model to reflect Phase 2 metered model",
+        "Phase 1 (90-day launch window 2026-03-01 to 2026-05-29) archived as complete",
+        "Model inventory corrected: primary LLM is Ollama-first (not gpt-4o-mini), lifeguard is gpt-5.4"
+      ]
+    },
     {
       "version": "1.6.0",
       "date": "2026-02-28T22:00:00+06:00",

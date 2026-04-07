@@ -82,7 +82,7 @@
         "enforcement": "If ratio < 0.95 for 3 consecutive days, alert for investigation"
       },
       "context_gate_pass_rate": {
-        "threshold_ratio": 0.70,
+        "threshold_ratio": 0.7,
         "measurement": "sessions_where_user_proceeded / total_sessions",
         "enforcement": "If ratio < 0.70 for 7 consecutive days, review LLM prompt effectiveness"
       }
@@ -106,14 +106,14 @@
   "billing": {
     "tiers": {
       "trial": {
-        "price_usd": 9.00,
+        "price_usd": 9.0,
         "billing_period": "quarterly",
         "max_llm_calls": 2,
         "max_duration_seconds": 120,
         "stripe_price_id_env": "STRIPE_PRICE_ID"
       },
       "continuous": {
-        "price_usd": 3.00,
+        "price_usd": 3.0,
         "billing_period": "hourly_metered",
         "max_llm_calls": 6,
         "max_duration_seconds": 1800,

@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Safety core (sanitized approach)**  
+- **Safety core (sanitized approach)**
   - **docs/SAFETY_CORE.md**: Documents the minimal, in-process safety model (one gate, one audit write, minimal access). Tool-call free; no external MCP or services for core safety.
   - **src/lib/access.ts**: Minimal access control via `isAllowedCaller(identity)`. When env `ALLOWED_CALLERS` is set (comma-separated), only those identities are allowed; when unset, all authenticated callers are allowed (backward compatible).
   - **.claude/rules/safety.md**: References SAFETY_CORE.md and the single-gate rule.

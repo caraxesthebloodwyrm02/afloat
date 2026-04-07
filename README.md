@@ -8,15 +8,15 @@ You describe what you're stuck on. Afloat identifies the block type (meeting tri
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router, TypeScript) |
-| LLM | Ollama-first dynamic routing, optional OpenAI lifeguard escalation |
-| Session Store | Upstash Redis |
-| Payment | Stripe ($3/mo subscription) |
-| Auth | JWT (jose) |
-| Rate Limiting | @upstash/ratelimit |
-| Hosting | Vercel (free tier) |
+| Layer         | Technology                                                         |
+| ------------- | ------------------------------------------------------------------ |
+| Framework     | Next.js 16 (App Router, TypeScript)                                |
+| LLM           | Ollama-first dynamic routing, optional OpenAI lifeguard escalation |
+| Session Store | Upstash Redis                                                      |
+| Payment       | Stripe ($3/mo subscription)                                        |
+| Auth          | JWT (jose)                                                         |
+| Rate Limiting | @upstash/ratelimit                                                 |
+| Hosting       | Vercel (free tier)                                                 |
 
 ## Security guardrails
 
@@ -82,55 +82,55 @@ npm run dev
 
 ### Required Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| `OLLAMA_BASE_URL` | Ollama endpoint base URL |
-| `UPSTASH_REDIS_REST_URL` | Upstash Redis connection URL |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis auth token |
-| `JWT_SECRET` | Secret for signing JWTs |
-| `STRIPE_SECRET_KEY` | Stripe API secret key |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `STRIPE_PRICE_ID` | Stripe price ID for the $3/mo trial plan |
-| `STRIPE_CONTINUOUS_PRICE_ID` | Stripe price ID for continuous tier |
-| `STRIPE_METER_EVENT_NAME` | Stripe meter event for usage billing |
-| `PROVENANCE_SIGNING_KEY` | Signing key for audit trail integrity |
-| `NEXT_PUBLIC_APP_URL` | App URL (e.g. `https://your-app.vercel.app`) |
+| Variable                            | Purpose                                                |
+| ----------------------------------- | ------------------------------------------------------ |
+| `OLLAMA_BASE_URL`                   | Ollama endpoint base URL                               |
+| `UPSTASH_REDIS_REST_URL`            | Upstash Redis connection URL                           |
+| `UPSTASH_REDIS_REST_TOKEN`          | Upstash Redis auth token                               |
+| `JWT_SECRET`                        | Secret for signing JWTs                                |
+| `STRIPE_SECRET_KEY`                 | Stripe API secret key                                  |
+| `STRIPE_PUBLISHABLE_KEY`            | Stripe publishable key                                 |
+| `STRIPE_WEBHOOK_SECRET`             | Stripe webhook signing secret                          |
+| `STRIPE_PRICE_ID`                   | Stripe price ID for the $3/mo trial plan               |
+| `STRIPE_CONTINUOUS_PRICE_ID`        | Stripe price ID for continuous tier                    |
+| `STRIPE_METER_EVENT_NAME`           | Stripe meter event for usage billing                   |
+| `PROVENANCE_SIGNING_KEY`            | Signing key for audit trail integrity                  |
+| `NEXT_PUBLIC_APP_URL`               | App URL (e.g. `https://your-app.vercel.app`)           |
 | `PHASE4_MESSAGE_CAPABILITY_ENABLED` | Feature flag for Phase 4 capabilities (default: false) |
-| `CRON_SECRET` | Bearer token for cron job authentication |
+| `CRON_SECRET`                       | Bearer token for cron job authentication               |
 
 **Total Required Variables**: 14
 
 **Optional**
 
-| Variable | Purpose |
-|----------|---------|
-| `OLLAMA_API_KEY` | Token for authenticated Ollama endpoints |
-| `OLLAMA_AUTH_HEADER` | Custom auth header name for Ollama gateways |
-| `OLLAMA_AUTH_SCHEME` | Auth scheme for Ollama gateways (`Bearer` by default, `none` for raw value) |
-| `OPENAI_API_KEY` | Optional OpenAI API key for rare lifeguard escalation |
-| `OPENAI_LIFEGUARD_ENABLED` | Warn if OpenAI lifeguard is intended but key is missing |
-| `OPENAI_LIFEGUARD_MODEL` | Override the rare lifeguard model (defaults to `gpt-5.4`) |
-| `ALLOWED_CALLERS` | Comma-separated list of identities (e.g. `user_id`) allowed to call protected operations. If unset, all authenticated callers are allowed. See `docs/SAFETY_CORE.md`. |
+| Variable                   | Purpose                                                                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OLLAMA_API_KEY`           | Token for authenticated Ollama endpoints                                                                                                                              |
+| `OLLAMA_AUTH_HEADER`       | Custom auth header name for Ollama gateways                                                                                                                           |
+| `OLLAMA_AUTH_SCHEME`       | Auth scheme for Ollama gateways (`Bearer` by default, `none` for raw value)                                                                                           |
+| `OPENAI_API_KEY`           | Optional OpenAI API key for rare lifeguard escalation                                                                                                                 |
+| `OPENAI_LIFEGUARD_ENABLED` | Warn if OpenAI lifeguard is intended but key is missing                                                                                                               |
+| `OPENAI_LIFEGUARD_MODEL`   | Override the rare lifeguard model (defaults to `gpt-5.4`)                                                                                                             |
+| `ALLOWED_CALLERS`          | Comma-separated list of identities (e.g. `user_id`) allowed to call protected operations. If unset, all authenticated callers are allowed. See `docs/SAFETY_CORE.md`. |
 
 ## API Routes
 
-| Method | Path | Purpose | Auth |
-|--------|------|---------|------|
-| `GET` | `/api/v1/health` | Health check | No |
-| `POST` | `/api/v1/session/start` | Start session | JWT |
-| `POST` | `/api/v1/session/{id}/message` | Send message | JWT |
-| `POST` | `/api/v1/session/{id}/end` | End session | JWT |
-| `POST` | `/api/v1/subscribe` | Create Stripe checkout | No |
-| `POST` | `/api/v1/subscribe/verify` | Verify checkout + issue JWT | No |
-| `POST` | `/api/v1/user/consent` | Update consent preferences | JWT |
-| `GET` | `/api/v1/user/data-export` | Export user data | JWT |
-| `DELETE` | `/api/v1/user/data` | Request data deletion | JWT |
-| `PATCH` | `/api/v1/user/profile` | Update display name / email pref | JWT |
-| `GET` | `/api/v1/provenance/session/{id}` | Get session provenance chain | JWT |
-| `GET` | `/api/v1/provenance/verify/{id}` | Verify session chain integrity | JWT |
-| `POST` | `/api/v1/webhooks/stripe` | Stripe webhook receiver | Stripe sig |
-| `GET` | `/api/cron/cleanup` | Automated data cleanup | Bearer token |
+| Method   | Path                              | Purpose                          | Auth         |
+| -------- | --------------------------------- | -------------------------------- | ------------ |
+| `GET`    | `/api/v1/health`                  | Health check                     | No           |
+| `POST`   | `/api/v1/session/start`           | Start session                    | JWT          |
+| `POST`   | `/api/v1/session/{id}/message`    | Send message                     | JWT          |
+| `POST`   | `/api/v1/session/{id}/end`        | End session                      | JWT          |
+| `POST`   | `/api/v1/subscribe`               | Create Stripe checkout           | No           |
+| `POST`   | `/api/v1/subscribe/verify`        | Verify checkout + issue JWT      | No           |
+| `POST`   | `/api/v1/user/consent`            | Update consent preferences       | JWT          |
+| `GET`    | `/api/v1/user/data-export`        | Export user data                 | JWT          |
+| `DELETE` | `/api/v1/user/data`               | Request data deletion            | JWT          |
+| `PATCH`  | `/api/v1/user/profile`            | Update display name / email pref | JWT          |
+| `GET`    | `/api/v1/provenance/session/{id}` | Get session provenance chain     | JWT          |
+| `GET`    | `/api/v1/provenance/verify/{id}`  | Verify session chain integrity   | JWT          |
+| `POST`   | `/api/v1/webhooks/stripe`         | Stripe webhook receiver          | Stripe sig   |
+| `GET`    | `/api/cron/cleanup`               | Automated data cleanup           | Bearer token |
 
 **Total API Endpoints**: 14 (13 v1 routes + 1 cron endpoint)
 
@@ -138,12 +138,13 @@ npm run dev
 
 The main message route accepts two tool-facing runtime controls:
 
-| Field | Type | Default | Effect |
-|-------|------|---------|--------|
-| `deep_read` | `boolean` | `false` | Promotes deeper local-model context and token budgets |
-| `openai_override` | `"auto" \| "force" \| "never"` | `"auto"` | Controls rare OpenAI lifeguard escalation |
+| Field             | Type                           | Default  | Effect                                                |
+| ----------------- | ------------------------------ | -------- | ----------------------------------------------------- |
+| `deep_read`       | `boolean`                      | `false`  | Promotes deeper local-model context and token budgets |
+| `openai_override` | `"auto" \| "force" \| "never"` | `"auto"` | Controls rare OpenAI lifeguard escalation             |
 
 Notes:
+
 - `allow_routing_memory` is never accepted from the client. The server derives it from stored consent.
 - Unknown `openai_override` values normalize to `"auto"`.
 - The memory-session placeholder route accepts the same request shape for tooling compatibility, even though it does not yet execute the full router.
@@ -175,15 +176,15 @@ curl -X POST "$NEXT_PUBLIC_APP_URL/api/v1/session/$SESSION_ID/message" \
 
 ```ts
 const response = await fetch(`/api/v1/session/${sessionId}/message`, {
-  method: "POST",
+  method: 'POST',
   headers: {
     Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    message: "Do a concise architectural read on this deployment issue.",
+    message: 'Do a concise architectural read on this deployment issue.',
     deep_read: false,
-    openai_override: "never",
+    openai_override: 'never',
   }),
 });
 ```
@@ -221,6 +222,7 @@ Your proportional brief here. Just enough to unblock the user.
 ```
 
 **Gate Types:**
+
 - `meeting_triage` - Quick meeting decisions and prioritization
 - `priority_decision` - Choice framework for overwhelmed users
 - `quick_briefing` - Concise summaries of complex topics
@@ -242,6 +244,7 @@ graph TD
 ```
 
 **Session Constraints:**
+
 - **Time Limits**: 2 minutes (trial), 30 minutes (continuous tier)
 - **Turn Limits**: 2 turns (trial), 6 turns (continuous)
 - **Word Limits**: 150 words maximum per response
@@ -261,6 +264,7 @@ graph LR
 ```
 
 **Safety Components:**
+
 - **Pre-Check**: Input validation and format checking
 - **PII Shield**: Automatic detection and redaction of personal information
 - **Content Pipeline**: Multi-stage content safety validation
@@ -269,12 +273,14 @@ graph LR
 ### Core Technical Components
 
 #### Session Controller (`src/lib/session-controller.ts`)
+
 - **Session Lifecycle**: Create, enforce limits, update, cleanup
 - **Lock Management**: Prevents concurrent LLM calls per session
 - **Turn Tracking**: Records latency and conversation flow
 - **Data Isolation**: Strips conversation history before persistence
 
 #### LLM Integration (`src/lib/llm.ts`)
+
 - **Dynamic Routing**: Selects Ollama models by task, complexity, and response scope
 - **Routing Memory**: Uses consented cross-session preferences to influence model selection
 - **Rare Lifeguard Escalation**: Escalates to OpenAI only for forced or high-complexity deep-read scenarios
@@ -283,6 +289,7 @@ graph LR
 - **Error Handling**: Timeout, rate limiting, and transient failure fallback
 
 #### Safety Pipeline (`src/lib/safety-pipeline.ts`)
+
 - **Unified Interface**: Single entry point for all safety checks
 - **Modular Design**: Composable safety stages
 - **Telemetry**: Fire-and-forget event recording
@@ -317,6 +324,7 @@ sequenceDiagram
 ### State Management Patterns
 
 #### Session State (`src/types/session.ts`)
+
 ```typescript
 interface SessionState {
   session_id: string;
@@ -326,7 +334,7 @@ interface SessionState {
   llm_call_count: number;
   gate_type: GateType | null;
   latency_per_turn: number[];
-  conversation_history: Array<{role: string; content: string}>;
+  conversation_history: Array<{ role: string; content: string }>;
   session_completed: boolean | null;
   user_proceeded: boolean | null;
   error: string | null;
@@ -334,6 +342,7 @@ interface SessionState {
 ```
 
 #### Provenance Chain (`src/lib/provenance/`)
+
 - **Decision Provenance Records (DPRs)**: Immutable decision audit trail
 - **Chain Verification**: Cryptographic integrity validation
 - **Safety Verdicts**: Multi-gate safety decision tracking
@@ -342,18 +351,21 @@ interface SessionState {
 ### Performance & Reliability
 
 #### Rate Limiting Strategy
+
 - **Session-based**: Per-user session creation limits
 - **Global**: API-wide request throttling
 - **Tier-aware**: Different limits by subscription tier
 - **Redis-backed**: Distributed rate limiting state
 
 #### Error Handling Patterns
+
 - **Graceful Degradation**: Safe fallbacks for LLM failures
 - **User-Friendly Messages**: Clear error descriptions
 - **Audit Logging**: All errors recorded for analysis
 - **Circuit Breakers**: Automatic retry with backoff
 
 #### Monitoring & Telemetry
+
 - **Latency Tracking**: Per-turn response times
 - **Success Rates**: Gate classification accuracy
 - **Safety Events**: PII detection, content blocks
@@ -362,6 +374,7 @@ interface SessionState {
 ### Security Architecture
 
 #### Authentication & Authorization
+
 - **JWT Tokens**: Stateless session authentication with configurable expiration
 - **Middleware Pattern**: Route-level auth enforcement via `auth-middleware.ts`
 - **Subscription Validation**: Active status required for session creation
@@ -369,6 +382,7 @@ interface SessionState {
 - **Provenance Signing**: Separate `PROVENANCE_SIGNING_KEY` for audit trail integrity
 
 #### Data Protection
+
 - **PII Redaction**: Automatic personal information detection and redaction
 - **Data Minimization**: Only essential data persisted, conversation history never stored to disk
 - **Right to Deletion**: Complete data removal capability with 7-day grace period
@@ -376,6 +390,7 @@ interface SessionState {
 - **Retention Policy**: 90-day session log retention with automated cleanup
 
 #### Infrastructure Security
+
 - **Environment Variables**: All secrets in environment with secure defaults
 - **Vercel Integration**: Secure deployment pipeline with environment isolation
 - **Stripe Webhooks**: Signature-verified payment processing
@@ -421,6 +436,7 @@ src/
 ### Automated Systems
 
 #### Cron Job Cleanup
+
 - **Endpoint**: `GET /api/cron/cleanup`
 - **Authentication**: Bearer token via `CRON_SECRET`
 - **Frequency**: Daily automated execution
@@ -430,6 +446,7 @@ src/
   - Generate audit logs for all cleanup actions
 
 #### Data Retention Policies
+
 - **Session Logs**: 90-day automatic retention with daily cleanup
 - **User Data**: Immediate deletion after 7-day grace period
 - **Conversation History**: Never persisted to disk (in-memory only)
@@ -438,12 +455,14 @@ src/
 ### Feature Flags
 
 #### Phase-Based Rollouts
+
 - `PHASE4_MESSAGE_CAPABILITY_ENABLED` - Controls advanced messaging features
 - Default: `false` (disabled)
 - Environment-specific configuration recommended
 - Monitor performance metrics before enabling
 
 #### Rate Limiting Tiers
+
 - **Session Rate Limiting**: Per-user session creation throttling
 - **Data Rights Rate Limiting**: Separate limits for data export/deletion requests
 - **Tier-Aware Limits**: Different thresholds for trial vs continuous subscribers
@@ -468,6 +487,7 @@ npm run start              # Start production server
 ### Troubleshooting
 
 #### Common Setup Issues
+
 - **Missing Environment Variables**: Verify all 14 variables in .env.local
 - **Redis Connection**: Check Upstash Redis URL and token validity
 - **Stripe Integration**: Ensure webhook endpoint is accessible and configured
@@ -475,6 +495,7 @@ npm run start              # Start production server
 - **Cron Job Failures**: Check `CRON_SECRET` matches deployment configuration
 
 #### Performance Monitoring
+
 - **Response Latency**: Target ≤ 3.0 seconds per turn
 - **Session Success Rate**: Monitor ≥ 95% completion rate
 - **Gate Classification**: Track ≥ 70% accuracy for context identification
@@ -483,6 +504,7 @@ npm run start              # Start production server
 ## Contract Reference
 
 The design spec lives in a separate contract repo (`e:\assistive-tool-contract`):
+
 - `contract.json` v1.4.0 — source of truth
 - `ARCHITECTURE.md` — 11-section system design
 - `BUILD_GUIDE.md` — 9-step build sequence
@@ -490,11 +512,12 @@ The design spec lives in a separate contract repo (`e:\assistive-tool-contract`)
 
 ## KPI Baselines
 
-| Metric | Target |
-|--------|--------|
-| Session success rate | >= 95% |
-| Response latency | <= 3.0 seconds |
-| Context gate pass rate | >= 70% |
-| Avg session duration | <= 2.0 minutes |
-| Net revenue (90 days) | >= $22.00 USD |
+| Metric                 | Target         |
+| ---------------------- | -------------- |
+| Session success rate   | >= 95%         |
+| Response latency       | <= 3.0 seconds |
+| Context gate pass rate | >= 70%         |
+| Avg session duration   | <= 2.0 minutes |
+| Net revenue (90 days)  | >= $22.00 USD  |
+
 # CI verified with secrets
