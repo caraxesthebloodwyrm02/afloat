@@ -65,3 +65,12 @@ npm run test:routing && npm run lint
 - `JWT_SECRET` and `PROVENANCE_SIGNING_KEY` must be different values
 - `PHASE4_MESSAGE_CAPABILITY_ENABLED`: keep `false` for initial setup
 - Stripe webhooks point to `/api/v1/webhooks/stripe`
+
+## Git hygiene and source protection
+
+- Respect **`.gitignore`** and **`core.excludesfile`** when set (`~/.config/git/ignore` — see `~/scripts/global-git-excludes-README.md`). Do not stage generated output (`dist/`, `build/`, `.next/`, coverage, `.venv/`, `node_modules/`, `*.tsbuildinfo`), caches, local `.env*`, or IDE-only dirs unless the operator explicitly requests it.
+- Prefer **`git status`** and **`git diff`** before **`git add`**. Avoid repository-wide **`git add .`**. Do not **force-push** or rewrite **history** without explicit instruction.
+- Change **generators and source**, not hand-edited **`dist/`** or lockfiles, unless the task is explicitly to update those files.
+- **Secrets:** Never commit credentials. If found tracked or staged, stop and escalate: **`.gitignore`**, **`git rm --cached`**, and rotation / history scrub are **human-gated** when pushes occurred.
+- **New repos:** `~/seed/templates/gitignore-node-strict.template` or `gitignore-python-uv.template`. **Audit:** `~/scripts/gitignore-audit.sh`.
+

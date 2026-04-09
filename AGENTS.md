@@ -279,3 +279,12 @@ Example:
 - Architecture docs: `docs/`
 - Contract spec: `contract.json`, `contract.hardened.json`
 - Claude rules: `.claude/rules/`
+
+### Git hygiene and source protection
+
+- Honor each repo’s **`.gitignore`** and **`core.excludesfile`** (`~/.config/git/ignore` when configured). Treat ignored paths as non-source; do not `git add` generated artifacts (`dist/`, `build/`, `.next/`, `coverage/`, `.venv/`, `node_modules/`, `*.tsbuildinfo`), caches, local env files, or IDE scratch unless the human explicitly overrides.
+- Be deliberate with git: use **`git status`** / **`git diff`** before staging; avoid blind **`git add .`**. Do not **force-push** or rewrite **history** unless the human asks. For **GRID-main** under CascadeProjects, follow this repo’s GRID/submodule rules in `CLAUDE.md`.
+- **Source vs generated:** Edit source trees and generators; do not hand-edit `dist/` or lockfiles without clear intent.
+- **Secrets:** Never commit API keys, tokens, or `.env` secrets. If something sensitive is tracked or staged, stop, flag it, add ignore rules, and involve the human for **`git rm --cached`** or history cleanup / rotation.
+- **Templates / audit:** `~/seed/templates/gitignore-*.template`, `~/scripts/gitignore-audit.sh`.
+

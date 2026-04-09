@@ -4,7 +4,7 @@
   "private": true,
   "description": "A no-fluff cognitive assistant with Ollama-first routing for quick decision support",
   "engines": {
-    "node": ">=22.0.0 <25"
+    "node": ">=22.0.0 <26"
   },
   "scripts": {
     "dev": "node start-dev.js",
