@@ -1,16 +1,16 @@
 ## Summary
 
--
+<!-- One-line description of what this PR does -->
 
-## Why
+## Root Cause
 
--
+<!-- What caused the issue or why this change is needed -->
 
-## Validation
+## Verification
 
 - [ ] `npm run lint`
 - [ ] `npm run typecheck`
-- [ ] `npm run test:coverage`
+- [ ] `npm run test`
 - [ ] `npm run build`
 
 ## Risk
@@ -21,4 +21,4 @@
 
 ## Rollback
 
--
+<!-- How to safely revert this change -->

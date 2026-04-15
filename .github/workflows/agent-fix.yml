@@ -1,4 +1,4 @@
-name: agent-fix
+name: agent-fix-${{ github.run_id }}-${{ github.run_attempt }}
 
 on:
   pull_request_target:
@@ -7,15 +7,42 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: read
 
 jobs:
-  fix:
-    name: agent-fix
+  agent-fix:
+    name: Agent Fix — attempt ${{ matrix.attempt }} of 3
     if: github.event.label.name == 'agent:fix'
     runs-on: [self-hosted, linux, agent-fix]
     concurrency:
-      group: agent-fix-${{ github.event.pull_request.number }}
+      group: agent-fix-${{ github.event.pull_request.number }}-${{ github.run_id }}
       cancel-in-progress: false
+    env:
+      NODE_VERSION: '22'
+      CI: true
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      PROVENANCE_SIGNING_KEY: ${{ secrets.PROVENANCE_SIGNING_KEY }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      STRIPE_PRICE_ID: ${{ secrets.STRIPE_PRICE_ID }}
+      STRIPE_CONTINUOUS_PRICE_ID: ${{ secrets.STRIPE_CONTINUOUS_PRICE_ID }}
+      STRIPE_PRICE_STARTER_MO: ${{ secrets.STRIPE_PRICE_STARTER_MO }}
+      STRIPE_PRICE_STARTER_QTR: ${{ secrets.STRIPE_PRICE_STARTER_QTR }}
+      STRIPE_PRICE_STARTER_YR: ${{ secrets.STRIPE_PRICE_STARTER_YR }}
+      STRIPE_PRICE_PRO_MO: ${{ secrets.STRIPE_PRICE_PRO_MO }}
+      STRIPE_PRICE_PRO_QTR: ${{ secrets.STRIPE_PRICE_PRO_QTR }}
+      STRIPE_PRICE_PRO_YR: ${{ secrets.STRIPE_PRICE_PRO_YR }}
+      UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+      OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
+      RUN_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
+    strategy:
+      matrix:
+        attempt: [1, 2, 3]
     steps:
       - name: Guard same-repo PRs only
         id: guard
@@ -27,8 +54,9 @@ jobs:
             echo "eligible=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v6
+      - name: Checkout PR branch
         if: steps.guard.outputs.eligible == 'true'
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -36,47 +64,59 @@ jobs:
       - name: Capture PR context
         if: steps.guard.outputs.eligible == 'true'
         run: |
-          printf '%s\n' "${{ github.event.pull_request.title }}" > .git/pr-title.txt
-          printf '%s\n' "${{ github.event.pull_request.body }}" > .git/pr-body.txt
-          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > .git/changed-files.txt
+          mkdir -p .git
+          printf '%s\n' "${{ github.event.pull_request.title }}" > .git/pr-title-${{ env.RUN_SUFFIX }}.txt
+          printf '%s\n' "${{ github.event.pull_request.body }}" > .git/pr-body-${{ env.RUN_SUFFIX }}.txt
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > .git/changed-files-${{ env.RUN_SUFFIX }}.txt
 
       - name: Setup Node.js
         if: steps.guard.outputs.eligible == 'true'
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Ensure Codex CLI is available
         if: steps.guard.outputs.eligible == 'true'
-        run: command -v codex >/dev/null
+        run: command -v codex >/dev/null || npm install -g @openinterpreter/codex
 
       - name: Run Codex fix pass
+        id: fix
         if: steps.guard.outputs.eligible == 'true'
         run: |
-          cat .github/agent-fix-prompt.md > .git/agent-fix-prompt.txt
+          cat .github/agent-fix-prompt.md > .git/agent-fix-prompt-${{ env.RUN_SUFFIX }}.txt
           {
             echo
-            echo "PR title:"
-            cat .git/pr-title.txt
-            echo
-            echo "PR body:"
-            cat .git/pr-body.txt
-            echo
-            echo "Changed files:"
-            cat .git/changed-files.txt
-          } >> .git/agent-fix-prompt.txt
-          codex exec --dangerously-bypass-approvals-and-sandbox -C . - < .git/agent-fix-prompt.txt
+            echo "---"
+            echo "PR title: $(cat .git/pr-title-${{ env.RUN_SUFFIX }}.txt)"
+            echo "PR body: $(cat .git/pr-body-${{ env.RUN_SUFFIX }}.txt)"
+            echo "Changed files: $(cat .git/changed-files-${{ env.RUN_SUFFIX }}.txt)"
+            echo "Attempt: ${{ matrix.attempt }} of 3"
+            echo "Run: ${{ env.RUN_SUFFIX }}"
+            echo "---"
+          } >> .git/agent-fix-prompt-${{ env.RUN_SUFFIX }}.txt
+          
+          codex exec --dangerously-bypass-approvals-and-sandbox -C . - < .git/agent-fix-prompt-${{ env.RUN_SUFFIX }}.txt 2>&1 || true
 
-      - name: Run verification
+      - name: Install and verify
+        id: verify
         if: steps.guard.outputs.eligible == 'true'
         run: |
           npm ci
-          npm run lint
-          npm run build
-          npm test
+          npm run lint 2>&1 | tee .git/lint-${{ env.RUN_SUFFIX }}.log
+          npm run typecheck 2>&1 | tee .git/typecheck-${{ env.RUN_SUFFIX }}.log
+          npm run test 2>&1 | tee .git/test-${{ env.RUN_SUFFIX }}.log
+          npm run build 2>&1 | tee .git/build-${{ env.RUN_SUFFIX }}.log
+          
+          if [ ${PIPESTATUS[0]} -eq 0 ] && [ ${PIPESTATUS[1]} -eq 0 ] && [ ${PIPESTATUS[2]} -eq 0 ] && [ ${PIPESTATUS[3]} -eq 0 ]; then
+            echo "VERIFICATION_RESULT=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERIFICATION_RESULT=fail" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Commit and push changes
-        if: steps.guard.outputs.eligible == 'true'
+      - name: Commit and push fixes
+        if: steps.guard.outputs.eligible == 'true' && steps.verify.outputs.VERIFICATION_RESULT == 'pass'
         run: |
           if git diff --quiet; then
             echo "No changes to commit."
@@ -86,19 +126,99 @@ jobs:
           git config user.email "portfolio-agent@users.noreply.github.com"
           git diff --name-only | xargs git add
           git ls-files --others --exclude-standard | xargs -r git add
-          git commit -m "chore(agent): apply automated PR fixes"
+          git commit -m "chore(agent): apply automated fix (attempt ${{ matrix.attempt }}, run ${{ env.RUN_SUFFIX }})"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
-      - name: Comment when skipped
-        if: steps.guard.outputs.eligible != 'true'
+      - name: Report failure
+        if: steps.guard.outputs.eligible == 'true' && steps.verify.outputs.VERIFICATION_RESULT == 'fail'
+        run: |
+          echo "Attempt ${{ matrix.attempt }}/3 failed (run ${{ env.RUN_SUFFIX }})."
+
+      - name: Report success
+        if: steps.guard.outputs.eligible == 'true' && steps.verify.outputs.VERIFICATION_RESULT == 'pass'
         uses: actions/github-script@v9
         with:
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `Agent fix skipped: ${process.env.REASON || 'not eligible'}.`
+              issue_number: ${{ github.event.pull_request.number }},
+              body: [
+                `## Agent Fix — Success`,
+                ``,
+                `Automated fix (attempt ${{ matrix.attempt }}, run ${{ env.RUN_SUFFIX }}) passed all gates:`,
+                `- npm run lint`,
+                `- npm run typecheck`,
+                `- npm run test`,
+                `- npm run build`,
+                ``,
+                `Changes have been pushed to \`${{ github.event.pull_request.head.ref }}\`.`,
+              ].join('\n'),
             });
-        env:
-          REASON: ${{ steps.guard.outputs.reason }}
+
+      - name: Remove agent:fix label on success
+        if: steps.guard.outputs.eligible == 'true' && steps.verify.outputs.VERIFICATION_RESULT == 'pass'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ github.event.pull_request.number }},
+                name: 'agent:fix',
+              });
+            } catch {
+              // Label may already be removed
+            }
+
+      - name: Escalate after 3 failures
+        if: steps.guard.outputs.eligible == 'true' && steps.verify.outputs.VERIFICATION_RESULT == 'fail' && matrix.attempt == 3
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.pull_request.number }},
+              body: [
+                `## Agent Fix — Escalated`,
+                ``,
+                `All 3 automated fix attempts failed (final run: ${{ env.RUN_SUFFIX }}). Manual review required.`,
+                ``,
+                `@caraxesthebloodwyrm02 please review.`,
+              ].join('\n'),
+            });
+            
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.pull_request.number }},
+              labels: ['needs:review'],
+            });
+
+  label-skipped:
+    name: Skipped
+    if: github.event.label.name == 'agent:fix'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check eligibility
+        id: guard
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=fork-prs-are-not-eligible" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/github-script@v9
+        if: steps.guard.outputs.eligible == 'false'
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Agent fix skipped: ${'${{ steps.guard.outputs.reason }}'} (run ${{ github.run_id }}-${{ github.run_attempt }}).`,
+            });

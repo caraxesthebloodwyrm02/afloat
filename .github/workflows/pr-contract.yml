@@ -1,0 +1,144 @@
+name: PR Contract-${{ github.run_id }}-${{ github.run_attempt }}
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to validate'
+        required: false
+
+concurrency:
+  group: pr-contract-${{ github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  RUN_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  pr-contract:
+    name: PR Contract Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Determine PR number
+        id: pr-num
+        run: |
+          if [ -n "${{ github.event.inputs.pr_number }}" ]; then
+            echo "number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch PR details
+        id: pr
+        uses: actions/github-script@v9
+        with:
+          result-encoding: string
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ steps.pr-num.outputs.number }},
+            });
+            console.log(JSON.stringify({
+              title: pr.data.title,
+              body: pr.data.body || '',
+              head: pr.data.head.ref,
+              base: pr.data.base.ref,
+              user: pr.data.user.login,
+              draft: pr.data.draft,
+              labels: pr.data.labels.map(l => l.name),
+            }));
+
+      - name: Validate branch naming
+        id: branch-check
+        run: |
+          BRANCH="${{ fromJSON(steps.pr.outputs.result).head }}"
+          echo "Branch: $BRANCH"
+          if [[ ! "$BRANCH" =~ ^(feat|fix|chore|docs|style|refactor|test|perf|ci|revert)\/[a-z0-9-]+$ ]]; then
+            echo "VALID=false" >> "$GITHUB_OUTPUT"
+            echo "FAILURE_REASON=branch-name-violation" >> "$GITHUB_OUTPUT"
+            echo "Branch '$BRANCH' must match: <type>/<description>"
+          else
+            echo "VALID=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate PR description
+        id: description-check
+        run: |
+          BODY="${{ fromJSON(steps.pr.outputs.result).body }}"
+          if [ -z "$BODY" ]; then
+            echo "VALID=false" >> "$GITHUB_OUTPUT"
+            echo "FAILURE_REASON=empty-pr-body" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          MISSING=""
+          if ! echo "$BODY" | grep -qi "## summary"; then
+            MISSING="${MISSING}## Summary; "
+          fi
+          if ! echo "$BODY" | grep -qi "verification"; then
+            MISSING="${MISSING}## Verification checklist; "
+          fi
+          if ! echo "$BODY" | grep -qi "root cause"; then
+            MISSING="${MISSING}## Root Cause; "
+          fi
+          
+          if [ -n "$MISSING" ]; then
+            echo "VALID=false" >> "$GITHUB_OUTPUT"
+            echo "FAILURE_REASON=missing-sections" >> "$GITHUB_OUTPUT"
+            echo "MISSING_SECTIONS=${MISSING::-2}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VALID=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post validation result
+        if: steps.branch-check.outputs.VALID == 'false' || steps.description-check.outputs.VALID == 'false'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const failures = [];
+            if ('${{ steps.branch-check.outputs.FAILURE_REASON }}' === 'branch-name-violation') {
+              failures.push('**Branch naming**: Must match `<type>/<description>` (e.g. `feat/add-login`).\n  Valid types: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, `perf`, `ci`, `revert`');
+            }
+            if ('${{ steps.description-check.outputs.FAILURE_REASON }}' === 'missing-sections') {
+              failures.push('**PR body**: Missing required sections:\n  `${{ steps.description-check.outputs.MISSING_SECTIONS }}`\n  Include these in your PR body before requesting review.');
+            }
+            if ('${{ steps.description-check.outputs.FAILURE_REASON }}' === 'empty-pr-body') {
+              failures.push('**PR body**: Empty. Include a description with `## Summary`, `## Root Cause`, and `## Verification` sections.');
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr-num.outputs.number }},
+              body: [
+                `## PR Contract — Validation Failed`,
+                ``,
+                ...failures,
+                ``,
+                `Please update the PR to comply with community guidelines and re-request review.`,
+              ].join('\n'),
+            });
+
+            // Block merge by adding blocking label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr-num.outputs.number }},
+              labels: ['needs:revision'],
+            });
+
+      - name: Approve if valid
+        if: steps.branch-check.outputs.VALID == 'true' && steps.description-check.outputs.VALID == 'true'
+        run: |
+          echo "PR Contract: ALL CHECKS PASSED"
+          echo "- Branch naming: valid"
+          echo "- PR description: complete"
