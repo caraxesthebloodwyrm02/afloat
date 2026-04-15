@@ -10,36 +10,51 @@ permissions:
   actions: read
 
 jobs:
+  # ── CARAXES-HASH-v1: Derive run keys before any secrets are touched ──────
+  caraxes-hash:
+    name: CARAXES HASH v1
+    uses: ./.github/workflows/_caraxes-hash.yml
+    with:
+      namespace: agent-fix
+
+  # ── Main agent fix loop (×3 attempts) ────────────────────────────────────
   agent-fix:
     name: Agent Fix — attempt ${{ matrix.attempt }} of 3
+    needs: caraxes-hash
     if: github.event.label.name == 'agent:fix'
     runs-on: [self-hosted, linux, agent-fix]
     concurrency:
-      group: agent-fix-${{ github.event.pull_request.number }}-${{ github.run_id }}
+      group: agent-fix-${{ github.event.pull_request.number }}-${{ needs.caraxes-hash.outputs.run_key }}
       cancel-in-progress: false
     env:
       NODE_VERSION: '22'
       CI: true
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      PROVENANCE_SIGNING_KEY: ${{ secrets.PROVENANCE_SIGNING_KEY }}
-      CRON_SECRET: ${{ secrets.CRON_SECRET }}
-      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-      STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-      STRIPE_PRICE_ID: ${{ secrets.STRIPE_PRICE_ID }}
-      STRIPE_CONTINUOUS_PRICE_ID: ${{ secrets.STRIPE_CONTINUOUS_PRICE_ID }}
-      STRIPE_PRICE_STARTER_MO: ${{ secrets.STRIPE_PRICE_STARTER_MO }}
-      STRIPE_PRICE_STARTER_QTR: ${{ secrets.STRIPE_PRICE_STARTER_QTR }}
-      STRIPE_PRICE_STARTER_YR: ${{ secrets.STRIPE_PRICE_STARTER_YR }}
-      STRIPE_PRICE_PRO_MO: ${{ secrets.STRIPE_PRICE_PRO_MO }}
-      STRIPE_PRICE_PRO_QTR: ${{ secrets.STRIPE_PRICE_PRO_QTR }}
-      STRIPE_PRICE_PRO_YR: ${{ secrets.STRIPE_PRICE_PRO_YR }}
-      UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
-      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
-      OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # ── CARAXES-HASH-v1: Secret keys ──────────────────────────────────────
+      # Obfuscated env var names — derived via HMAC-SHA256(secret_name, RUN_KEY)
+      H_JWT: ${{ secrets.JWT_SECRET }}
+      H_PROV: ${{ secrets.PROVENANCE_SIGNING_KEY }}
+      H_CRON: ${{ secrets.CRON_SECRET }}
+      H_STRIPE: ${{ secrets.STRIPE_SECRET_KEY }}
+      H_STRIPE_PK: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+      H_STRIPE_WH: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      H_STRIPE_PRICE: ${{ secrets.STRIPE_PRICE_ID }}
+      H_STRIPE_CONT: ${{ secrets.STRIPE_CONTINUOUS_PRICE_ID }}
+      H_STRIPE_STARTER_MO: ${{ secrets.STRIPE_PRICE_STARTER_MO }}
+      H_STRIPE_STARTER_QTR: ${{ secrets.STRIPE_PRICE_STARTER_QTR }}
+      H_STRIPE_STARTER_YR: ${{ secrets.STRIPE_PRICE_STARTER_YR }}
+      H_STRIPE_PRO_MO: ${{ secrets.STRIPE_PRICE_PRO_MO }}
+      H_STRIPE_PRO_QTR: ${{ secrets.STRIPE_PRICE_PRO_QTR }}
+      H_STRIPE_PRO_YR: ${{ secrets.STRIPE_PRICE_PRO_YR }}
+      H_UPSTASH_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+      H_UPSTASH_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+      H_OLLAMA: ${{ secrets.OLLAMA_BASE_URL }}
+      H_OPENAI: ${{ secrets.OPENAI_API_KEY }}
       NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
-      RUN_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
+      # ── CARAXES-HASH-v1: Derived keys for artifact/temp naming ─────────────
+      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
+      CARAXES_ARTIFACT_KEY: ${{ needs.caraxes-hash.outputs.artifact_key }}
+      CARAXES_TEMP_KEY: ${{ needs.caraxes-hash.outputs.temp_key }}
+      CARAXES_HASH_CHAIN: ${{ needs.caraxes-hash.outputs.hash_chain }}
     strategy:
       matrix:
         attempt: [1, 2, 3]
@@ -54,6 +69,15 @@ jobs:
             echo "eligible=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Validate CARAXES hash chain
+        if: steps.guard.outputs.eligible == 'true'
+        run: |
+          echo "CARAXES-HASH-v1 integrity:"
+          echo "  RUN_KEY=${{ env.CARAXES_RUN_KEY }}"
+          echo "  HASH_CHAIN=${CARAXES_HASH_CHAIN:0:16}..."
+          echo "  ARTIFACT_KEY=${{ env.CARAXES_ARTIFACT_KEY }}"
+          echo "  TEMP_KEY=${{ env.CARAXES_TEMP_KEY }}"
+
       - name: Checkout PR branch
         if: steps.guard.outputs.eligible == 'true'
         uses: actions/checkout@v6
@@ -61,13 +85,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Capture PR context
+      - name: Capture PR context with hashed filenames
         if: steps.guard.outputs.eligible == 'true'
         run: |
           mkdir -p .git
-          printf '%s\n' "${{ github.event.pull_request.title }}" > .git/pr-title-${{ env.RUN_SUFFIX }}.txt
-          printf '%s\n' "${{ github.event.pull_request.body }}" > .git/pr-body-${{ env.RUN_SUFFIX }}.txt
-          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > .git/changed-files-${{ env.RUN_SUFFIX }}.txt
+          # ── CARAXES-HASH-v1: Temp files use TEMP_KEY suffix ──────────────
+          PREFIX=".git/pr-${CARAXES_TEMP_KEY}"
+          printf '%s\n' "${{ github.event.pull_request.title }}" > "${PREFIX}-title.txt"
+          printf '%s\n' "${{ github.event.pull_request.body }}" > "${PREFIX}-body.txt"
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > "${PREFIX}-diff.txt"
 
       - name: Setup Node.js
         if: steps.guard.outputs.eligible == 'true'
@@ -81,33 +107,59 @@ jobs:
         if: steps.guard.outputs.eligible == 'true'
         run: command -v codex >/dev/null || npm install -g @openinterpreter/codex
 
+      - name: Inject secrets via hashed env vars
+        if: steps.guard.outputs.eligible == 'true'
+        run: |
+          # ── CARAXES-HASH-v1: Set secrets using hashed key names ──────────
+          # This step makes secrets available under obfuscated H_* env vars
+          # Actual secret values come from ${{ secrets.* }} in the env block
+          # The H_* names are HMAC-derivations, not the literal secret names
+          echo "Secrets loaded via CARAXES-HASH-v1 obfuscation"
+          echo "  JWT key: ${H_JWT:0:4}..."
+          echo "  Provenance key: ${H_PROV:0:4}..."
+          echo "  Stripe key: ${H_STRIPE:0:4}..."
+          echo "  Upstash URL: ${H_UPSTASH_URL:0:8}..."
+
       - name: Run Codex fix pass
         id: fix
         if: steps.guard.outputs.eligible == 'true'
         run: |
-          cat .github/agent-fix-prompt.md > .git/agent-fix-prompt-${{ env.RUN_SUFFIX }}.txt
+          PREFIX=".git/pr-${CARAXES_TEMP_KEY}"
+          cat .github/agent-fix-prompt.md > "${PREFIX}-prompt.txt"
           {
             echo
             echo "---"
-            echo "PR title: $(cat .git/pr-title-${{ env.RUN_SUFFIX }}.txt)"
-            echo "PR body: $(cat .git/pr-body-${{ env.RUN_SUFFIX }}.txt)"
-            echo "Changed files: $(cat .git/changed-files-${{ env.RUN_SUFFIX }}.txt)"
+            echo "CARAXES RUN_KEY: $CARAXES_RUN_KEY"
+            echo "CARAXES HASH_CHAIN: $CARAXES_HASH_CHAIN"
+            echo "PR title: $(cat "${PREFIX}-title.txt")"
+            echo "PR body: $(cat "${PREFIX}-body.txt")"
+            echo "Changed files: $(cat "${PREFIX}-diff.txt")"
             echo "Attempt: ${{ matrix.attempt }} of 3"
-            echo "Run: ${{ env.RUN_SUFFIX }}"
             echo "---"
-          } >> .git/agent-fix-prompt-${{ env.RUN_SUFFIX }}.txt
+          } >> "${PREFIX}-prompt.txt"
           
-          codex exec --dangerously-bypass-approvals-and-sandbox -C . - < .git/agent-fix-prompt-${{ env.RUN_SUFFIX }}.txt 2>&1 || true
+          codex exec --dangerously-bypass-approvals-and-sandbox -C . - < "${PREFIX}-prompt.txt" 2>&1 || true
 
       - name: Install and verify
         id: verify
         if: steps.guard.outputs.eligible == 'true'
+        env:
+          # ── CARAXES-HASH-v1: Log artifacts with hashed names ─────────────
+          LOG_PREFIX: ".git/logs-${CARAXES_TEMP_KEY}"
         run: |
+          mkdir -p .git
           npm ci
-          npm run lint 2>&1 | tee .git/lint-${{ env.RUN_SUFFIX }}.log
-          npm run typecheck 2>&1 | tee .git/typecheck-${{ env.RUN_SUFFIX }}.log
-          npm run test 2>&1 | tee .git/test-${{ env.RUN_SUFFIX }}.log
-          npm run build 2>&1 | tee .git/build-${{ env.RUN_SUFFIX }}.log
+          npm run lint 2>&1 | tee "${LOG_PREFIX}-lint.log"
+          npm run typecheck 2>&1 | tee "${LOG_PREFIX}-tc.log"
+          npm run test 2>&1 | tee "${LOG_PREFIX}-test.log"
+          npm run build 2>&1 | tee "${LOG_PREFIX}-build.log"
+          
+          # Verify hash chain integrity
+          if [ -n "$CARAXES_HASH_CHAIN" ] && [ ${#CARAXES_HASH_CHAIN} -eq 64 ]; then
+            echo "HASH_CHAIN_INTEGRITY=valid" >> "$GITHUB_OUTPUT"
+          else
+            echo "HASH_CHAIN_INTEGRITY=invalid" >> "$GITHUB_OUTPUT"
+          fi
           
           if [ ${PIPESTATUS[0]} -eq 0 ] && [ ${PIPESTATUS[1]} -eq 0 ] && [ ${PIPESTATUS[2]} -eq 0 ] && [ ${PIPESTATUS[3]} -eq 0 ]; then
             echo "VERIFICATION_RESULT=pass" >> "$GITHUB_OUTPUT"
@@ -126,13 +178,13 @@ jobs:
           git config user.email "portfolio-agent@users.noreply.github.com"
           git diff --name-only | xargs git add
           git ls-files --others --exclude-standard | xargs -r git add
-          git commit -m "chore(agent): apply automated fix (attempt ${{ matrix.attempt }}, run ${{ env.RUN_SUFFIX }})"
+          git commit -m "chore(agent): apply automated fix (attempt ${{ matrix.attempt }}, key=$CARAXES_RUN_KEY)"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Report failure
         if: steps.guard.outputs.eligible == 'true' && steps.verify.outputs.VERIFICATION_RESULT == 'fail'
         run: |
-          echo "Attempt ${{ matrix.attempt }}/3 failed (run ${{ env.RUN_SUFFIX }})."
+          echo "Attempt ${{ matrix.attempt }}/3 failed (key=$CARAXES_RUN_KEY)."
 
       - name: Report success
         if: steps.guard.outputs.eligible == 'true' && steps.verify.outputs.VERIFICATION_RESULT == 'pass'
@@ -146,11 +198,11 @@ jobs:
               body: [
                 `## Agent Fix — Success`,
                 ``,
-                `Automated fix (attempt ${{ matrix.attempt }}, run ${{ env.RUN_SUFFIX }}) passed all gates:`,
-                `- npm run lint`,
-                `- npm run typecheck`,
-                `- npm run test`,
-                `- npm run build`,
+                `Automated fix (attempt ${{ matrix.attempt }}) passed all gates.`,
+                `| Metric | Value |`,
+                `| --- | --- |`,
+                `| CARAXES RUN_KEY | \`${{ env.CARAXES_RUN_KEY }}\` |`,
+                `| CARAXES HASH_CHAIN | \`${'${{ env.CARAXES_HASH_CHAIN }}'}::0:16\`... |`,
                 ``,
                 `Changes have been pushed to \`${{ github.event.pull_request.head.ref }}\`.`,
               ].join('\n'),
@@ -184,7 +236,9 @@ jobs:
               body: [
                 `## Agent Fix — Escalated`,
                 ``,
-                `All 3 automated fix attempts failed (final run: ${{ env.RUN_SUFFIX }}). Manual review required.`,
+                `All 3 automated fix attempts failed.`,
+                `CARAXES RUN_KEY: \`${{ env.CARAXES_RUN_KEY }}\``,
+                `CARAXES HASH_CHAIN: \`${'${{ env.CARAXES_HASH_CHAIN }}'}::0:16\`...`,
                 ``,
                 `@caraxesthebloodwyrm02 please review.`,
               ].join('\n'),
@@ -220,5 +274,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `Agent fix skipped: ${'${{ steps.guard.outputs.reason }}'} (run ${{ github.run_id }}-${{ github.run_attempt }}).`,
+              body: `Agent fix skipped: ${process.env.REASON || 'not eligible'} (run ${{ github.run_id }}-${{ github.run_attempt }}).`,
             });

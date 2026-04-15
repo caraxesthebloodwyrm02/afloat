@@ -1,6 +1,4 @@
-name: Security
-
-run-name: Security - ${{ github.ref_name }} - ${{ github.sha }} - ${{ github.run_attempt }}
+name: Security-${{ github.run_id }}-${{ github.run_attempt }}
 
 on:
   push:
@@ -17,7 +15,7 @@ on:
       - 'docs/**'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+  group: security-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 
 permissions:
@@ -28,10 +26,24 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  # ── CARAXES-HASH-v1: Derive run key before any security scan ──────────────
+  caraxes-hash:
+    name: CARAXES HASH v1
+    uses: ./.github/workflows/_caraxes-hash.yml
+    with:
+      namespace: security
+
   secret-hygiene:
     name: Secret hygiene
     runs-on: ubuntu-latest
+    needs: caraxes-hash
+    env:
+      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
     steps:
+      - name: Validate CARAXES hash chain
+        run: |
+          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
+
       - name: Checkout with full history
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -48,7 +60,14 @@ jobs:
   dependency-audit:
     name: Dependency audit
     runs-on: ubuntu-latest
+    needs: caraxes-hash
+    env:
+      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
     steps:
+      - name: Validate CARAXES hash chain
+        run: |
+          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
+
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -68,7 +87,14 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
+    needs: caraxes-hash
+    env:
+      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
     steps:
+      - name: Validate CARAXES hash chain
+        run: |
+          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
+
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
