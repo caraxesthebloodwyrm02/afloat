@@ -78,44 +78,52 @@ export interface MeterPriceConfig {
   billingPeriod: BillingPeriod;
 }
 
+function requirePriceId(envVar: string): string {
+  const value = process.env[envVar];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${envVar}`);
+  }
+  return value;
+}
+
 export const PRICE_CONFIGS: Record<string, MeterPriceConfig> = {
   starter_monthly: {
-    priceId: process.env.STRIPE_PRICE_STARTER_MO ?? 'price_starter_monthly',
+    priceId: requirePriceId('STRIPE_PRICE_STARTER_MO'),
     mode: 'subscription',
     basePriceCents: 499,
     label: 'Starter — $4.99/month',
     billingPeriod: 'monthly',
   },
   starter_quarterly: {
-    priceId: process.env.STRIPE_PRICE_STARTER_QTR ?? 'price_starter_quarterly',
+    priceId: requirePriceId('STRIPE_PRICE_STARTER_QTR'),
     mode: 'subscription',
     basePriceCents: 1200,
     label: 'Starter — $12/quarter',
     billingPeriod: 'quarterly',
   },
   starter_annual: {
-    priceId: process.env.STRIPE_PRICE_STARTER_YR ?? 'price_starter_annual',
+    priceId: requirePriceId('STRIPE_PRICE_STARTER_YR'),
     mode: 'subscription',
     basePriceCents: 2900,
     label: 'Starter — $29/year',
     billingPeriod: 'annual',
   },
   pro_monthly: {
-    priceId: process.env.STRIPE_PRICE_PRO_MO ?? 'price_pro_monthly',
+    priceId: requirePriceId('STRIPE_PRICE_PRO_MO'),
     mode: 'subscription',
     basePriceCents: 999,
     label: 'Pro — $9.99/month',
     billingPeriod: 'monthly',
   },
   pro_quarterly: {
-    priceId: process.env.STRIPE_PRICE_PRO_QTR ?? 'price_pro_quarterly',
+    priceId: requirePriceId('STRIPE_PRICE_PRO_QTR'),
     mode: 'subscription',
     basePriceCents: 2400,
     label: 'Pro — $24/quarter',
     billingPeriod: 'quarterly',
   },
   pro_annual: {
-    priceId: process.env.STRIPE_PRICE_PRO_YR ?? 'price_pro_annual',
+    priceId: requirePriceId('STRIPE_PRICE_PRO_YR'),
     mode: 'subscription',
     basePriceCents: 5900,
     label: 'Pro — $59/year',
