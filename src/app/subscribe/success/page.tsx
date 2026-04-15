@@ -74,7 +74,7 @@ function SubscribeSuccessContent() {
       </p>
       <a
         href="/consent"
-        className="h-10 px-6 inline-flex items-center justify-center bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors"
+        className="h-10 px-6 inline-flex items-center justify-center bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
       >
         Set consent preferences
       </a>
