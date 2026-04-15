@@ -8,8 +8,40 @@
 - Never return API keys, tokens, or secrets in API responses.
 - Validate external input with Zod `.strict()` at API route boundaries.
 - Prefer the smallest change that keeps `npm run check` green.
-- Do not weaken CI, coverage, or security checks to make a change pass.
+- Do not weaken CI, coverage, or test rules to make a change pass.
 - Treat `.github/`, `scripts/`, and deployment files as high risk.
+
+## Community Guidelines
+
+Every PR must comply with these rules or the CI gate will block merge:
+
+### Branch Naming
+```
+<type>/<description>
+```
+Valid types: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, `perf`, `ci`, `revert`
+Example: `fix/stripe-price-id-hardcoding`
+
+### PR Body (required sections)
+```markdown
+## Summary
+<one-line description>
+
+## Root Cause
+<what caused the issue>
+
+## Verification
+- [x] lint
+- [x] typecheck
+- [x] tests (N/N)
+- [x] build
+```
+
+### Code Hygiene
+- No `console.log` / `debugger` / `console.debug` in production source (`src/`)
+- No `.only()` / `.skip()` left in tests
+- No hardcoded secrets — use `process.env`
+- Test coverage must stay above 68% lines
 
 ## Stack
 

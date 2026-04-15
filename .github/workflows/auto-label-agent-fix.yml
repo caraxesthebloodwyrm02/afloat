@@ -1,32 +1,88 @@
-name: Auto-Label Failed Dependabot PRs
+name: Auto-Label CI Failures-${{ github.run_id }}-${{ github.run_attempt }}
 
 on:
   workflow_run:
     workflows:
       - 'CI/CD'
+      - 'Security'
       - 'Dependabot Auto-Merge'
     types: [completed]
+
+concurrency:
+  group: auto-label-${{ github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
   pull-requests: write
 
+env:
+  RUN_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
+
 jobs:
-  label:
+  label-ci-failure:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label failed PRs with agent:fix
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prs = context.payload.workflow_run.pull_requests || [];
+            const actor = context.payload.workflow_run.actor?.login;
+            const workflowName = context.payload.workflow_run.name;
+            const runSuffix = process.env.RUN_SUFFIX;
+            
+            for (const pr of prs) {
+              const labels = pr.labels.map(l => l.name);
+              
+              if (!labels.includes('agent:fix')) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: ['agent:fix'],
+                });
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: [
+                    `## CI Failure Detected (${runSuffix})`,
+                    ``,
+                    `Workflow **${workflowName}** failed on this PR.`,
+                    ``,
+                    `| Actor | Workflow | Run |`,
+                    `| --- | --- | --- |`,
+                    `| @${actor} | ${workflowName} | ${runSuffix} |`,
+                    ``,
+                    `This PR has been automatically labeled \`agent:fix\` for self-healing.`,
+                    `The agent will run lint, typecheck, test, and build to resolve failures.`,
+                  ].join('\n'),
+                });
+              }
+            }
+
+  label-dependabot:
     if: |
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.actor.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v9
+      - name: Ensure dependabot label for escalation
+        uses: actions/github-script@v9
         with:
           script: |
             const prs = context.payload.workflow_run.pull_requests || [];
             for (const pr of prs) {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                labels: ['agent:fix'],
-              });
+              const labels = pr.labels.map(l => l.name);
+              if (!labels.includes('dependabot')) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: ['dependabot'],
+                });
+              }
             }

@@ -1,12 +1,19 @@
-name: Dependabot Auto-Merge
+name: Dependabot Auto-Merge-${{ github.run_id }}-${{ github.run_attempt }}
 
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]
 
+concurrency:
+  group: dependabot-auto-merge-${{ github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pull-requests: write
+
+env:
+  RUN_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
   auto-merge:
