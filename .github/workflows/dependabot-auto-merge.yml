@@ -12,14 +12,25 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  RUN_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
-
 jobs:
+  # ── CARAXES-HASH-v1: Derive run key for Dependabot merge ─────────────────
+  caraxes-hash:
+    name: CARAXES HASH v1
+    uses: ./.github/workflows/_caraxes-hash.yml
+    with:
+      namespace: dependabot
+
   auto-merge:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    needs: caraxes-hash
+    env:
+      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
     steps:
+      - name: Validate CARAXES hash chain
+        run: |
+          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
+
       - name: Fetch Dependabot metadata
         id: meta
         uses: dependabot/fetch-metadata@v3
