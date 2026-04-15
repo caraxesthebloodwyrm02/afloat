@@ -103,7 +103,7 @@ export default function ConsentPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full h-12 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          className="w-full h-12 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Save and start using Afloat'}
         </button>
