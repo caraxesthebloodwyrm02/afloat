@@ -1,6 +1,6 @@
 name: agent-fix-${{ github.run_id }}-${{ github.run_attempt }}
 
-on:
+"on":
   pull_request_target:
     types: [labeled]
 

@@ -1,6 +1,6 @@
 name: CI/CD-${{ github.run_id }}-${{ github.run_attempt }}
 
-on:
+"on":
   push:
     branches:
       - '**'

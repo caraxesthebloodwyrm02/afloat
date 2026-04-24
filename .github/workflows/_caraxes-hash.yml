@@ -1,6 +1,6 @@
 name: CARAXES HASH Setup
 
-on:
+"on":
   workflow_call:
     inputs:
       namespace:
