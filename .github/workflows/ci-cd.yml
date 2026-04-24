@@ -39,10 +39,6 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - name: Validate CARAXES hash chain
-        run: |
-          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
-
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -55,7 +51,7 @@ jobs:
             echo "Valid types: feat, fix, chore, docs, style, refactor, test, perf, ci, revert"
             exit 1
           fi
-          echo "Branch naming: PASS (key=$CARAXES_RUN_KEY)"
+          echo "Branch naming: PASS"
 
       - name: Validate PR description presence
         run: |
