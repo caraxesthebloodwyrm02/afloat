@@ -521,3 +521,4 @@ The design spec lives in a separate contract repo (`e:\assistive-tool-contract`)
 | Net revenue (90 days)  | >= $22.00 USD  |
 
 # CI verified with secrets
+# trigger
