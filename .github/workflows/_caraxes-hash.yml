@@ -8,46 +8,6 @@ on:
         required: false
         default: 'global'
         type: string
-    outputs:
-      run_key:
-        description: 'Deterministic run key (16-char hex)'
-        value: ${{ jobs.setup.outputs.run_key }}
-      run_entropy:
-        description: 'Full entropy seed for key derivation'
-        value: ${{ jobs.setup.outputs.run_entropy }}
-      secret_key_jwt:
-        description: 'HMAC-hashed JWT secret key'
-        value: ${{ jobs.setup.outputs.secret_key_jwt }}
-      secret_key_prov:
-        description: 'HMAC-hashed provenance secret key'
-        value: ${{ jobs.setup.outputs.secret_key_prov }}
-      secret_key_cron:
-        description: 'HMAC-hashed cron secret key'
-        value: ${{ jobs.setup.outputs.secret_key_cron }}
-      secret_key_stripe:
-        description: 'HMAC-hashed Stripe secret key'
-        value: ${{ jobs.setup.outputs.secret_key_stripe }}
-      secret_key_stripe_wh:
-        description: 'HMAC-hashed Stripe webhook key'
-        value: ${{ jobs.setup.outputs.secret_key_stripe_wh }}
-      secret_key_upstash:
-        description: 'HMAC-hashed Upstash token key'
-        value: ${{ jobs.setup.outputs.secret_key_upstash }}
-      secret_key_ollama:
-        description: 'HMAC-hashed Ollama key'
-        value: ${{ jobs.setup.outputs.secret_key_ollama }}
-      secret_key_openai:
-        description: 'HMAC-hashed OpenAI key'
-        value: ${{ jobs.setup.outputs.secret_key_openai }}
-      artifact_key:
-        description: 'HMAC-hashed artifact key'
-        value: ${{ jobs.setup.outputs.artifact_key }}
-      temp_key:
-        description: 'HMAC-hashed temp file key'
-        value: ${{ jobs.setup.outputs.temp_key }}
-      hash_chain:
-        description: 'SHA256 hash chain for integrity'
-        value: ${{ jobs.setup.outputs.hash_chain }}
 
 permissions:
   contents: read

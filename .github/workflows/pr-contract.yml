@@ -21,26 +21,11 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  # ── CARAXES-HASH-v1: Derive run key for PR contract validation ─────────────
-  caraxes-hash:
-    name: CARAXES HASH v1
-    uses: ./.github/workflows/_caraxes-hash.yml
-    with:
-      namespace: pr-contract
-
   pr-contract:
     name: PR Contract Validation
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    needs: caraxes-hash
-    env:
-      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
     steps:
-      - name: Validate CARAXES hash chain
-        run: |
-          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
-
-      - name: Determine PR number
         id: pr-num
         run: |
           if [ -n "${{ github.event.inputs.pr_number }}" ]; then
@@ -131,13 +116,13 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: ${{ steps.pr-num.outputs.number }},
-              body: [
-                `## PR Contract — Validation Failed (CARAXES RUN_KEY: \`${{ env.CARAXES_RUN_KEY }}\`)`,
-                ``,
-                ...failures,
-                ``,
-                `Please update the PR to comply with community guidelines and re-request review.`,
-              ].join('\n'),
+               body: [
+                 `## PR Contract — Validation Failed`,
+                 ``,
+                 ...failures,
+                 ``,
+                 `Please update the PR to comply with community guidelines and re-request review.`,
+               ].join('\n'),
             });
 
             await github.rest.issues.addLabels({
@@ -150,6 +135,6 @@ jobs:
       - name: Approve if valid
         if: steps.branch-check.outputs.VALID == 'true' && steps.description-check.outputs.VALID == 'true'
         run: |
-          echo "PR Contract: ALL CHECKS PASSED (CARAXES RUN_KEY=$CARAXES_RUN_KEY)"
+          echo "PR Contract: ALL CHECKS PASSED"
           echo "- Branch naming: valid"
           echo "- PR description: complete"

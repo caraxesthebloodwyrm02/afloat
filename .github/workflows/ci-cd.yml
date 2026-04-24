@@ -31,22 +31,12 @@ defaults:
     shell: bash
 
 jobs:
-  # ── CARAXES-HASH-v1: Derive run key before any work ──────────────────────
-  caraxes-hash:
-    name: CARAXES HASH v1
-    uses: ./.github/workflows/_caraxes-hash.yml
-    with:
-      namespace: ci-cd
-
   # ── Community guardrails gate ─────────────────────────────────────────────
   community-guardrails:
     name: Community guidelines
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: caraxes-hash
     if: github.event_name == 'pull_request'
-    env:
-      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
 
     steps:
       - name: Validate CARAXES hash chain
@@ -111,17 +101,9 @@ jobs:
     name: Lint, typecheck, test, and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [caraxes-hash, community-guardrails]
-    env:
-      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
-      CARAXES_ARTIFACT_KEY: ${{ needs.caraxes-hash.outputs.artifact_key }}
-
+    needs: community-guardrails
+    
     steps:
-      - name: Validate CARAXES hash chain
-        run: |
-          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
-          echo "CARAXES-HASH-v1: ARTIFACT_KEY=$CARAXES_ARTIFACT_KEY"
-
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -153,8 +135,7 @@ jobs:
       - name: Upload CI artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          # ── CARAXES-HASH-v1: Hashed artifact name ──────────────────────────
-          name: ci-artifacts-${{ needs.caraxes-hash.outputs.run_key }}-${{ needs.caraxes-hash.outputs.artifact_key }}
+          name: ci-artifacts-${{ github.run_id }}
           path: |
             .next/BUILD_ID
             .next/build-manifest.json
@@ -167,7 +148,7 @@ jobs:
   deploy_preview:
     name: Deploy preview to Vercel
     runs-on: ubuntu-latest
-    needs: [caraxes-hash, community-guardrails, quality]
+    needs: [community-guardrails, quality]
     if: github.event_name == 'push' && github.ref != 'refs/heads/main' && github.actor != 'dependabot[bot]'
     timeout-minutes: 20
     environment:
@@ -176,13 +157,8 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.vercel_token }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
-
+    
     steps:
-      - name: Validate CARAXES hash chain
-        run: |
-          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
-
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -216,7 +192,7 @@ jobs:
   deploy_production:
     name: Deploy production to Vercel
     runs-on: ubuntu-latest
-    needs: [caraxes-hash, community-guardrails, quality]
+    needs: [community-guardrails, quality]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 20
     environment:
@@ -225,13 +201,8 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.vercel_token }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      CARAXES_RUN_KEY: ${{ needs.caraxes-hash.outputs.run_key }}
-
+    
     steps:
-      - name: Validate CARAXES hash chain
-        run: |
-          echo "CARAXES-HASH-v1: RUN_KEY=$CARAXES_RUN_KEY"
-
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
