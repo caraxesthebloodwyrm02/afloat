@@ -8,6 +8,46 @@ on:
         required: false
         default: 'global'
         type: string
+    outputs:
+      run_key:
+        description: 'Deterministic run key (16-char hex)'
+        value: ${{ jobs.setup.outputs.run_key }}
+      run_entropy:
+        description: 'Full entropy seed for key derivation'
+        value: ${{ jobs.setup.outputs.run_entropy }}
+      secret_key_jwt:
+        description: 'HMAC-hashed JWT secret key'
+        value: ${{ jobs.setup.outputs.secret_key_jwt }}
+      secret_key_prov:
+        description: 'HMAC-hashed provenance secret key'
+        value: ${{ jobs.setup.outputs.secret_key_prov }}
+      secret_key_cron:
+        description: 'HMAC-hashed cron secret key'
+        value: ${{ jobs.setup.outputs.secret_key_cron }}
+      secret_key_stripe:
+        description: 'HMAC-hashed Stripe secret key'
+        value: ${{ jobs.setup.outputs.secret_key_stripe }}
+      secret_key_stripe_wh:
+        description: 'HMAC-hashed Stripe webhook key'
+        value: ${{ jobs.setup.outputs.secret_key_stripe_wh }}
+      secret_key_upstash:
+        description: 'HMAC-hashed Upstash token key'
+        value: ${{ jobs.setup.outputs.secret_key_upstash }}
+      secret_key_ollama:
+        description: 'HMAC-hashed Ollama key'
+        value: ${{ jobs.setup.outputs.secret_key_ollama }}
+      secret_key_openai:
+        description: 'HMAC-hashed OpenAI key'
+        value: ${{ jobs.setup.outputs.secret_key_openai }}
+      artifact_key:
+        description: 'HMAC-hashed artifact key'
+        value: ${{ jobs.setup.outputs.artifact_key }}
+      temp_key:
+        description: 'HMAC-hashed temp file key'
+        value: ${{ jobs.setup.outputs.temp_key }}
+      hash_chain:
+        description: 'SHA256 hash chain for integrity'
+        value: ${{ jobs.setup.outputs.hash_chain }}
 
 permissions:
   contents: read
@@ -18,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_key: ${{ steps.keys.outputs.RUN_KEY }}
-      run_entropy: ${{ steps.keys.outputs.RUN_ENTROPY }}
+      run_entropy: ${{ steps.entropy.outputs.RUN_ENTROPY }}
       secret_key_jwt: ${{ steps.keys.outputs.SECRET_KEY_JWT }}
       secret_key_prov: ${{ steps.keys.outputs.SECRET_KEY_PROV }}
       secret_key_cron: ${{ steps.keys.outputs.SECRET_KEY_CRON }}
@@ -35,100 +75,49 @@ jobs:
         id: entropy
         run: |
           set -euo pipefail
-          
-          # ── CARAXES-HASH-v1 Algorithm ──────────────────────────────────────
-          # Inputs:
-          #   GITHUB_RUN_ID       — unique workflow run identifier
-          #   GITHUB_RUN_ATTEMPT  — attempt number within the run
-          #   GITHUB_SHA          — commit SHA that triggered the workflow
-          #   GITHUB_WORKFLOW     — workflow filename
-          #   NAMESPACE           — per-workflow namespace for isolation
-          #
-          # Algorithm:
-          #   RUN_ENTROPY = SHA256(run_id || ':' || attempt || ':' || sha || ':' || namespace || ':' || /proc/sys/kernel/random/uuid)
-          #   RUN_KEY     = TRUNC(SHA256(RUN_ENTROPY), 16 hex chars)
-          #   SECRET_KEY  = TRUNC(HMAC-SHA256(secret_name, RUN_KEY), 16 hex chars)
-          #   ARTIFACT_KEY= TRUNC(HMAC-SHA256(artifact_name, RUN_KEY), 12 hex chars)
-          #   TEMP_KEY    = TRUNC(HMAC-SHA256('temp', RUN_KEY), 12 hex chars)
-          #   HASH_CHAIN  = SHA256(RUN_KEY || ':' || timestamp || ':' || random)
-          # ────────────────────────────────────────────────────────────────────
-          
           NAMESPACE="${{ inputs.namespace }}"
           RUN_ID="${{ github.run_id }}"
           ATTEMPT="${{ github.run_attempt }}"
           SHA="${{ github.sha }}"
           WORKFLOW="${{ github.workflow }}"
-          
-          # Layer 1: Raw entropy seed
           ENTROPY_SEED="$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid)"
           SYSTEM_RAND="$(head -c 32 /dev/urandom | base64 | tr -d '/+=')"
           NANOTIME="$(date +%s%N)"
-          
-          # Layer 2: Assemble entropy input
           ENTROPY_INPUT="${RUN_ID}:${ATTEMPT}:${SHA}:${NAMESPACE}:${WORKFLOW}:${SYSTEM_RAND}:${NANOTIME}"
-          
-          # Layer 3: SHA256 hash chain
           RUN_ENTROPY="$(echo -n "$ENTROPY_INPUT" | sha256sum | awk '{print $1}')"
-          
-          # Layer 4: Derive run key (16 hex chars = 64 bits)
           RUN_KEY="$(echo -n "$RUN_ENTROPY" | sha256sum | cut -c1-16)"
-          
           echo "RUN_ENTROPY=${RUN_ENTROPY}" >> "$GITHUB_OUTPUT"
           echo "RUN_KEY=${RUN_KEY}" >> "$GITHUB_OUTPUT"
-          
-          echo "Algorithm: CARAXES-HASH-v1"
-          echo "  Namespace: $NAMESPACE"
-          echo "  Run ID: $RUN_ID"
-          echo "  Attempt: $ATTEMPT"
-          echo "  SHA: ${SHA:0:8}..."
-          echo "  RUN_KEY: $RUN_KEY"
 
       - name: CARAXES-HASH-v1 — Derive secret keys
         id: keys
         run: |
           set -euo pipefail
-          
           RUN_KEY="${{ steps.entropy.outputs.RUN_KEY }}"
-          
-          # Derive HMAC keys per secret type
           derive_key() {
             local NAME="$1"
-            local KEY
-            KEY="$(echo -n "${NAME}:${RUN_KEY}" | openssl dgst -sha256 -hmac "$RUN_KEY" 2>/dev/null | awk '{print $2}' | cut -c1-16)"
-            echo "$KEY"
+            echo "$NAME=$(echo -n "${NAME}:${RUN_KEY}" | openssl dgst -sha256 -hmac "$RUN_KEY" 2>/dev/null | awk '{print $2}' | cut -c1-16)"
           }
-          
-          echo "SECRET_KEY_JWT=$(derive_key 'jwt_secret')" >> "$GITHUB_OUTPUT"
-          echo "SECRET_KEY_PROV=$(derive_key 'prov_secret')" >> "$GITHUB_OUTPUT"
-          echo "SECRET_KEY_CRON=$(derive_key 'cron_secret')" >> "$GITHUB_OUTPUT"
-          echo "SECRET_KEY_STRIPE=$(derive_key 'stripe_secret')" >> "$GITHUB_OUTPUT"
-          echo "SECRET_KEY_STRIPE_WH=$(derive_key 'stripe_wh')" >> "$GITHUB_OUTPUT"
-          echo "SECRET_KEY_UPSTASH=$(derive_key 'upstash_token')" >> "$GITHUB_OUTPUT"
-          echo "SECRET_KEY_OLLAMA=$(derive_key 'ollama_api')" >> "$GITHUB_OUTPUT"
-          echo "SECRET_KEY_OPENAI=$(derive_key 'openai_api')" >> "$GITHUB_OUTPUT"
-          echo "ARTIFACT_KEY=$(derive_key 'artifact')" >> "$GITHUB_OUTPUT"
-          echo "TEMP_KEY=$(derive_key 'temp')" >> "$GITHUB_OUTPUT"
+          derive_key jwt_secret >> "$GITHUB_OUTPUT"
+          derive_key prov_secret >> "$GITHUB_OUTPUT"
+          derive_key cron_secret >> "$GITHUB_OUTPUT"
+          derive_key stripe_secret >> "$GITHUB_OUTPUT"
+          derive_key stripe_wh >> "$GITHUB_OUTPUT"
+          derive_key upstash_token >> "$GITHUB_OUTPUT"
+          derive_key ollama_api >> "$GITHUB_OUTPUT"
+          derive_key openai_api >> "$GITHUB_OUTPUT"
+          derive_key artifact >> "$GITHUB_OUTPUT"
+          echo "ARTIFACT_KEY=$(derive_key artifact)" >> "$GITHUB_OUTPUT"
+          echo "TEMP_KEY=$(derive_key temp)" >> "$GITHUB_OUTPUT"
 
       - name: CARAXES-HASH-v1 — Hash chain integrity
         id: chain
         run: |
           set -euo pipefail
-          
           RUN_KEY="${{ steps.entropy.outputs.RUN_KEY }}"
           RUN_ENTROPY="${{ steps.entropy.outputs.RUN_ENTROPY }}"
           TIMESTAMP="$(date +%s)"
           NONCE="$(head -c 16 /dev/urandom | base64 | tr -d '/+=')"
-          
-          # Build hash chain: H(prev || run_key || entropy || timestamp || nonce)
           CHAIN_INPUT="${RUN_KEY}:${RUN_ENTROPY}:${TIMESTAMP}:${NONCE}"
           HASH_CHAIN="$(echo -n "$CHAIN_INPUT" | sha256sum | awk '{print $1}')"
-          
           echo "HASH_CHAIN=${HASH_CHAIN}" >> "$GITHUB_OUTPUT"
-          echo "Integrity chain established: ${HASH_CHAIN:0:16}..."
-
-      - name: CARAXES-HASH-v1 — Validate outputs
-        run: |
-          echo "::notice::CARAXES-HASH-v1 validation:"
-          echo "  run_key=${{ steps.entropy.outputs.RUN_KEY }}"
-          echo "  hash_chain=${{ steps.chain.outputs.HASH_CHAIN }}"
-          echo "  entropy_bits=$(echo -n '${{ steps.entropy.outputs.RUN_ENTROPY }}' | wc -c) chars"

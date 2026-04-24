@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
+      - name: Determine PR number
         id: pr-num
         run: |
           if [ -n "${{ github.event.inputs.pr_number }}" ]; then
