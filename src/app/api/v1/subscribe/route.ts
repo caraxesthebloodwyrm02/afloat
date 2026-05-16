@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
 
   let tier = 'starter';
   let billing: BillingPeriod = 'quarterly';
+  let metadata: Record<string, string> | undefined;
+  
   try {
     const body = await request.json();
     if (body.tier && isActiveTier(body.tier) && body.tier !== 'free_trial') {
@@ -30,6 +32,12 @@ export async function POST(request: NextRequest) {
       body.billing === 'quarterly'
     ) {
       billing = body.billing;
+    }
+    
+    if (body.reward_id || body.student_id) {
+      metadata = {};
+      if (body.reward_id) metadata.reward_id = body.reward_id;
+      if (body.student_id) metadata.student_id = body.student_id;
     }
   } catch {
     // Default to starter quarterly
@@ -48,7 +56,8 @@ export async function POST(request: NextRequest) {
       tier,
       billing,
       `${appUrl}/subscribe/success`,
-      `${appUrl}/subscribe`
+      `${appUrl}/subscribe`,
+      metadata
     );
 
     return NextResponse.json({ url: session.url });

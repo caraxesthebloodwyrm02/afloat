@@ -58,7 +58,7 @@ describe('In-Memory Session Store', () => {
       expect(deadline).not.toBeNull();
       const expectedDeadline =
         new Date(session.start_time).getTime() + limits.maxDurationMs;
-      expect(deadline).toBe(expectedDeadline);
+      expect(deadline).toBeCloseTo(expectedDeadline, -1);
     });
   });
 

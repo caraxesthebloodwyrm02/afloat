@@ -60,15 +60,17 @@ describe('stripe helpers', () => {
     expect(() => getStripe()).toThrow(/Missing STRIPE_SECRET_KEY/);
   });
 
-  it('creates a standard checkout session with subscription mode', async () => {
+  it('creates a standard checkout session with subscription mode and metadata', async () => {
     vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_123');
     mockCreateSession.mockResolvedValueOnce({ id: 'cs_123' });
 
     const { createCheckoutSession } = await import('@/lib/stripe');
+    const metadata = { reward_id: 'rw_123', student_id: 'st_456' };
     await createCheckoutSession(
       'price_trial',
       'https://afloat.example/success',
-      'https://afloat.example/cancel'
+      'https://afloat.example/cancel',
+      metadata
     );
 
     expect(mockCreateSession).toHaveBeenCalledWith({
@@ -78,6 +80,7 @@ describe('stripe helpers', () => {
       success_url:
         'https://afloat.example/success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://afloat.example/cancel',
+      metadata,
     });
   });
 

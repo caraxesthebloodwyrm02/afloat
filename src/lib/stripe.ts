@@ -43,7 +43,8 @@ export function getStripe(): Stripe {
 export async function createCheckoutSession(
   priceId: string,
   successUrl: string,
-  cancelUrl: string
+  cancelUrl: string,
+  metadata?: { reward_id?: string; student_id?: string }
 ): Promise<Stripe.Checkout.Session> {
   const stripe = getStripe();
   return stripe.checkout.sessions.create({
@@ -52,6 +53,7 @@ export async function createCheckoutSession(
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: cancelUrl,
+    ...(metadata && { metadata }),
   });
 }
 

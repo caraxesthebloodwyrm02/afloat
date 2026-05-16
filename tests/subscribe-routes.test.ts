@@ -119,7 +119,8 @@ describe('subscribe routes', () => {
         'starter',
         'quarterly',
         'https://afloat.example/subscribe/success',
-        'https://afloat.example/subscribe'
+        'https://afloat.example/subscribe',
+        undefined
       );
     });
 
@@ -138,7 +139,8 @@ describe('subscribe routes', () => {
         'pro',
         'monthly',
         'https://afloat.example/subscribe/success',
-        'https://afloat.example/subscribe'
+        'https://afloat.example/subscribe',
+        undefined
       );
     });
 
