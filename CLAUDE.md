@@ -30,8 +30,8 @@ npm run test:routing && npm run lint
 
 ## Architecture
 
-- **App Router**: All routes in `app/` (Next.js 16 conventions)
-- **API Routes**: `app/api/` — all server-side logic, Stripe calls, auth
+- **App Router**: All routes live under `src/app/` (Next.js 16 conventions)
+- **API Routes**: `src/app/api/**/route.ts` — **24** App Router handlers (v1 REST + cron); all server-side Stripe and auth logic stays here
 - **Auth**: JWT via `jose` — tokens are httpOnly cookies, refresh is server-side
 - **Rate Limiting**: `@upstash/ratelimit` — never bypass or weaken limits
 - **Validation**: `zod` schemas at all API boundaries (use `.strict()` at external boundaries)

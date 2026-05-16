@@ -39,11 +39,13 @@ Follow this sequence so work is consistent and verifiable. Baseline pattern: [GR
 
 ### Session start
 
-From Afloat repo root, with dependencies installed (`npm install`), run before writing new code:
+From Afloat repo root, with dependencies installed (`npm ci` or `npm install`), run before writing new code:
 
 ```bash
 npm run test:routing && npm run lint
 ```
+
+CI already runs `npm ci` before `npm run test`; local scripts that invoke Vitest must do the same or `npm run test` will fail with missing binaries (**exit 127**).
 
 ### Session kickoff (example)
 
