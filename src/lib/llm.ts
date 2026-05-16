@@ -97,6 +97,7 @@ const VALID_GATE_TYPES: GateType[] = [
   'priority_decision',
   'quick_briefing',
   'context_gate_resolution',
+  'personal_alignment',
   'out_of_scope',
 ];
 

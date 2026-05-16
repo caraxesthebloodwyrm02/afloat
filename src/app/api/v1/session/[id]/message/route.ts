@@ -287,6 +287,28 @@ export async function POST(
       );
       await updateSession(session);
 
+      // --- Processor Routing: Personal Alignment ---
+      if (llmResponse.gate_type === 'personal_alignment') {
+        try {
+          // Wire to echoes-server audit for long-term growth tracking
+          await auditAction(request, user, {
+            action: 'create',
+            resource_type: 'user_profile',
+            resource_id: `reflection-${sessionId}`,
+            outcome: 'success',
+            metadata: {
+              source: 'afloat-reflection',
+              raw_input: userMessage,
+              analysis: llmResponse.brief,
+              model_id: llmResponse.model_id,
+              personality_alignment_v1: true
+            },
+          });
+        } catch (auditErr) {
+          console.error('[Processor] Failed to route reflection to audit:', auditErr);
+        }
+      }
+
       await auditAction(request, user, {
         action: 'update',
         resource_type: 'session_log',

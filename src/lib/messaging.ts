@@ -29,6 +29,7 @@ const GATE_ACCOMPLISHMENTS: Record<GateType, string> = {
   priority_decision: 'sorted a priority conflict',
   quick_briefing: 'got a quick briefing',
   context_gate_resolution: 'resolved a context gate',
+  personal_alignment: 'aligned with personal goals',
   out_of_scope: 'tested the scope boundary',
   unclassified: 'explored the assistant',
 };
