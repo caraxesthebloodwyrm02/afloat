@@ -33,7 +33,7 @@
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "stripe": "22.1.1",
+    "stripe": "22.2.0",
     "uuid": "14.0.0"
   },
   "devDependencies": {
@@ -43,14 +43,14 @@
     "@types/react-dom": "^19",
     "@types/uuid": "11.0.0",
     "@vitejs/plugin-react": "5.1.4",
-    "@vitest/coverage-v8": "4.1.6",
+    "@vitest/coverage-v8": "4.1.7",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "prettier": "^3.8.3",
     "tailwindcss": "^4",
     "typescript": "^6",
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   },
   "eslintConfig": {
     "extends": [
